@@ -50,6 +50,9 @@ WebRTC (`getUserMedia`, `RTCPeerConnection`)는 WebView에서 그대로 동작 �
 
 ## 코드 작성 규칙
 
+- YAGNI 원칙을 지킬 것. (당장 필요하지 않은 기능은 미리 만들지 말라)
+- DRY 원칙을 지킬 것. (동일한 코드를 반복적으로 사용하지 말라)
+
 코드를 쓰거나 수정할 때는 `.claude/rules/` 하위 원칙을 따르세요:
 
 - `readability.md` — 가독성 (매직 넘버, 추상화, 조건 분리, 삼항, 시선 이동, 조건 명명)
