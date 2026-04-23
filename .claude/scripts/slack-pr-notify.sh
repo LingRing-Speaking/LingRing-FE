@@ -18,8 +18,8 @@ if [ -f "$ENV_FILE" ]; then
   set +a
 fi
 
-if [ -z "${SLACK_FRONTEND_TOKEN:-}" ] || [ -z "${SLACK_FRONTEND_PR_CHANNELL:-}" ]; then
-  echo "slack skipped: SLACK_FRONTEND_TOKEN or SLACK_FRONTEND_PR_CHANNELL not set"
+if [ -z "${SLACK_FRONTEND_TOKEN:-}" ] || [ -z "${SLACK_FRONTEND_PR_CHANNEL:-}" ]; then
+  echo "slack skipped: SLACK_FRONTEND_TOKEN or SLACK_FRONTEND_PR_CHANNEL not set"
   exit 0
 fi
 
@@ -34,10 +34,10 @@ else
   MSG="PR 올렸습니다!! 시간날 때 확인 부탁드려요!🙂 <${PR_URL}|${PR_TITLE}>"
 fi
 
-PAYLOAD=$(jq -cn --arg ch "$SLACK_PR_CHANNEL" --arg text "$MSG" '{channel:$ch,text:$text}')
+PAYLOAD=$(jq -cn --arg ch "$SLACK_FRONTEND_PR_CHANNEL" --arg text "$MSG" '{channel:$ch,text:$text}')
 
 curl -s -X POST \
-  -H "Authorization: Bearer $SLACK_USER_TOKEN" \
+  -H "Authorization: Bearer $SLACK_FRONTEND_TOKEN" \
   -H "Content-Type: application/json; charset=utf-8" \
   --data "$PAYLOAD" \
   https://slack.com/api/chat.postMessage
