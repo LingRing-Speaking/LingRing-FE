@@ -1,0 +1,10 @@
+dist
+node_modules
+coverage
+ios
+android
+*.html
+package-lock.json
+.claude
+.github
+README.md
