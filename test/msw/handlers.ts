@@ -1,9 +1,8 @@
 import { http, HttpResponse } from "msw";
-
-const API_BASE = "http://localhost:3000";
+import { env } from "@/config/env";
 
 export const handlers = [
-  http.get(`${API_BASE}/users/:userId/my`, ({ params }) => {
+  http.get(`${env.apiBaseUrl}/users/:userId/my`, ({ params }) => {
     return HttpResponse.json({
       data: { id: Number(params.userId), name: "Lee" },
       status: 200,
@@ -11,7 +10,7 @@ export const handlers = [
     });
   }),
 
-  http.get(`${API_BASE}/users/:userId/stats`, ({ params }) => {
+  http.get(`${env.apiBaseUrl}/users/:userId/stats`, ({ params }) => {
     return HttpResponse.json({
       data: {
         userId: Number(params.userId),
