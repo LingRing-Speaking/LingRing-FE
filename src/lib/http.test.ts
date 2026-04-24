@@ -33,6 +33,20 @@ describe("httpGet", () => {
     });
   });
 
+  it("4xx 응답 body 에 message 필드가 없으면 Unknown error 로 throw 한다", async () => {
+    server.use(
+      http.get("http://localhost:3000/nomsg", () =>
+        HttpResponse.json({ data: null }, { status: 500 }),
+      ),
+    );
+
+    await expect(httpGet("/nomsg")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 500,
+      message: "Unknown error",
+    });
+  });
+
   it("네트워크 실패 시 에러를 throw 한다", async () => {
     server.use(http.get("http://localhost:3000/boom", () => HttpResponse.error()));
 
