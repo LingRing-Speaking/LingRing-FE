@@ -46,8 +46,17 @@ describe("MyPagePage", () => {
 
   it("다시 시도 버튼을 누르면 두 쿼리를 다시 부른다", async () => {
     const user = userEvent.setup();
+    let myCallCount = 0;
     let statsCallCount = 0;
     server.use(
+      http.get("http://localhost:3000/users/1/my", ({ params }) => {
+        myCallCount += 1;
+        return HttpResponse.json({
+          data: { id: Number(params.userId), name: "Lee" },
+          status: 200,
+          message: "OK",
+        });
+      }),
       http.get("http://localhost:3000/users/1/stats", () => {
         statsCallCount += 1;
         if (statsCallCount === 1) {
@@ -84,5 +93,8 @@ describe("MyPagePage", () => {
     await waitFor(() => {
       expect(screen.getByText("Advanced")).toBeInTheDocument();
     });
+
+    expect(myCallCount).toBeGreaterThanOrEqual(2);
+    expect(statsCallCount).toBe(2);
   });
 });
