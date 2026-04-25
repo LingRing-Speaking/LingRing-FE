@@ -63,7 +63,7 @@ export function BottomTabBar() {
   return (
     <nav
       aria-label="메인 네비게이션"
-      className="absolute bottom-0 left-0 right-0 flex h-[72px] items-start border-t border-gray-100 bg-white pt-2 shadow-nav"
+      className="absolute bottom-0 left-0 right-0 z-10 flex h-[72px] items-start border-t border-gray-100 bg-white pt-2 shadow-nav"
     >
       <Link
         to="/"

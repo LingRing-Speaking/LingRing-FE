@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { env } from "@/config/env";
 import { useUserStats } from "@/domains/user/hooks/useUserStats";
 import { useUserExpressions } from "@/domains/userExpression/hooks/useUserExpressions";
@@ -52,12 +53,10 @@ export function UserExpressionsPage() {
 
         <main className="relative flex h-[calc(100%-44px)] flex-col bg-gray-50">
           <div className="relative z-[2] flex h-12 items-center bg-gray-50 px-3">
-            <button
-              type="button"
+            <Link
+              to="/mypage"
               aria-label="뒤로 가기"
-              disabled
-              aria-disabled="true"
-              className="flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-full text-gray-700"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-gray-700"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -70,7 +69,7 @@ export function UserExpressionsPage() {
               >
                 <polyline points="15 18 9 12 15 6" />
               </svg>
-            </button>
+            </Link>
           </div>
 
           <header className="bg-gray-50 px-6 pb-4 pt-1">

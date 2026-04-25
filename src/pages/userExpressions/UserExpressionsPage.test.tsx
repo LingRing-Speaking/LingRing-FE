@@ -138,9 +138,12 @@ describe("UserExpressionsPage", () => {
     expect(statsCallCount).toBeGreaterThanOrEqual(2);
   });
 
-  it("뒤로 가기 버튼은 disabled 다", () => {
+  it("뒤로 가기 버튼은 /mypage 로 이동하는 링크다", () => {
     renderWithQueryClient(<UserExpressionsPage />);
 
-    expect(screen.getByRole("button", { name: "뒤로 가기" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "뒤로 가기" })).toHaveAttribute(
+      "href",
+      "/mypage",
+    );
   });
 });
