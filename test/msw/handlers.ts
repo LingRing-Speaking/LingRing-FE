@@ -60,4 +60,17 @@ export const handlers = [
       message: "OK",
     });
   }),
+
+  http.get(`${env.apiBaseUrl}/recommended-expressions/daily`, () => {
+    return HttpResponse.json({
+      data: {
+        id: 1,
+        expression: "Sounds good to me.",
+        meaning: "좋아요, 저도 동의해요 — 가볍게 맞장구칠 때",
+        createdAt: "2026-04-25T08:00:00.000000",
+      },
+      status: 200,
+      message: "OK",
+    });
+  }),
 ];
