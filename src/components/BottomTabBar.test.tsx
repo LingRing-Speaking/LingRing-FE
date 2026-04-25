@@ -1,0 +1,63 @@
+import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { describe, expect, it } from "vitest";
+import { BottomTabBar } from "./BottomTabBar";
+
+function renderAt(pathname: string) {
+  return render(
+    <MemoryRouter initialEntries={[pathname]}>
+      <BottomTabBar />
+    </MemoryRouter>,
+  );
+}
+
+describe("BottomTabBar", () => {
+  it("홈·마이페이지는 링크, 대화 기록은 disabled 버튼이다", () => {
+    renderAt("/");
+
+    expect(screen.getByRole("link", { name: /^홈$/ })).toHaveAttribute(
+      "href",
+      "/",
+    );
+    expect(screen.getByRole("link", { name: /마이페이지/ })).toHaveAttribute(
+      "href",
+      "/mypage",
+    );
+    expect(screen.getByRole("button", { name: /대화 기록/ })).toBeDisabled();
+  });
+
+  it("/ 경로에서는 홈 탭이 활성 상태다", () => {
+    renderAt("/");
+
+    expect(screen.getByRole("link", { name: /^홈$/ })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: /마이페이지/ })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+
+  it("/mypage 경로에서는 마이페이지 탭이 활성 상태다", () => {
+    renderAt("/mypage");
+
+    expect(screen.getByRole("link", { name: /마이페이지/ })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: /^홈$/ })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+
+  it("탭바 외 경로(/expressions)에서는 어떤 탭도 활성이 아니다", () => {
+    renderAt("/expressions");
+
+    expect(screen.getByRole("link", { name: /^홈$/ })).not.toHaveAttribute(
+      "aria-current",
+    );
+    expect(screen.getByRole("link", { name: /마이페이지/ })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+});

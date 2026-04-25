@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 type Props = {
   expressionCount: number;
 };
@@ -9,8 +11,8 @@ export function MyRecords({ expressionCount }: Props) {
         내 기록
       </h3>
       <div className="mb-4 overflow-hidden rounded-[18px] bg-white shadow-card">
-        <button
-          type="button"
+        <Link
+          to="/expressions"
           className="flex w-full items-center gap-3.5 border-none bg-none px-5 py-4 text-left"
         >
           <span
@@ -38,7 +40,7 @@ export function MyRecords({ expressionCount }: Props) {
               <polyline points="9 18 15 12 9 6" />
             </svg>
           </span>
-        </button>
+        </Link>
       </div>
     </>
   );

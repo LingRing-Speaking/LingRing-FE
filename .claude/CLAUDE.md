@@ -10,7 +10,7 @@ LingRing-FE는 **LingRing**의 프론트엔드입니다. LingRing은 한국어 �
 
 저장소는 아직 스캐폴드 전입니다 (HTML 목업 10개 + 프로필 이미지만 존재). 아래 스택을 전제로 구현하세요. 대안 제안은 맥락이 분명한 경우에만.
 
-- TypeScript · React 18 · Vite · Tailwind CSS · React Router v6
+- TypeScript · React 18 · Vite · Tailwind CSS · React Router v7
 - Zustand (클라이언트 상태) · TanStack Query (서버 상태)
 - React Hook Form + Zod · Radix UI (모달/바텀시트/토글)
 - **Capacitor 6** 으로 iOS/Android 래핑 (React Native · Flutter 아님)
