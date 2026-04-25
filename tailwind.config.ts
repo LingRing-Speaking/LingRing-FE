@@ -57,6 +57,16 @@ export default {
         ctrl: "0 8px 24px rgba(0, 0, 0, 0.08)",
         end: "0 12px 28px rgba(255, 131, 100, 0.4)",
       },
+      keyframes: {
+        "pulse-ring": {
+          "0%": { transform: "scale(0.92)", opacity: "0.18" },
+          "85%": { opacity: "0" },
+          "100%": { transform: "scale(1.08)", opacity: "0" },
+        },
+      },
+      animation: {
+        "pulse-ring": "pulse-ring 4.5s ease-out infinite",
+      },
     },
   },
   plugins: [],
