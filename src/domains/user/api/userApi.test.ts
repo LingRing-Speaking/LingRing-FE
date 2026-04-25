@@ -17,7 +17,7 @@ describe("userApi", () => {
       mannerTemperature: 36.5,
       totalCallCount: 23,
       currentStreakDays: 7,
-      savedExpressionCount: 42,
+      expressionCount: 42,
     });
   });
 });
