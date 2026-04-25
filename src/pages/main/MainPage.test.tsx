@@ -144,7 +144,7 @@ describe("MainPage", () => {
     expect(dailyCallCount).toBe(2);
   });
 
-  it("표현 카드·통화 버튼·하단 탭이 모두 disabled 다", async () => {
+  it("표현 카드·통화 버튼은 disabled 이고, 하단 탭의 홈은 활성 상태다", async () => {
     renderWithQueryClient(<MainPage />);
 
     await waitFor(() =>
@@ -155,6 +155,9 @@ describe("MainPage", () => {
     expect(
       screen.getByRole("button", { name: "오늘의 표현 자세히 보기" }),
     ).toBeDisabled();
-    expect(screen.getByRole("button", { name: /^홈$/ })).toBeDisabled();
+    expect(screen.getByRole("link", { name: /^홈$/ })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
   });
 });

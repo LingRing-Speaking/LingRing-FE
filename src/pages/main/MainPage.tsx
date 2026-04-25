@@ -1,7 +1,7 @@
 import { env } from "@/config/env";
 import { useDailyRecommendedExpression } from "@/domains/recommendedExpression/hooks/useDailyRecommendedExpression";
 import { useUserMy } from "@/domains/user/hooks/useUserMy";
-import { BottomTabBar } from "./BottomTabBar";
+import { BottomTabBar } from "@/components/BottomTabBar";
 import { CallHero } from "./CallHero";
 import { DailyExpressionCard } from "./DailyExpressionCard";
 import { Greeting } from "./Greeting";

@@ -1,7 +1,7 @@
 import { env } from "@/config/env";
 import { useUserMy } from "@/domains/user/hooks/useUserMy";
 import { useUserStats } from "@/domains/user/hooks/useUserStats";
-import { BottomTabBar } from "./BottomTabBar";
+import { BottomTabBar } from "@/components/BottomTabBar";
 import { MyRecords } from "./MyRecords";
 import { ProfileCard } from "./ProfileCard";
 import { WeeklyStats } from "./WeeklyStats";
