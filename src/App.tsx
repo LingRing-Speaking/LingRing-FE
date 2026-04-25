@@ -1,10 +1,10 @@
 import { QueryProvider } from "@/providers/QueryProvider";
-import { UserExpressionsPage } from "@/pages/userExpressions/UserExpressionsPage";
+import { MainPage } from "@/pages/main/MainPage";
 
 export default function App() {
   return (
     <QueryProvider>
-      <UserExpressionsPage />
+      <MainPage />
     </QueryProvider>
   );
 }
