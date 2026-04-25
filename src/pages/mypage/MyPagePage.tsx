@@ -91,9 +91,7 @@ export function MyPagePage() {
                   currentStreakDays={userStats.data.currentStreakDays}
                   totalCallCount={userStats.data.totalCallCount}
                 />
-                <MyRecords
-                  savedExpressionCount={userStats.data.savedExpressionCount}
-                />
+                <MyRecords expressionCount={userStats.data.expressionCount} />
               </>
             )}
           </div>

@@ -18,7 +18,7 @@ export const handlers = [
         mannerTemperature: 36.5,
         totalCallCount: 23,
         currentStreakDays: 7,
-        savedExpressionCount: 42,
+        expressionCount: 42,
         lastStudyDate: "2026-04-24",
       },
       status: 200,

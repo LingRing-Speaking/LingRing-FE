@@ -1,8 +1,8 @@
 type Props = {
-  savedExpressionCount: number;
+  expressionCount: number;
 };
 
-export function MyRecords({ savedExpressionCount }: Props) {
+export function MyRecords({ expressionCount }: Props) {
   return (
     <>
       <h3 className="mx-1 mb-3 mt-7 text-[15px] font-bold tracking-tight text-gray-800">
@@ -23,7 +23,7 @@ export function MyRecords({ savedExpressionCount }: Props) {
             저장한 표현
           </span>
           <span className="text-sm font-semibold text-gray-500 tabular-nums">
-            {savedExpressionCount}개
+            {expressionCount}개
           </span>
           <span aria-hidden="true" className="text-gray-400">
             <svg

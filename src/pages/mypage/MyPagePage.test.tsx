@@ -72,7 +72,7 @@ describe("MyPagePage", () => {
             mannerTemperature: 40,
             totalCallCount: 100,
             currentStreakDays: 14,
-            savedExpressionCount: 5,
+            expressionCount: 5,
             lastStudyDate: "2026-04-24",
           },
           status: 200,

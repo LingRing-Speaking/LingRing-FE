@@ -11,6 +11,6 @@ export type UserStats = {
   mannerTemperature: number;
   totalCallCount: number;
   currentStreakDays: number;
-  savedExpressionCount: number;
+  expressionCount: number;
   lastStudyDate: string | null;
 };
