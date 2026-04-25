@@ -2,10 +2,13 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import type { ReactNode } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { server } from "../../../../test/msw/server";
 import { createTestQueryClient } from "../../../../test/utils/renderWithQueryClient";
-import { useDailyRecommendedExpression } from "./useDailyRecommendedExpression";
+import {
+  todayKstDateString,
+  useDailyRecommendedExpression,
+} from "./useDailyRecommendedExpression";
 
 const wrapper = ({ children }: { children: ReactNode }) => {
   const queryClient = createTestQueryClient();
@@ -67,5 +70,31 @@ describe("useDailyRecommendedExpression", () => {
     });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
+  });
+});
+
+describe("todayKstDateString", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("UTC 와 KST 의 시차(+9h)를 반영해 KST 날짜 문자열을 반환한다", () => {
+    // 2026-04-25 18:00 KST == 2026-04-25 09:00 UTC
+    vi.setSystemTime(new Date("2026-04-25T09:00:00Z"));
+
+    expect(todayKstDateString()).toBe("2026-04-25");
+  });
+
+  it("KST 자정 직전(23:59) 에는 그날 날짜를 반환한다", () => {
+    // 2026-04-25 23:59 KST == 2026-04-25 14:59 UTC
+    vi.setSystemTime(new Date("2026-04-25T14:59:00Z"));
+
+    expect(todayKstDateString()).toBe("2026-04-25");
+  });
+
+  it("KST 자정 직후(00:01) 에는 다음 날짜를 반환한다", () => {
+    // 2026-04-26 00:01 KST == 2026-04-25 15:01 UTC
+    vi.setSystemTime(new Date("2026-04-25T15:01:00Z"));
+
+    expect(todayKstDateString()).toBe("2026-04-26");
   });
 });
