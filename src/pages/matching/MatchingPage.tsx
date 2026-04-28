@@ -1,5 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { env } from "@/config/env";
+import { cancelMatchingQueue } from "@/domains/matching/api/matchingApi";
+import { useEnterMatchingQueue } from "@/domains/matching/hooks/useEnterMatchingQueue";
+import { useMatchingStatus } from "@/domains/matching/hooks/useMatchingStatus";
 import { useRandomIcebreakers } from "@/domains/icebreaker/hooks/useRandomIcebreakers";
 import { BreathingOrb } from "./BreathingOrb";
 import { CancelConfirmSheet } from "./CancelConfirmSheet";
@@ -12,8 +16,28 @@ const FADE_MS = 280;
 
 export function MatchingPage() {
   const navigate = useNavigate();
+  const userId = env.devUserId;
   const [sheetOpen, setSheetOpen] = useState(false);
   const { data } = useRandomIcebreakers(ICEBREAKER_COUNT);
+
+  const enter = useEnterMatchingQueue();
+  useMatchingStatus(userId, enter.isSuccess);
+
+  const enteredRef = useRef(false);
+
+  useEffect(() => {
+    enter.mutate(userId, {
+      onSuccess: () => {
+        enteredRef.current = true;
+      },
+    });
+    return () => {
+      if (enteredRef.current) {
+        cancelMatchingQueue(userId).catch(() => {});
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const sentences = data ?? FALLBACK_ICEBREAKERS;
 
@@ -23,6 +47,15 @@ export function MatchingPage() {
     setSheetOpen(false);
     navigate("/");
   };
+
+  const handleRetry = () => {
+    enter.mutate(userId, {
+      onSuccess: () => {
+        enteredRef.current = true;
+      },
+    });
+  };
+  const handleGoHome = () => navigate("/");
 
   return (
     <div className="viewport flex min-h-dvh items-center justify-center bg-[#E7EAEE] p-6">
@@ -66,34 +99,58 @@ export function MatchingPage() {
             <span className="w-10" />
           </div>
 
-          <div className="relative z-[1] flex flex-1 flex-col items-center px-6 pt-5">
-            <BreathingOrb />
-
-            <div className="mb-4 text-center">
-              <h1 className="m-0 mb-1.5 text-[20px] font-bold leading-snug tracking-[-0.02em] text-gray-900">
-                대화할 사람을 찾고 있어요
-              </h1>
-              <p className="m-0 text-[13px] font-medium leading-relaxed text-gray-600">
-                보통 <strong className="font-bold text-mint-600">30초 이내</strong>에 매칭돼요
+          {enter.isError ? (
+            <div className="relative z-[1] flex flex-1 flex-col items-center justify-center gap-4 px-6">
+              <p className="m-0 text-[15px] font-medium text-gray-700">
+                매칭을 시작할 수 없어요.
               </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  className="rounded-md bg-mint-500 px-5 py-2.5 text-[14px] font-semibold text-white"
+                >
+                  다시 시도
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGoHome}
+                  className="rounded-md border border-gray-300 px-5 py-2.5 text-[14px] font-semibold text-gray-700"
+                >
+                  메인으로
+                </button>
+              </div>
             </div>
+          ) : (
+            <div className="relative z-[1] flex flex-1 flex-col items-center px-6 pt-5">
+              <BreathingOrb />
 
-            <IcebreakerRotator
-              sentences={sentences}
-              intervalMs={ROTATION_INTERVAL_MS}
-              fadeMs={FADE_MS}
-            />
+              <div className="mb-4 text-center">
+                <h1 className="m-0 mb-1.5 text-[20px] font-bold leading-snug tracking-[-0.02em] text-gray-900">
+                  대화할 사람을 찾고 있어요
+                </h1>
+                <p className="m-0 text-[13px] font-medium leading-relaxed text-gray-600">
+                  보통 <strong className="font-bold text-mint-600">30초 이내</strong>에 매칭돼요
+                </p>
+              </div>
 
-            <div className="mt-auto flex justify-center pb-6 pt-2">
-              <button
-                type="button"
-                onClick={openSheet}
-                className="rounded-md px-5 py-3.5 text-[14px] font-semibold leading-none tracking-[-0.01em] text-gray-500 active:bg-gray-100 active:text-gray-700"
-              >
-                매칭 취소
-              </button>
+              <IcebreakerRotator
+                sentences={sentences}
+                intervalMs={ROTATION_INTERVAL_MS}
+                fadeMs={FADE_MS}
+              />
+
+              <div className="mt-auto flex justify-center pb-6 pt-2">
+                <button
+                  type="button"
+                  onClick={openSheet}
+                  className="rounded-md px-5 py-3.5 text-[14px] font-semibold leading-none tracking-[-0.01em] text-gray-500 active:bg-gray-100 active:text-gray-700"
+                >
+                  매칭 취소
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <CancelConfirmSheet
             open={sheetOpen}
