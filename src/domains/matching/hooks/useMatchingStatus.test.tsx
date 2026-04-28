@@ -2,7 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { server } from "../../../../test/msw/server";
 import { createTestQueryClient } from "../../../../test/utils/renderWithQueryClient";
 import { useMatchingStatus } from "./useMatchingStatus";
@@ -15,6 +15,10 @@ const wrapper = ({ children }: { children: ReactNode }) => {
 };
 
 describe("useMatchingStatus", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("enabled=false 면 호출하지 않는다", async () => {
     let callCount = 0;
     server.use(
@@ -74,8 +78,6 @@ describe("useMatchingStatus", () => {
     // 폴링 간격(3s)의 3배 시간 진행 — 추가 호출이 없어야 함
     await vi.advanceTimersByTimeAsync(10000);
     expect(callCount).toBe(1);
-
-    vi.useRealTimers();
   });
 
   it("WAITING 응답이면 3초 후 다시 폴링한다", async () => {
@@ -102,7 +104,5 @@ describe("useMatchingStatus", () => {
 
     await vi.advanceTimersByTimeAsync(3500);
     await waitFor(() => expect(callCount).toBeGreaterThan(firstCallCount));
-
-    vi.useRealTimers();
   });
 });
