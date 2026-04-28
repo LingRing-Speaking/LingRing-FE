@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import { server } from "../../test/msw/server";
-import { ApiError, httpGet, httpPost } from "./http";
+import { ApiError, httpDelete, httpGet, httpPost } from "./http";
 
 describe("httpGet", () => {
   it("2xx 응답에서 ApiResponse 를 언랩해 data 만 반환한다", async () => {
@@ -108,5 +108,54 @@ describe("httpPost", () => {
       status: 500,
       message: "Unknown error",
     });
+  });
+
+  it("네트워크 실패 시 에러를 throw 한다", async () => {
+    server.use(
+      http.post("http://localhost:3000/boom", () => HttpResponse.error()),
+    );
+    await expect(httpPost("/boom")).rejects.toThrow();
+  });
+});
+
+describe("httpDelete", () => {
+  it("2xx 응답에서 ApiResponse 를 언랩해 data 만 반환한다", async () => {
+    server.use(
+      http.delete("http://localhost:3000/users/1/matching", () =>
+        HttpResponse.json({
+          data: null,
+          status: 204,
+          message: "NO_CONTENT",
+        }),
+      ),
+    );
+
+    const result = await httpDelete<null>("/users/1/matching");
+
+    expect(result).toBeNull();
+  });
+
+  it("4xx 응답에서 ApiError 를 throw 한다", async () => {
+    server.use(
+      http.delete("http://localhost:3000/users/999/matching", () =>
+        HttpResponse.json(
+          { data: null, status: 500, message: "BOOM" },
+          { status: 500 },
+        ),
+      ),
+    );
+
+    await expect(httpDelete("/users/999/matching")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 500,
+      message: "BOOM",
+    });
+  });
+
+  it("네트워크 실패 시 에러를 throw 한다", async () => {
+    server.use(
+      http.delete("http://localhost:3000/boom", () => HttpResponse.error()),
+    );
+    await expect(httpDelete("/boom")).rejects.toThrow();
   });
 });
