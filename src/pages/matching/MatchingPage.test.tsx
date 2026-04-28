@@ -132,6 +132,52 @@ describe("MatchingPage", () => {
     await waitFor(() => expect(postCount).toBe(2));
   });
 
+  it("'다시 시도' 성공 후 언마운트 시 DELETE 를 1회 송신한다", async () => {
+    const user = userEvent.setup();
+    let postCount = 0;
+    let deleteCount = 0;
+    server.use(
+      http.post("http://localhost:3000/users/1/matching", () => {
+        postCount++;
+        if (postCount === 1) {
+          return HttpResponse.json(
+            { data: null, status: 500, message: "fail" },
+            { status: 500 },
+          );
+        }
+        return HttpResponse.json({
+          data: null,
+          status: 204,
+          message: "NO_CONTENT",
+        });
+      }),
+      http.delete("http://localhost:3000/users/1/matching", () => {
+        deleteCount++;
+        return HttpResponse.json({
+          data: null,
+          status: 204,
+          message: "NO_CONTENT",
+        });
+      }),
+    );
+
+    const { unmount } = renderWithQueryClient(<MatchingPage />);
+
+    await screen.findByText("매칭을 시작할 수 없어요.");
+    await user.click(screen.getByRole("button", { name: "다시 시도" }));
+
+    // retry 성공 — 에러 메시지가 사라지고 정상 화면으로 복귀
+    await waitFor(() =>
+      expect(
+        screen.queryByText("매칭을 시작할 수 없어요."),
+      ).not.toBeInTheDocument(),
+    );
+
+    unmount();
+
+    await waitFor(() => expect(deleteCount).toBe(1));
+  });
+
   it("POST 성공 후 언마운트 시 DELETE 를 1회 송신한다", async () => {
     let postCount = 0;
     let deleteCount = 0;

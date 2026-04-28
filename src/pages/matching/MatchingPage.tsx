@@ -18,19 +18,23 @@ export function MatchingPage() {
   const navigate = useNavigate();
   const userId = env.devUserId;
   const [sheetOpen, setSheetOpen] = useState(false);
-  const { data } = useRandomIcebreakers(ICEBREAKER_COUNT);
+  const { data: icebreakers } = useRandomIcebreakers(ICEBREAKER_COUNT);
 
   const enter = useEnterMatchingQueue();
   useMatchingStatus(userId, enter.isSuccess);
 
   const enteredRef = useRef(false);
 
-  useEffect(() => {
+  const fireEnter = () => {
     enter.mutate(userId, {
       onSuccess: () => {
         enteredRef.current = true;
       },
     });
+  };
+
+  useEffect(() => {
+    fireEnter();
     return () => {
       if (enteredRef.current) {
         cancelMatchingQueue(userId).catch(() => {});
@@ -39,7 +43,7 @@ export function MatchingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
-  const sentences = data ?? FALLBACK_ICEBREAKERS;
+  const sentences = icebreakers ?? FALLBACK_ICEBREAKERS;
 
   const openSheet = () => setSheetOpen(true);
   const closeSheet = () => setSheetOpen(false);
@@ -49,11 +53,7 @@ export function MatchingPage() {
   };
 
   const handleRetry = () => {
-    enter.mutate(userId, {
-      onSuccess: () => {
-        enteredRef.current = true;
-      },
-    });
+    fireEnter();
   };
   const handleGoHome = () => navigate("/");
 
