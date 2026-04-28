@@ -25,7 +25,7 @@ describe("MatchingPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("API 가 실패해도 폴백 문장으로 회전이 유지된다", async () => {
+  it("API 가 실패해도 초기 폴백 문장이 즉시 표시된다", async () => {
     server.use(
       http.get("http://localhost:3000/icebreakers", () =>
         HttpResponse.json(
