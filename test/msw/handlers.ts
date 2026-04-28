@@ -73,4 +73,20 @@ export const handlers = [
       message: "OK",
     });
   }),
+
+  http.get(`${env.apiBaseUrl}/icebreakers`, ({ request }) => {
+    const url = new URL(request.url);
+    const count = Number(url.searchParams.get("count") ?? "5");
+    const items = Array.from({ length: count }, (_, i) => ({
+      id: i + 1,
+      expression: `Sample expression ${i + 1}`,
+      meaning: `샘플 표현 ${i + 1}`,
+      createdAt: "2026-04-28T22:34:56.123456",
+    }));
+    return HttpResponse.json({
+      data: { items },
+      status: 200,
+      message: "OK",
+    });
+  }),
 ];
