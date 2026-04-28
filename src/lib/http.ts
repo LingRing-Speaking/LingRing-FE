@@ -26,3 +26,18 @@ export async function httpGet<T>(path: string): Promise<T> {
 
   return (body as ApiResponse<T>).data;
 }
+
+export async function httpPost<T = void>(path: string): Promise<T> {
+  const res = await fetch(`${env.apiBaseUrl}${path}`, { method: "POST" });
+  const body = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const message =
+      typeof body === "object" && body !== null && "message" in body
+        ? String((body as { message: unknown }).message)
+        : "Unknown error";
+    throw new ApiError(res.status, message);
+  }
+
+  return (body as ApiResponse<T>).data;
+}
