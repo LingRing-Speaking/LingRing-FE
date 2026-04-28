@@ -26,7 +26,7 @@ export function useSentenceRotation<T>(items: T[], options: Options): Result<T> 
     if (index >= items.length) {
       setIndex(0);
     }
-  }, [items, index]);
+  }, [items.length, index]);
 
   useEffect(() => {
     if (items.length <= 1) return;
@@ -50,13 +50,14 @@ export function useSentenceRotation<T>(items: T[], options: Options): Result<T> 
     return () => {
       clearInterval(intervalId);
       cleanups.forEach((fn) => fn());
+      setIsSwapping(false);
     };
   }, [items.length, intervalMs, fadeMs]);
 
   const safeIndex = items.length === 0 ? 0 : Math.min(index, items.length - 1);
 
   return {
-    index: items.length === 0 ? 0 : safeIndex,
+    index: safeIndex,
     currentItem: items[safeIndex],
     isSwapping,
   };

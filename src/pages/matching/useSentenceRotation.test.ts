@@ -74,6 +74,25 @@ describe("useSentenceRotation", () => {
     expect(result.current.currentItem).toEqual(items[0]);
   });
 
+  it("items 가 fade 진행 중에 교체되어도 isSwapping 이 초기화된다", () => {
+    const { result, rerender } = renderHook(
+      ({ list }: { list: typeof items }) =>
+        useSentenceRotation(list, { intervalMs: 1000, fadeMs: 100 }),
+      { initialProps: { list: items } },
+    );
+
+    // 인터벌 틱 → isSwapping: true, fade timeout 아직 실행 전
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(result.current.isSwapping).toBe(true);
+
+    // fade가 끝나기 전에 items 길이 변경 (deps 변경 → 인터벌 재생성, cleanup 실행)
+    rerender({ list: items.slice(0, 2) });
+
+    expect(result.current.isSwapping).toBe(false);
+  });
+
   it("빈 배열이면 currentItem 은 undefined 다", () => {
     const { result } = renderHook(() =>
       useSentenceRotation([], { intervalMs: 1000, fadeMs: 100 }),
