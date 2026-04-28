@@ -1,4 +1,8 @@
+import { useNavigate } from "react-router-dom";
+
 export function CallHero() {
+  const navigate = useNavigate();
+
   return (
     <div className="flex flex-1 flex-col items-center justify-center pb-[30px]">
       <p className="m-0 mb-1.5 text-[15px] font-semibold text-gray-700">
@@ -26,10 +30,9 @@ export function CallHero() {
 
         <button
           type="button"
-          disabled
-          aria-disabled="true"
           aria-label="통화 시작하기"
-          className="relative z-[1] flex h-[160px] w-[160px] cursor-not-allowed flex-col items-center justify-center gap-2 rounded-full border-0 bg-gradient-to-br from-mint-400 via-mint-500 to-coral-500 text-white shadow-button"
+          onClick={() => navigate("/matching")}
+          className="relative z-[1] flex h-[160px] w-[160px] cursor-pointer flex-col items-center justify-center gap-2 rounded-full border-0 bg-gradient-to-br from-mint-400 via-mint-500 to-coral-500 text-white shadow-button transition-transform active:scale-95"
         >
           <svg
             viewBox="0 0 24 24"
