@@ -23,16 +23,18 @@ export function IcebreakerRotator({ sentences, intervalMs, fadeMs }: Props) {
       </p>
       <div className="relative flex min-h-[142px] flex-col justify-center overflow-hidden rounded-lg border border-gray-100 bg-white px-5 py-5 shadow-card">
         <p
-          className={`m-0 mb-2 text-[19px] font-bold leading-snug tracking-[-0.01em] text-gray-900 transition-[opacity,transform] duration-[280ms] ease-in-out ${
+          className={`m-0 mb-2 text-[19px] font-bold leading-snug tracking-[-0.01em] text-gray-900 transition-[opacity,transform] ease-in-out ${
             isSwapping ? "-translate-y-1.5 opacity-0" : "translate-y-0 opacity-100"
           }`}
+          style={{ transitionDuration: `${fadeMs}ms` }}
         >
           {currentItem?.expression ?? ""}
         </p>
         <p
-          className={`m-0 text-[13px] font-medium leading-relaxed text-gray-600 transition-[opacity,transform] duration-[280ms] ease-in-out ${
+          className={`m-0 text-[13px] font-medium leading-relaxed text-gray-600 transition-[opacity,transform] ease-in-out ${
             isSwapping ? "-translate-y-1.5 opacity-0" : "translate-y-0 opacity-100"
           }`}
+          style={{ transitionDuration: `${fadeMs}ms` }}
         >
           {currentItem?.meaning ?? ""}
         </p>
