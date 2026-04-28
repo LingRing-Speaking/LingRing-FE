@@ -40,6 +40,8 @@ export function MatchingPage() {
         cancelMatchingQueue(userId).catch(() => {});
       }
     };
+    // userId 변경 시에만 재실행 — fireEnter는 매 렌더 새 함수이지만
+    // 내부에서 사용하는 enter.mutate는 stable, userId는 deps에 포함됨.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
