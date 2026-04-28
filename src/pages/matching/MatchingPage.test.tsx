@@ -64,7 +64,7 @@ describe("MatchingPage", () => {
     await user.click(screen.getByRole("button", { name: "계속 기다리기" }));
 
     await waitFor(() =>
-      expect(screen.getByRole("dialog")).toHaveAttribute("aria-hidden", "true"),
+      expect(dialog).toHaveAttribute("aria-hidden", "true"),
     );
   });
 
