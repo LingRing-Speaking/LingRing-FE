@@ -45,6 +45,49 @@ function classify(
   return { bucket: "byMonth", label: `${startedAt.getMonth() + 1}월` };
 }
 
+function pad2(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+function formatDuration(durationSec: number): string {
+  const m = Math.floor(durationSec / 60);
+  const s = durationSec % 60;
+  return `${m}:${pad2(s)}`;
+}
+
+function formatTimeOfDay(d: Date): string {
+  const h24 = d.getHours();
+  const meridiem = h24 < 12 ? "오전" : "오후";
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${meridiem} ${h12}:${pad2(d.getMinutes())}`;
+}
+
+function diffInDays(later: Date, earlier: Date): number {
+  const a = new Date(later.getFullYear(), later.getMonth(), later.getDate());
+  const b = new Date(
+    earlier.getFullYear(),
+    earlier.getMonth(),
+    earlier.getDate(),
+  );
+  return Math.round((a.getTime() - b.getTime()) / 86_400_000);
+}
+
+export function formatCallMeta(
+  startedAt: Date,
+  durationSec: number,
+  now: Date,
+): string {
+  const duration = formatDuration(durationSec);
+  if (isSameDate(startedAt, now)) {
+    return `오늘 ${formatTimeOfDay(startedAt)} · ${duration}`;
+  }
+  const days = diffInDays(now, startedAt);
+  if (days <= 6) {
+    return `${days}일 전 · ${duration}`;
+  }
+  return `${startedAt.getMonth() + 1}월 ${startedAt.getDate()}일 · ${duration}`;
+}
+
 // 입력 배열의 순서를 그대로 유지한다. 시간 내림차순 정렬은 서버 책임.
 export function classifyCalls(
   items: CallHistoryItem[],
