@@ -6,4 +6,9 @@ describe("env", () => {
     expect(env.apiBaseUrl).toBe("http://localhost:3000");
     expect(env.devUserId).toBe(1);
   });
+
+  it("wsBaseUrl 은 apiBaseUrl 의 http 스킴을 ws 로 치환한다", async () => {
+    const { env } = await import("./env");
+    expect(env.wsBaseUrl).toBe("ws://localhost:3000");
+  });
 });

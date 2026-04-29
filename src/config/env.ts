@@ -10,5 +10,6 @@ if (!devUserIdRaw) {
 
 export const env = {
   apiBaseUrl,
+  wsBaseUrl: apiBaseUrl.replace(/^http/, "ws"),
   devUserId: Number(devUserIdRaw),
 };
