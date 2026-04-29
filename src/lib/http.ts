@@ -12,8 +12,8 @@ export class ApiError extends Error {
   }
 }
 
-export async function httpGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${env.apiBaseUrl}${path}`);
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${env.apiBaseUrl}${path}`, init);
   const body = await res.json().catch(() => ({}));
 
   if (!res.ok) {
@@ -26,3 +26,11 @@ export async function httpGet<T>(path: string): Promise<T> {
 
   return (body as ApiResponse<T>).data;
 }
+
+export const httpGet = <T>(path: string): Promise<T> => request<T>(path);
+
+export const httpPost = <T = void>(path: string): Promise<T> =>
+  request<T>(path, { method: "POST" });
+
+export const httpDelete = <T = void>(path: string): Promise<T> =>
+  request<T>(path, { method: "DELETE" });

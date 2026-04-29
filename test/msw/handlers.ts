@@ -89,4 +89,28 @@ export const handlers = [
       message: "OK",
     });
   }),
+
+  http.post(`${env.apiBaseUrl}/users/:userId/matching`, () => {
+    return HttpResponse.json({
+      data: null,
+      status: 204,
+      message: "NO_CONTENT",
+    });
+  }),
+
+  http.get(`${env.apiBaseUrl}/users/:userId/matching`, () => {
+    return HttpResponse.json({
+      data: { status: "WAITING", partnerId: null },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
+  http.delete(`${env.apiBaseUrl}/users/:userId/matching`, () => {
+    return HttpResponse.json({
+      data: null,
+      status: 204,
+      message: "NO_CONTENT",
+    });
+  }),
 ];
