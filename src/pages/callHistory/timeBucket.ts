@@ -41,9 +41,11 @@ function classify(
   ) {
     return { bucket: "thisMonth", label: "이번 달" };
   }
+  // 라벨에 연도는 포함하지 않는다 — 목업이 그렇고, 1년 이상 사용 시 보강은 후속 작업
   return { bucket: "byMonth", label: `${startedAt.getMonth() + 1}월` };
 }
 
+// 입력 배열의 순서를 그대로 유지한다. 시간 내림차순 정렬은 서버 책임.
 export function classifyCalls(
   items: CallHistoryItem[],
   now: Date,
