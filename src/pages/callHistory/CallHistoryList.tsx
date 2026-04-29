@@ -41,9 +41,13 @@ export function CallHistoryList({
       <h1 className="m-0 mb-5 mt-2.5 text-[22px] font-extrabold leading-[1.3] tracking-[-0.02em] text-gray-900">
         대화 기록
       </h1>
-      {groups.map((group) => (
+      {groups.map((group, index) => (
         <section key={`${group.bucket}-${group.label}`}>
-          <h2 className="mb-2.5 ml-1 mt-5 text-[13px] font-bold leading-none tracking-tight text-gray-600 first-of-type:mt-1">
+          <h2
+            className={`mb-2.5 ml-1 text-[13px] font-bold leading-none tracking-tight text-gray-600 ${
+              index === 0 ? "mt-1" : "mt-5"
+            }`}
+          >
             {group.label}
           </h2>
           <div className="flex flex-col gap-2.5">
