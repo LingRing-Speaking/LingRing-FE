@@ -72,6 +72,8 @@ function diffInDays(later: Date, earlier: Date): number {
   return Math.round((a.getTime() - b.getTime()) / 86_400_000);
 }
 
+// "N일 전"은 달력 주(월요일 시작)와 무관하게 지난 6일 이내. classifyCalls의 thisWeek
+// 그룹과 미세하게 어긋날 수 있다 (예: 일요일은 "이번 달" 그룹 + "N일 전" 메타).
 export function formatCallMeta(
   startedAt: Date,
   durationSec: number,

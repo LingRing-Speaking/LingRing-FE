@@ -121,7 +121,7 @@ describe("formatCallMeta", () => {
     expect(formatCallMeta(startedAt, 432, now)).toBe("1일 전 · 7:12");
   });
 
-  it("이번 주 (3일 전)", () => {
+  it("최근 6일 이내 (3일 전)", () => {
     const startedAt = new Date(2026, 3, 26, 12, 0, 0);
     expect(formatCallMeta(startedAt, 432, now)).toBe("3일 전 · 7:12");
   });
