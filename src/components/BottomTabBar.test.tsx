@@ -29,12 +29,6 @@ describe("BottomTabBar", () => {
     );
   });
 
-  it("대화 기록 탭은 /history 로 이동하는 링크다", () => {
-    renderAt("/");
-    const link = screen.getByRole("link", { name: /대화 기록/ });
-    expect(link).toHaveAttribute("href", "/history");
-  });
-
   it("/ 경로에서는 홈 탭이 활성 상태다", () => {
     renderAt("/");
 

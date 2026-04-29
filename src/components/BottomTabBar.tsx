@@ -22,12 +22,12 @@ function HomeIcon({ active }: { active: boolean }) {
   );
 }
 
-function HistoryIcon() {
+function HistoryIcon({ active }: { active: boolean }) {
   return (
     <svg
       viewBox="0 0 24 24"
       className="h-6 w-6"
-      fill="none"
+      fill={active ? "currentColor" : "none"}
       stroke="currentColor"
       strokeWidth={2}
       strokeLinecap="round"
@@ -80,7 +80,7 @@ export function BottomTabBar() {
         aria-current={isHistory ? "page" : undefined}
         className={`${TAB_BASE} ${isHistory ? "text-gray-900" : "text-gray-400"}`}
       >
-        <HistoryIcon />
+        <HistoryIcon active={isHistory} />
         <span>대화 기록</span>
       </Link>
 
