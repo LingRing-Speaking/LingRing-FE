@@ -87,6 +87,28 @@ describe("CallPage", () => {
     expect(sessionState.toggleMute).toHaveBeenCalledOnce();
   });
 
+  it("isMuted=true 면 mute 버튼이 활성 시각 클래스를 가진다", () => {
+    sessionState.status = "connected";
+    sessionState.isMuted = true;
+    renderAt("/call/abc", { partnerId: 2 });
+
+    const muteBtn = screen.getByRole("button", { name: "음소거" });
+    expect(muteBtn.className).toMatch(/bg-gray-900/);
+    expect(muteBtn.className).toMatch(/text-white/);
+    expect(muteBtn.className).not.toMatch(/bg-white/);
+  });
+
+  it("isMuted=false 면 mute 버튼이 기본 시각 클래스를 가진다", () => {
+    sessionState.status = "connected";
+    sessionState.isMuted = false;
+    renderAt("/call/abc", { partnerId: 2 });
+
+    const muteBtn = screen.getByRole("button", { name: "음소거" });
+    expect(muteBtn.className).toMatch(/bg-white/);
+    expect(muteBtn.className).toMatch(/text-gray-800/);
+    expect(muteBtn.className).not.toMatch(/bg-gray-900/);
+  });
+
   it("end 버튼 클릭 → 시트 노출 → '종료하기' → session.end() 호출", async () => {
     sessionState.status = "connected";
     renderAt("/call/abc", { partnerId: 2 });

@@ -118,8 +118,8 @@ function CallView({
           type="button"
           aria-label="음소거"
           onClick={onMute}
-          className={`flex h-16 w-16 items-center justify-center rounded-full bg-white text-gray-800 shadow-ctrl transition active:scale-95 ${
-            isMuted ? "bg-gray-900 text-white" : ""
+          className={`flex h-16 w-16 items-center justify-center rounded-full shadow-ctrl transition active:scale-95 ${
+            isMuted ? "bg-gray-900 text-white" : "bg-white text-gray-800"
           }`}
         >
           <MicIcon />
