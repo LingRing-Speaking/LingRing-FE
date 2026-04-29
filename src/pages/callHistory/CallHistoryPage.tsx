@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { env } from "@/config/env";
 import { useCallHistory } from "@/domains/callHistory/hooks/useCallHistory";
 import { BottomTabBar } from "@/components/BottomTabBar";
@@ -6,7 +7,7 @@ import { EmptyCallHistory } from "./EmptyCallHistory";
 
 export function CallHistoryPage() {
   const query = useCallHistory(env.devUserId);
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);
 
   const status = (() => {
     if (query.isError) return "error";
