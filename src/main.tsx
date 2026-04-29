@@ -13,10 +13,14 @@ async function startMockWorker() {
   await worker.start({ onUnhandledRequest: "bypass" });
 }
 
-startMockWorker().then(() => {
-  createRoot(rootElement).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  );
-});
+startMockWorker()
+  .catch((error) => {
+    console.error("[MSW] worker 시작 실패 — mock 없이 계속합니다", error);
+  })
+  .then(() => {
+    createRoot(rootElement).render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+  });
