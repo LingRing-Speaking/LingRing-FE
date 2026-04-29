@@ -47,12 +47,12 @@ export class FakeRTCPeerConnection {
     FakeRTCPeerConnection.instances.push(this);
   }
 
-  createOffer = vi.fn<[], Promise<FakeSessionDescriptionInit>>(async () => ({
+  createOffer = vi.fn<() => Promise<FakeSessionDescriptionInit>>(async () => ({
     type: "offer",
     sdp: "v=0\r\noffer-sdp",
   }));
 
-  createAnswer = vi.fn<[], Promise<FakeSessionDescriptionInit>>(async () => ({
+  createAnswer = vi.fn<() => Promise<FakeSessionDescriptionInit>>(async () => ({
     type: "answer",
     sdp: "v=0\r\nanswer-sdp",
   }));
