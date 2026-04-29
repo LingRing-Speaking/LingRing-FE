@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom/vitest";
+import "./utils/webrtcMocks";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { server } from "@/mocks/server";
 
