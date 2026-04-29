@@ -12,18 +12,27 @@ function renderAt(pathname: string) {
 }
 
 describe("BottomTabBar", () => {
-  it("홈·마이페이지는 링크, 대화 기록은 disabled 버튼이다", () => {
+  it("홈·대화 기록·마이페이지는 모두 링크다", () => {
     renderAt("/");
 
     expect(screen.getByRole("link", { name: /^홈$/ })).toHaveAttribute(
       "href",
       "/",
     );
+    expect(screen.getByRole("link", { name: /대화 기록/ })).toHaveAttribute(
+      "href",
+      "/history",
+    );
     expect(screen.getByRole("link", { name: /마이페이지/ })).toHaveAttribute(
       "href",
       "/mypage",
     );
-    expect(screen.getByRole("button", { name: /대화 기록/ })).toBeDisabled();
+  });
+
+  it("대화 기록 탭은 /history 로 이동하는 링크다", () => {
+    renderAt("/");
+    const link = screen.getByRole("link", { name: /대화 기록/ });
+    expect(link).toHaveAttribute("href", "/history");
   });
 
   it("/ 경로에서는 홈 탭이 활성 상태다", () => {
@@ -46,6 +55,21 @@ describe("BottomTabBar", () => {
       "page",
     );
     expect(screen.getByRole("link", { name: /^홈$/ })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+
+  it("/history 경로에서는 대화 기록 탭이 활성 상태다", () => {
+    renderAt("/history");
+
+    expect(screen.getByRole("link", { name: /대화 기록/ })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: /^홈$/ })).not.toHaveAttribute(
+      "aria-current",
+    );
+    expect(screen.getByRole("link", { name: /마이페이지/ })).not.toHaveAttribute(
       "aria-current",
     );
   });

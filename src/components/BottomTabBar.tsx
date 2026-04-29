@@ -58,6 +58,7 @@ function MyPageIcon({ active }: { active: boolean }) {
 export function BottomTabBar() {
   const { pathname } = useLocation();
   const isHome = pathname === "/";
+  const isHistory = pathname === "/history";
   const isMyPage = pathname === "/mypage";
 
   return (
@@ -74,15 +75,14 @@ export function BottomTabBar() {
         <span>홈</span>
       </Link>
 
-      <button
-        type="button"
-        disabled
-        aria-disabled="true"
-        className={`${TAB_BASE} cursor-not-allowed text-gray-400`}
+      <Link
+        to="/history"
+        aria-current={isHistory ? "page" : undefined}
+        className={`${TAB_BASE} ${isHistory ? "text-gray-900" : "text-gray-400"}`}
       >
         <HistoryIcon />
         <span>대화 기록</span>
-      </button>
+      </Link>
 
       <Link
         to="/mypage"
