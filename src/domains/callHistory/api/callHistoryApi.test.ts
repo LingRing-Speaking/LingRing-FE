@@ -22,6 +22,11 @@ describe("callHistoryApi", () => {
 
     expect(first.items).toHaveLength(5);
     expect(second.items).toHaveLength(5);
-    expect(first.items[0]?.id).not.toBe(second.items[0]?.id);
+    expect(first.items[0]?.id).toBeDefined();
+    expect(second.items[0]?.id).toBeDefined();
+    // 두 페이지의 id 집합이 겹치지 않는지 확인 — 진짜 다른 페이지인지
+    const firstIds = first.items.map((item) => item.id);
+    const secondIds = second.items.map((item) => item.id);
+    expect(firstIds.some((id) => secondIds.includes(id))).toBe(false);
   });
 });
