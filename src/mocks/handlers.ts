@@ -7,7 +7,7 @@ const FAKE_PARTNER_NAMES = [
   "Olivia", "Noah", "Amelia", "Liam", "Yujin", "Sora", "Junho",
 ];
 
-// 0~480시간 전 사이에서 50개의 통화를 분산 배치.
+// 0~1300시간(약 54일) 전 사이에서 50개의 통화를 분산 배치.
 // 매일 자동으로 오늘/이번 주/이번 달/지난 달들에 분포가 갱신됨.
 function generateFakeCalls(_userId: number, n: number): CallHistoryItem[] {
   const now = Date.now();
@@ -20,7 +20,7 @@ function generateFakeCalls(_userId: number, n: number): CallHistoryItem[] {
       id: i + 1,
       partner: {
         id: 1000 + i,
-        name: FAKE_PARTNER_NAMES[i % FAKE_PARTNER_NAMES.length] ?? "Friend",
+        name: FAKE_PARTNER_NAMES[i % FAKE_PARTNER_NAMES.length],
       },
       startedAt,
       durationSec,
