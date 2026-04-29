@@ -4,7 +4,7 @@ import { http, HttpResponse } from "msw";
 import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import { createTestQueryClient } from "../../../../test/utils/renderWithQueryClient";
-import { server } from "../../../../test/msw/server";
+import { server } from "@/mocks/server";
 import { useUserMy } from "./useUserMy";
 
 const wrapper = ({ children }: { children: ReactNode }) => {

@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { server } from "../../../../test/msw/server";
+import { server } from "@/mocks/server";
 import { ApiError } from "@/lib/http";
 import { fetchDailyRecommendedExpression } from "./recommendedExpressionApi";
 
