@@ -21,7 +21,7 @@ export function MatchingPage() {
   const { data: icebreakers } = useRandomIcebreakers(ICEBREAKER_COUNT);
 
   const enter = useEnterMatchingQueue();
-  useMatchingStatus(userId, enter.isSuccess);
+  const status = useMatchingStatus(userId, enter.isSuccess);
 
   const enteredRef = useRef(false);
 
@@ -44,6 +44,17 @@ export function MatchingPage() {
     // 내부에서 사용하는 enter.mutate는 stable, userId는 deps에 포함됨.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
+
+  useEffect(() => {
+    const data = status.data;
+    if (data?.status !== "MATCHED") return;
+    if (!data.roomId || data.partnerId == null) return;
+    enteredRef.current = false;
+    navigate(`/call/${data.roomId}`, {
+      state: { partnerId: data.partnerId },
+      replace: true,
+    });
+  }, [status.data, navigate]);
 
   const sentences = icebreakers ?? FALLBACK_ICEBREAKERS;
 
