@@ -128,7 +128,7 @@ export const handlers = [
 
   http.get(`${env.apiBaseUrl}/users/:userId/matching`, () => {
     return HttpResponse.json({
-      data: { status: "WAITING", partnerId: null },
+      data: { status: "WAITING", partnerId: null, roomId: null },
       status: 200,
       message: "OK",
     });

@@ -25,7 +25,7 @@ describe("useMatchingStatus", () => {
       http.get("http://localhost:3000/users/1/matching", () => {
         callCount++;
         return HttpResponse.json({
-          data: { status: "WAITING", partnerId: null },
+          data: { status: "WAITING", partnerId: null, roomId: null },
           status: 200,
           message: "OK",
         });
@@ -48,6 +48,7 @@ describe("useMatchingStatus", () => {
     expect(result.current.data).toEqual({
       status: "WAITING",
       partnerId: null,
+      roomId: null,
     });
   });
 
@@ -57,7 +58,7 @@ describe("useMatchingStatus", () => {
       http.get("http://localhost:3000/users/1/matching", () => {
         callCount++;
         return HttpResponse.json({
-          data: { status: "MATCHED", partnerId: 2 },
+          data: { status: "MATCHED", partnerId: 2, roomId: "11111111-1111-1111-1111-111111111111" },
           status: 200,
           message: "OK",
         });
@@ -86,7 +87,7 @@ describe("useMatchingStatus", () => {
       http.get("http://localhost:3000/users/1/matching", () => {
         callCount++;
         return HttpResponse.json({
-          data: { status: "WAITING", partnerId: null },
+          data: { status: "WAITING", partnerId: null, roomId: null },
           status: 200,
           message: "OK",
         });

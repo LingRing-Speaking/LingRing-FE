@@ -243,7 +243,7 @@ describe("MatchingPage", () => {
       http.get("http://localhost:3000/users/1/matching", () => {
         getCount++;
         return HttpResponse.json({
-          data: { status: "WAITING", partnerId: null },
+          data: { status: "WAITING", partnerId: null, roomId: null },
           status: 200,
           message: "OK",
         });
