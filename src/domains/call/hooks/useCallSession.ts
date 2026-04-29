@@ -38,8 +38,6 @@ export function useCallSession(
   const peerRef = useRef<PeerSession | null>(null);
   const wsRef = useRef<SignalingClient | null>(null);
   const cleanedUpRef = useRef(false);
-  const statusRef = useRef<CallStatus>("connecting");
-  statusRef.current = status;
 
   const cleanup = () => {
     if (cleanedUpRef.current) return;
@@ -130,7 +128,7 @@ export function useCallSession(
       void handleMessage(msg);
     });
     ws.onClose(() => {
-      if (statusRef.current === "ended" || statusRef.current === "error") return;
+      if (cleanedUpRef.current) return; // 우리가 직접 닫은 경우 무시
       finishEnded();
     });
 

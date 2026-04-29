@@ -315,6 +315,32 @@ describe("useCallSession", () => {
     expect(result.current.errorMessage).toBe("매치를 찾을 수 없어요");
   });
 
+  it("setError 후 ws.close 가 트리거한 close 핸들러는 status='error' 를 유지한다 (race 회귀 방어)", async () => {
+    const { result } = renderHook(() => useCallSession(baseOpts));
+    await waitFor(() => expect(sendMock).toHaveBeenCalled());
+
+    // ERROR 메시지로 setError 트리거
+    await act(async () => {
+      dispatchMessage({
+        type: "ERROR",
+        payload: { code: "X", message: "테스트 에러" },
+      });
+    });
+
+    expect(result.current.status).toBe("error");
+
+    // 실제 브라우저에서는 ws.close() 가 onclose 핸들러를 비동기로 발화시킴
+    // 이때 status 가 "ended" 로 덮어씌워지지 않아야 한다
+    await act(async () => {
+      closeHandlers.forEach((h) =>
+        h(new CloseEvent("close", { code: 1000 })),
+      );
+    });
+
+    expect(result.current.status).toBe("error");
+    expect(result.current.errorMessage).toBe("테스트 에러");
+  });
+
   it("pc.connectionState='failed' → status='error'", async () => {
     const { result } = renderHook(() => useCallSession(baseOpts));
     await waitFor(() => expect(lastPeerCallbacks).not.toBeNull());
