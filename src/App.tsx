@@ -4,6 +4,7 @@ import { MainPage } from "@/pages/main/MainPage";
 import { MatchingPage } from "@/pages/matching/MatchingPage";
 import { MyPagePage } from "@/pages/mypage/MyPagePage";
 import { UserExpressionsPage } from "@/pages/userExpressions/UserExpressionsPage";
+import { CallHistoryPage } from "@/pages/callHistory/CallHistoryPage";
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
           <Route path="/matching" element={<MatchingPage />} />
           <Route path="/mypage" element={<MyPagePage />} />
           <Route path="/expressions" element={<UserExpressionsPage />} />
+          <Route path="/history" element={<CallHistoryPage />} />
         </Routes>
       </BrowserRouter>
     </QueryProvider>

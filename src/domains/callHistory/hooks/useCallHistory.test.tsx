@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import { server } from "@/mocks/server";
 import { createTestQueryClient } from "../../../../test/utils/renderWithQueryClient";
-import { useUserExpressions } from "./useUserExpressions";
+import { useCallHistory } from "./useCallHistory";
 
 const wrapper = ({ children }: { children: ReactNode }) => {
   const queryClient = createTestQueryClient();
@@ -14,9 +14,9 @@ const wrapper = ({ children }: { children: ReactNode }) => {
   );
 };
 
-describe("useUserExpressions", () => {
+describe("useCallHistory", () => {
   it("첫 페이지 성공 시 pages[0].items 를 반환한다", async () => {
-    const { result } = renderHook(() => useUserExpressions(1), { wrapper });
+    const { result } = renderHook(() => useCallHistory(1), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.pages[0]?.items.length).toBeGreaterThan(0);
@@ -24,7 +24,7 @@ describe("useUserExpressions", () => {
 
   it("hasNext 가 false 면 hasNextPage 도 false 다", async () => {
     server.use(
-      http.get("http://localhost:3000/users/1/expressions", () =>
+      http.get("http://localhost:3000/users/1/calls", () =>
         HttpResponse.json({
           data: { items: [], hasNext: false },
           status: 200,
@@ -33,25 +33,25 @@ describe("useUserExpressions", () => {
       ),
     );
 
-    const { result } = renderHook(() => useUserExpressions(1), { wrapper });
+    const { result } = renderHook(() => useCallHistory(1), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.hasNextPage).toBe(false);
   });
 
-  it("fetchNextPage 를 호출하면 두 번째 페이지가 추가된다", async () => {
+  it("fetchNextPage 를 호출하면 두 번째 페이지가 누적된다", async () => {
     server.use(
-      http.get("http://localhost:3000/users/1/expressions", ({ request }) => {
+      http.get("http://localhost:3000/users/1/calls", ({ request }) => {
         const page = Number(new URL(request.url).searchParams.get("page"));
         return HttpResponse.json({
           data: {
             items: [
               {
                 id: page + 1,
-                userId: 1,
-                expression: `expression-${page}`,
-                meaning: `meaning-${page}`,
-                createdAt: "2026-04-25T12:00:00",
+                partner: { id: 1000 + page, name: `P${page}` },
+                startedAt: "2026-04-29T12:00:00+09:00",
+                durationSec: 120,
+                analyzed: false,
               },
             ],
             hasNext: page === 0,
@@ -62,7 +62,7 @@ describe("useUserExpressions", () => {
       }),
     );
 
-    const { result } = renderHook(() => useUserExpressions(1), { wrapper });
+    const { result } = renderHook(() => useCallHistory(1), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.hasNextPage).toBe(true);

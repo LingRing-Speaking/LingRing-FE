@@ -22,12 +22,12 @@ function HomeIcon({ active }: { active: boolean }) {
   );
 }
 
-function HistoryIcon() {
+function HistoryIcon({ active }: { active: boolean }) {
   return (
     <svg
       viewBox="0 0 24 24"
       className="h-6 w-6"
-      fill="none"
+      fill={active ? "currentColor" : "none"}
       stroke="currentColor"
       strokeWidth={2}
       strokeLinecap="round"
@@ -58,6 +58,7 @@ function MyPageIcon({ active }: { active: boolean }) {
 export function BottomTabBar() {
   const { pathname } = useLocation();
   const isHome = pathname === "/";
+  const isHistory = pathname === "/history";
   const isMyPage = pathname === "/mypage";
 
   return (
@@ -74,15 +75,14 @@ export function BottomTabBar() {
         <span>홈</span>
       </Link>
 
-      <button
-        type="button"
-        disabled
-        aria-disabled="true"
-        className={`${TAB_BASE} cursor-not-allowed text-gray-400`}
+      <Link
+        to="/history"
+        aria-current={isHistory ? "page" : undefined}
+        className={`${TAB_BASE} ${isHistory ? "text-gray-900" : "text-gray-400"}`}
       >
-        <HistoryIcon />
+        <HistoryIcon active={isHistory} />
         <span>대화 기록</span>
-      </button>
+      </Link>
 
       <Link
         to="/mypage"

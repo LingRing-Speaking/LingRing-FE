@@ -3,7 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { server } from "../../../../test/msw/server";
+import { server } from "@/mocks/server";
 import { createTestQueryClient } from "../../../../test/utils/renderWithQueryClient";
 import {
   todayKstDateString,
