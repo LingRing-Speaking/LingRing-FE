@@ -1,5 +1,33 @@
 import { http, HttpResponse } from "msw";
 import { env } from "@/config/env";
+import type { CallHistoryItem } from "@/domains/callHistory/types";
+
+const FAKE_PARTNER_NAMES = [
+  "Jenson", "Minji", "Sophie", "David", "Emma", "Daniel", "Hannah",
+  "Olivia", "Noah", "Amelia", "Liam", "Yujin", "Sora", "Junho",
+];
+
+// 0~480시간 전 사이에서 50개의 통화를 분산 배치.
+// 매일 자동으로 오늘/이번 주/이번 달/지난 달들에 분포가 갱신됨.
+function generateFakeCalls(_userId: number, n: number): CallHistoryItem[] {
+  const now = Date.now();
+  return Array.from({ length: n }, (_, i) => {
+    // 비선형 분포: 처음 몇 개는 오늘/이번 주에 몰리고, 뒤로 갈수록 멀어진다.
+    const hoursAgo = Math.round((i * i) / 2 + i * 2);
+    const startedAt = new Date(now - hoursAgo * 3600_000).toISOString();
+    const durationSec = 60 + ((i * 37) % 540); // 1:00 ~ 9:59
+    return {
+      id: i + 1,
+      partner: {
+        id: 1000 + i,
+        name: FAKE_PARTNER_NAMES[i % FAKE_PARTNER_NAMES.length] ?? "Friend",
+      },
+      startedAt,
+      durationSec,
+      analyzed: i % 3 !== 0, // 3개 중 1개는 미분석 → "분석하기" 버튼이 골고루 노출
+    };
+  });
+}
 
 export const handlers = [
   http.get(`${env.apiBaseUrl}/users/:userId/my`, ({ params }) => {
@@ -111,6 +139,20 @@ export const handlers = [
       data: null,
       status: 204,
       message: "NO_CONTENT",
+    });
+  }),
+
+  http.get(`${env.apiBaseUrl}/users/:userId/calls`, ({ request, params }) => {
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get("page") ?? 0);
+    const size = Number(url.searchParams.get("size") ?? 20);
+    const userId = Number(params.userId);
+    const all = generateFakeCalls(userId, 50);
+    const slice = all.slice(page * size, page * size + size);
+    return HttpResponse.json({
+      data: { items: slice, hasNext: (page + 1) * size < all.length },
+      status: 200,
+      message: "OK",
     });
   }),
 ];
