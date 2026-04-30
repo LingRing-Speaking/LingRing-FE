@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
-import {
-  Navigate,
-  useLocation,
-  useNavigate,
-  useParams,
-} from "react-router-dom";
+import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
+import { PageShell } from "@/components/PageShell";
 import { env } from "@/config/env";
 import { useCallSession } from "@/domains/call/hooks/useCallSession";
 import { CallTimer } from "./CallTimer";
@@ -12,8 +8,7 @@ import { EndConfirmSheet } from "./EndConfirmSheet";
 
 export function CallPage() {
   const { roomId } = useParams<{ roomId: string }>();
-  const partnerId = (useLocation().state as { partnerId?: number } | null)
-    ?.partnerId;
+  const partnerId = (useLocation().state as { partnerId?: number } | null)?.partnerId;
 
   if (!roomId || partnerId == null) {
     return <Navigate to="/" replace />;
@@ -22,13 +17,7 @@ export function CallPage() {
   return <CallPageInner roomId={roomId} partnerId={partnerId} />;
 }
 
-function CallPageInner({
-  roomId,
-  partnerId,
-}: {
-  roomId: string;
-  partnerId: number;
-}) {
+function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: number }) {
   const userId = env.devUserId;
   const navigate = useNavigate();
   const session = useCallSession({ userId, roomId, partnerId });
@@ -39,41 +28,33 @@ function CallPageInner({
   }, [session.status, navigate]);
 
   return (
-    <div className="viewport flex min-h-dvh items-center justify-center bg-[#E7EAEE] p-6">
-      <div className="phone relative h-[812px] w-[375px] overflow-hidden rounded-[44px] bg-white shadow-[0_0_0_10px_#1A1D22,0_30px_60px_rgba(0,0,0,0.25)] md:h-dvh md:w-full md:rounded-none md:shadow-none">
-        <header className="relative z-10 flex h-11 items-center justify-between bg-white px-6 text-[15px] font-semibold text-gray-900">
-          <span>9:41</span>
-        </header>
-        <main className="relative flex h-[calc(100%-44px)] flex-col overflow-hidden bg-gradient-to-b from-mint-50 to-white">
-          {/* 항상 마운트되는 remote audio — status 분기 밖 */}
-          <audio ref={session.remoteAudioRef} autoPlay className="hidden" />
+    <PageShell>
+      <main className="relative flex flex-1 flex-col overflow-hidden bg-gradient-to-b from-mint-50 to-white">
+        {/* 항상 마운트되는 remote audio — status 분기 밖 */}
+        <audio ref={session.remoteAudioRef} autoPlay className="hidden" />
 
-          {session.status === "error" ? (
-            <ErrorView
-              message={session.errorMessage}
-              onHome={() => navigate("/")}
-            />
-          ) : (
-            <CallView
-              status={session.status}
-              isMuted={session.isMuted}
-              onMute={session.toggleMute}
-              onEnd={() => setSheetOpen(true)}
-              partnerId={partnerId}
-            />
-          )}
-
-          <EndConfirmSheet
-            open={sheetOpen}
-            onKeep={() => setSheetOpen(false)}
-            onEnd={() => {
-              setSheetOpen(false);
-              session.end();
-            }}
+        {session.status === "error" ? (
+          <ErrorView message={session.errorMessage} onHome={() => navigate("/")} />
+        ) : (
+          <CallView
+            status={session.status}
+            isMuted={session.isMuted}
+            onMute={session.toggleMute}
+            onEnd={() => setSheetOpen(true)}
+            partnerId={partnerId}
           />
-        </main>
-      </div>
-    </div>
+        )}
+
+        <EndConfirmSheet
+          open={sheetOpen}
+          onKeep={() => setSheetOpen(false)}
+          onEnd={() => {
+            setSheetOpen(false);
+            session.end();
+          }}
+        />
+      </main>
+    </PageShell>
   );
 }
 
@@ -146,13 +127,7 @@ function CallView({
   );
 }
 
-function ErrorView({
-  message,
-  onHome,
-}: {
-  message: string | null;
-  onHome: () => void;
-}) {
+function ErrorView({ message, onHome }: { message: string | null; onHome: () => void }) {
   return (
     <div className="relative z-[1] flex flex-1 flex-col items-center justify-center gap-4 px-6">
       <p className="m-0 text-[15px] font-medium text-gray-700">
