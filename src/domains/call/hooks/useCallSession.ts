@@ -60,6 +60,8 @@ export function useCallSession(
 
   useEffect(() => {
     let cancelled = false;
+    // StrictMode dev: 1차 cleanup이 남긴 stale true를 2차 setup에서 리셋
+    cleanedUpRef.current = false;
 
     const peer = createPeerSession({
       onLocalIce: (c: IceCandidatePayload) => {
@@ -125,9 +127,13 @@ export function useCallSession(
     };
 
     ws.onMessage((msg: ServerMessage) => {
+      // StrictMode dev: 이전 effect의 ws 이벤트가 비동기로 도착할 수 있으므로 무시
+      if (wsRef.current !== ws) return;
       void handleMessage(msg);
     });
     ws.onClose(() => {
+      // StrictMode dev: 이전 effect가 close한 ws의 onclose가 비동기로 도착할 때 활성 ws를 끊지 않도록
+      if (wsRef.current !== ws) return;
       if (cleanedUpRef.current) return; // 우리가 직접 닫은 경우 무시
       finishEnded();
     });

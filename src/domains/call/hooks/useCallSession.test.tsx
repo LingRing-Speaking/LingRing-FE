@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ClientMessage,
@@ -11,20 +12,40 @@ const sendMock = vi.fn<(msg: ClientMessage) => void>();
 const closeWsMock = vi.fn();
 const messageHandlers = new Set<(msg: ServerMessage) => void>();
 const closeHandlers = new Set<(e: CloseEvent) => void>();
+type WsInstance = {
+  messageHandlers: Set<(msg: ServerMessage) => void>;
+  closeHandlers: Set<(e: CloseEvent) => void>;
+};
+const wsInstances: WsInstance[] = [];
 
 vi.mock("../signaling/wsClient", () => ({
-  createSignalingClient: vi.fn(() => ({
-    send: sendMock,
-    onMessage: (h: (m: ServerMessage) => void) => {
-      messageHandlers.add(h);
-      return () => messageHandlers.delete(h);
-    },
-    onClose: (h: (e: CloseEvent) => void) => {
-      closeHandlers.add(h);
-      return () => closeHandlers.delete(h);
-    },
-    close: closeWsMock,
-  })),
+  createSignalingClient: vi.fn(() => {
+    const instance: WsInstance = {
+      messageHandlers: new Set(),
+      closeHandlers: new Set(),
+    };
+    wsInstances.push(instance);
+    return {
+      send: sendMock,
+      onMessage: (h: (m: ServerMessage) => void) => {
+        instance.messageHandlers.add(h);
+        messageHandlers.add(h);
+        return () => {
+          instance.messageHandlers.delete(h);
+          messageHandlers.delete(h);
+        };
+      },
+      onClose: (h: (e: CloseEvent) => void) => {
+        instance.closeHandlers.add(h);
+        closeHandlers.add(h);
+        return () => {
+          instance.closeHandlers.delete(h);
+          closeHandlers.delete(h);
+        };
+      },
+      close: closeWsMock,
+    };
+  }),
 }));
 
 const peerStartMock = vi.fn<() => Promise<void>>(async () => {});
@@ -72,6 +93,7 @@ beforeEach(() => {
   peerCloseMock.mockClear();
   messageHandlers.clear();
   closeHandlers.clear();
+  wsInstances.length = 0;
   lastPeerCallbacks = null;
 });
 
@@ -273,6 +295,56 @@ describe("useCallSession", () => {
     expect(sendMock).toHaveBeenCalledWith({ type: "HANGUP" });
     expect(peerCloseMock).toHaveBeenCalled();
     expect(closeWsMock).toHaveBeenCalled();
+    expect(result.current.status).toBe("ended");
+  });
+
+  it("StrictMode 하에서도 end() 호출 시 HANGUP 을 송신한다", async () => {
+    // dev StrictMode 는 effect 를 setup → cleanup → setup 순으로 두 번 실행한다.
+    // cleanedUpRef 가 1차 cleanup 이후에도 stale true 로 남으면 end() 가 early return 되어
+    // HANGUP 이 송신되지 않는 회귀가 발생한다.
+    const { result } = renderHook(() => useCallSession(baseOpts), {
+      wrapper: StrictMode,
+    });
+    await waitFor(() => expect(sendMock).toHaveBeenCalledWith({ type: "JOIN" }));
+    sendMock.mockClear();
+
+    await act(async () => {
+      result.current.end();
+    });
+
+    expect(sendMock).toHaveBeenCalledWith({ type: "HANGUP" });
+    expect(result.current.status).toBe("ended");
+  });
+
+  it("StrictMode: 1차 effect의 ws onclose 가 비동기로 도착해도 활성 세션을 끊지 않는다", async () => {
+    // StrictMode dev 에서 1차 effect 가 만든 ws 의 onclose 이벤트는 1차 cleanup 이 호출한
+    // ws.close() 의 결과로 비동기 도착한다. 이 시점엔 이미 2차 effect 가 새 ws 를 만들어
+    // wsRef 를 갱신한 뒤이므로, 1차 ws 의 close 핸들러가 활성 세션의 finishEnded 를
+    // 트리거해선 안 된다 (그러면 새 ws 가 CONNECTING 중에 close 되어 연결이 끊어짐).
+    const { result } = renderHook(() => useCallSession(baseOpts), {
+      wrapper: StrictMode,
+    });
+    await waitFor(() => expect(sendMock).toHaveBeenCalledWith({ type: "JOIN" }));
+    await waitFor(() => expect(wsInstances.length).toBe(2));
+
+    // 1차 effect 의 ws 인스턴스의 close 핸들러만 발화 (실제 브라우저에서 ws1.close 이후
+    // ws1.onclose 가 비동기로 도착하는 상황을 시뮬레이션)
+    await act(async () => {
+      wsInstances[0].closeHandlers.forEach((h) =>
+        h(new CloseEvent("close", { code: 1000 })),
+      );
+    });
+
+    // 활성 세션은 여전히 살아있어야 함
+    expect(result.current.status).not.toBe("ended");
+    expect(result.current.status).not.toBe("error");
+
+    // end() 도 정상 동작해야 함
+    sendMock.mockClear();
+    await act(async () => {
+      result.current.end();
+    });
+    expect(sendMock).toHaveBeenCalledWith({ type: "HANGUP" });
     expect(result.current.status).toBe("ended");
   });
 
