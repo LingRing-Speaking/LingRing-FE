@@ -13,7 +13,7 @@ LingRing-FE는 **LingRing**의 프론트엔드입니다. LingRing은 한국어 �
 - TypeScript · React 18 · Vite · Tailwind CSS · React Router v7
 - Zustand (클라이언트 상태) · TanStack Query (서버 상태)
 - React Hook Form + Zod · Radix UI (모달/바텀시트/토글)
-- **Capacitor 6** 으로 iOS/Android 래핑 (React Native · Flutter 아님)
+- **Capacitor 8** 으로 iOS/Android 래핑 (React Native · Flutter 아님)
 - FCM + `@capacitor/push-notifications`
 - `@capacitor-community/kakao-login`, `@capacitor-community/apple-sign-in`
 - Sentry
