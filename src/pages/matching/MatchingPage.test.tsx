@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, useLocation } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { server } from "@/mocks/server";
 import { renderWithQueryClient } from "../../../test/utils/renderWithQueryClient";
@@ -243,7 +243,7 @@ describe("MatchingPage", () => {
       http.get("http://localhost:3000/users/1/matching", () => {
         getCount++;
         return HttpResponse.json({
-          data: { status: "WAITING", partnerId: null },
+          data: { status: "WAITING", partnerId: null, roomId: null },
           status: 200,
           message: "OK",
         });
@@ -253,6 +253,79 @@ describe("MatchingPage", () => {
     renderWithQueryClient(<MatchingPage />);
 
     await waitFor(() => expect(getCount).toBeGreaterThanOrEqual(1));
+  });
+
+  it("MATCHED 응답을 받으면 /call/:roomId 로 navigate 하고 partnerId 를 state 로 넘긴다", async () => {
+    server.use(
+      http.get("http://localhost:3000/users/1/matching", () =>
+        HttpResponse.json({
+          data: {
+            status: "MATCHED",
+            partnerId: 2,
+            roomId: "11111111-1111-1111-1111-111111111111",
+          },
+          status: 200,
+          message: "OK",
+        }),
+      ),
+    );
+
+    let capturedPartnerId: number | undefined;
+    function CallStub() {
+      const state = useLocation().state as { partnerId?: number } | null;
+      if (state?.partnerId != null) capturedPartnerId = state.partnerId;
+      return <div>통화 화면 stub</div>;
+    }
+
+    renderWithQueryClient(
+      <Routes>
+        <Route path="/" element={<MatchingPage />} />
+        <Route path="/call/:roomId" element={<CallStub />} />
+      </Routes>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("통화 화면 stub")).toBeInTheDocument(),
+    );
+    expect(capturedPartnerId).toBe(2);
+  });
+
+  it("MATCHED 후 navigate 시에는 cancelMatchingQueue 가 호출되지 않는다", async () => {
+    let deleteCount = 0;
+    server.use(
+      http.get("http://localhost:3000/users/1/matching", () =>
+        HttpResponse.json({
+          data: {
+            status: "MATCHED",
+            partnerId: 2,
+            roomId: "11111111-1111-1111-1111-111111111111",
+          },
+          status: 200,
+          message: "OK",
+        }),
+      ),
+      http.delete("http://localhost:3000/users/1/matching", () => {
+        deleteCount++;
+        return HttpResponse.json({
+          data: null,
+          status: 204,
+          message: "NO_CONTENT",
+        });
+      }),
+    );
+
+    renderWithQueryClient(
+      <Routes>
+        <Route path="/" element={<MatchingPage />} />
+        <Route path="/call/:roomId" element={<div>통화 화면 stub</div>} />
+      </Routes>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("통화 화면 stub")).toBeInTheDocument(),
+    );
+    await new Promise((r) => setTimeout(r, 50));
+    expect(deleteCount).toBe(0);
   });
 
   it("'취소하기' 버튼 클릭 시 / 로 navigate 하고 DELETE 가 송신된다", async () => {
