@@ -61,7 +61,11 @@ export function useKakaoSignIn(): UseKakaoSignInResult {
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
       });
-      setSession(result.user);
+      setSession({
+        user: result.user,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      });
       navigate("/", { replace: true });
     } catch (err) {
       setFailure(classify(err));

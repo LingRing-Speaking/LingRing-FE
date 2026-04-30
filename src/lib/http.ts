@@ -1,4 +1,5 @@
 import { env } from "@/config/env";
+import { useAuthStore } from "@/domains/auth/store";
 
 type ApiResponse<T> = { data: T; status: number; message: string };
 
@@ -12,8 +13,20 @@ export class ApiError extends Error {
   }
 }
 
+function withAuthHeader(init?: RequestInit): RequestInit | undefined {
+  const token = useAuthStore.getState().accessToken;
+  if (!token) return init;
+  return {
+    ...init,
+    headers: {
+      ...(init?.headers ?? {}),
+      Authorization: `Bearer ${token}`,
+    },
+  };
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${env.apiBaseUrl}${path}`, init);
+  const res = await fetch(`${env.apiBaseUrl}${path}`, withAuthHeader(init));
   const body = await res.json().catch(() => ({}));
 
   if (!res.ok) {

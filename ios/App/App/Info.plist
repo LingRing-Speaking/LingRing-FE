@@ -59,20 +59,17 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<!-- 카카오 로그인 (네이티브 SDK + 앱 투 앱) -->
-	<!-- TODO: 카카오 콘솔에서 발급받은 NATIVE_APP_KEY로 아래 빈 자리 두 곳을 채우세요. -->
-	<!--       (1) CFBundleURLSchemes 의 "kakao" 뒤              -->
-	<!--       (2) KAKAO_NATIVE_APP_KEY 값                          -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>kakao$(KAKAO_NATIVE_APP_KEY)</string>
+				<string>kakao71d9c43427f1b2f02c9c7f19b3f8bfe7</string>
 			</array>
 		</dict>
 	</array>
 	<key>KAKAO_NATIVE_APP_KEY</key>
-	<string>$(KAKAO_NATIVE_APP_KEY)</string>
+	<string>71d9c43427f1b2f02c9c7f19b3f8bfe7</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<!-- 카카오톡 앱-투-앱 로그인 -->
