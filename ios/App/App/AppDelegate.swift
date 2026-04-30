@@ -7,7 +7,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // 카카오 SDK 초기화는 capacitor-kakao-login-plugin 의 load() 에서 처리 (Info.plist 의 KAKAO_NATIVE_APP_KEY 사용)
         return true
     }
 
@@ -34,8 +34,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-        // Called when the app was launched with a url. Feel free to add additional processing here,
-        // but if you want the App API to support tracking app url opens, make sure to keep this call
+        // 카카오톡 복귀 URL 도 ApplicationDelegateProxy 가 CAPNotifications.URLOpen 으로 broadcast 하면
+        // 카카오 플러그인 load() 에서 등록한 listener 가 받아 처리한다.
         return ApplicationDelegateProxy.shared.application(app, open: url, options: options)
     }
 

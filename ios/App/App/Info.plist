@@ -58,5 +58,24 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<!-- 카카오 로그인 (네이티브 SDK + 앱 투 앱) -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kakao71d9c43427f1b2f02c9c7f19b3f8bfe7</string>
+			</array>
+		</dict>
+	</array>
+	<key>KAKAO_NATIVE_APP_KEY</key>
+	<string>71d9c43427f1b2f02c9c7f19b3f8bfe7</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<!-- 카카오톡 앱-투-앱 로그인 -->
+		<string>kakaokompassauth</string>
+		<!-- 카카오톡 공유 (현재는 미사용, 향후 확장 대비) -->
+		<string>kakaolink</string>
+	</array>
 </dict>
 </plist>
