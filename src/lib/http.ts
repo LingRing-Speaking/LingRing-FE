@@ -27,10 +27,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (body as ApiResponse<T>).data;
 }
 
+function jsonInit(method: "POST" | "DELETE", body?: unknown): RequestInit {
+  if (body === undefined) return { method };
+  return {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  };
+}
+
 export const httpGet = <T>(path: string): Promise<T> => request<T>(path);
 
-export const httpPost = <T = void>(path: string): Promise<T> =>
-  request<T>(path, { method: "POST" });
+export const httpPost = <T = void>(path: string, body?: unknown): Promise<T> =>
+  request<T>(path, jsonInit("POST", body));
 
-export const httpDelete = <T = void>(path: string): Promise<T> =>
-  request<T>(path, { method: "DELETE" });
+export const httpDelete = <T = void>(path: string, body?: unknown): Promise<T> =>
+  request<T>(path, jsonInit("DELETE", body));
