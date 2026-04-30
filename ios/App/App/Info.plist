@@ -24,6 +24,15 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<true/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>실시간 음성 통화 연결을 위해 로컬 네트워크에 접근합니다.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>영어 음성 통화 연결을 위해 마이크를 사용합니다.</string>
 	<key>UILaunchStoryboardName</key>
