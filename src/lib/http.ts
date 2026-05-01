@@ -1,5 +1,9 @@
 import { env } from "@/config/env";
 import { useAuthStore } from "@/domains/auth/store";
+import { clearTokens, saveTokens } from "@/domains/auth/storage";
+
+const REFRESH_PATH = "/auth/refresh";
+const UNAUTHORIZED_STATUS = 401;
 
 type ApiResponse<T> = { data: T; status: number; message: string };
 
@@ -25,8 +29,60 @@ function withAuthHeader(init?: RequestInit): RequestInit | undefined {
   };
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function refreshAccessToken(): Promise<boolean> {
+  const refreshToken = useAuthStore.getState().refreshToken;
+  if (!refreshToken) return false;
+
+  let res: Response;
+  try {
+    res = await fetch(`${env.apiBaseUrl}${REFRESH_PATH}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+  } catch {
+    return false;
+  }
+
+  if (!res.ok) {
+    useAuthStore.getState().clearSession();
+    await clearTokens();
+    return false;
+  }
+
+  const body = await res.json().catch(() => null);
+  const tokens = (body as { data?: { accessToken?: string; refreshToken?: string } } | null)?.data;
+  if (!tokens?.accessToken || !tokens?.refreshToken) {
+    useAuthStore.getState().clearSession();
+    await clearTokens();
+    return false;
+  }
+
+  useAuthStore.getState().updateTokens({
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+  });
+  await saveTokens({
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+  });
+  return true;
+}
+
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  alreadyRetried = false,
+): Promise<T> {
   const res = await fetch(`${env.apiBaseUrl}${path}`, withAuthHeader(init));
+
+  if (res.status === UNAUTHORIZED_STATUS && !alreadyRetried && path !== REFRESH_PATH) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return request<T>(path, init, true);
+    }
+  }
+
   const body = await res.json().catch(() => ({}));
 
   if (!res.ok) {

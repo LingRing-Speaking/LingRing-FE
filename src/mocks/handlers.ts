@@ -30,6 +30,22 @@ function generateFakeCalls(_userId: number, n: number): CallHistoryItem[] {
 }
 
 export const handlers = [
+  http.get(`${env.apiBaseUrl}/auth/me`, () => {
+    return HttpResponse.json({
+      data: { id: 1, nickname: "lee-tiger-1234" },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
+  http.post(`${env.apiBaseUrl}/auth/refresh`, () => {
+    return HttpResponse.json({
+      data: { accessToken: "mock-access", refreshToken: "mock-refresh" },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
   http.get(`${env.apiBaseUrl}/users/:userId/my`, ({ params }) => {
     return HttpResponse.json({
       data: { id: Number(params.userId), name: "Lee" },
