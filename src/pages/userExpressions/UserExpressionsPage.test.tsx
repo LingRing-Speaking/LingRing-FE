@@ -37,7 +37,7 @@ describe("UserExpressionsPage", () => {
 
   it("표현이 비어 있으면 빈 상태를 보여준다", async () => {
     server.use(
-      http.get("http://localhost:3000/users/1/expressions", () =>
+      http.get("http://localhost:3000/api/v1/expressions", () =>
         HttpResponse.json({
           data: { items: [], hasNext: false },
           status: 200,
@@ -59,7 +59,7 @@ describe("UserExpressionsPage", () => {
   });
 
   it("한 쿼리만 실패해도 에러 화면 + 다시 시도 버튼을 보여준다", async () => {
-    server.use(http.get("http://localhost:3000/users/1/expressions", FAILURE));
+    server.use(http.get("http://localhost:3000/api/v1/expressions", FAILURE));
 
     renderWithQueryClient(<UserExpressionsPage />);
 
@@ -78,7 +78,7 @@ describe("UserExpressionsPage", () => {
     let expressionsCallCount = 0;
     let statsCallCount = 0;
     server.use(
-      http.get("http://localhost:3000/users/1/expressions", () => {
+      http.get("http://localhost:3000/api/v1/expressions", () => {
         expressionsCallCount += 1;
         if (expressionsCallCount === 1) {
           return HttpResponse.json(
@@ -103,7 +103,7 @@ describe("UserExpressionsPage", () => {
           message: "OK",
         });
       }),
-      http.get("http://localhost:3000/users/1/stats", ({ params }) => {
+      http.get("http://localhost:3000/api/v1/me/stats", ({ params }) => {
         statsCallCount += 1;
         return HttpResponse.json({
           data: {

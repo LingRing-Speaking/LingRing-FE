@@ -16,7 +16,7 @@ const wrapper = ({ children }: { children: ReactNode }) => {
 
 describe("useCallHistory", () => {
   it("첫 페이지 성공 시 pages[0].items 를 반환한다", async () => {
-    const { result } = renderHook(() => useCallHistory(1), { wrapper });
+    const { result } = renderHook(() => useCallHistory(), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.pages[0]?.items.length).toBeGreaterThan(0);
@@ -24,7 +24,7 @@ describe("useCallHistory", () => {
 
   it("hasNext 가 false 면 hasNextPage 도 false 다", async () => {
     server.use(
-      http.get("http://localhost:3000/users/1/calls", () =>
+      http.get("http://localhost:3000/api/v1/calls", () =>
         HttpResponse.json({
           data: { items: [], hasNext: false },
           status: 200,
@@ -33,7 +33,7 @@ describe("useCallHistory", () => {
       ),
     );
 
-    const { result } = renderHook(() => useCallHistory(1), { wrapper });
+    const { result } = renderHook(() => useCallHistory(), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.hasNextPage).toBe(false);
@@ -41,7 +41,7 @@ describe("useCallHistory", () => {
 
   it("fetchNextPage 를 호출하면 두 번째 페이지가 누적된다", async () => {
     server.use(
-      http.get("http://localhost:3000/users/1/calls", ({ request }) => {
+      http.get("http://localhost:3000/api/v1/calls", ({ request }) => {
         const page = Number(new URL(request.url).searchParams.get("page"));
         return HttpResponse.json({
           data: {
@@ -62,7 +62,7 @@ describe("useCallHistory", () => {
       }),
     );
 
-    const { result } = renderHook(() => useCallHistory(1), { wrapper });
+    const { result } = renderHook(() => useCallHistory(), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.hasNextPage).toBe(true);

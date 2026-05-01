@@ -2,6 +2,9 @@ import { http, HttpResponse } from "msw";
 import { env } from "@/config/env";
 import type { CallHistoryItem } from "@/domains/callHistory/types";
 
+const API_PREFIX = "/api/v1";
+const apiUrl = (path: string) => `${env.apiBaseUrl}${API_PREFIX}${path}`;
+
 const FAKE_PARTNER_NAMES = [
   "Jenson", "Minji", "Sophie", "David", "Emma", "Daniel", "Hannah",
   "Olivia", "Noah", "Amelia", "Liam", "Yujin", "Sora", "Junho",
@@ -9,7 +12,7 @@ const FAKE_PARTNER_NAMES = [
 
 // 0~1300시간(약 54일) 전 사이에서 50개의 통화를 분산 배치.
 // 매일 자동으로 오늘/이번 주/이번 달/지난 달들에 분포가 갱신됨.
-function generateFakeCalls(_userId: number, n: number): CallHistoryItem[] {
+function generateFakeCalls(n: number): CallHistoryItem[] {
   const now = Date.now();
   return Array.from({ length: n }, (_, i) => {
     // 비선형 분포: 처음 몇 개는 오늘/이번 주에 몰리고, 뒤로 갈수록 멀어진다.
@@ -30,7 +33,7 @@ function generateFakeCalls(_userId: number, n: number): CallHistoryItem[] {
 }
 
 export const handlers = [
-  http.get(`${env.apiBaseUrl}/auth/me`, () => {
+  http.get(apiUrl("/me"), () => {
     return HttpResponse.json({
       data: { id: 1, nickname: "lee-tiger-1234" },
       status: 200,
@@ -38,7 +41,7 @@ export const handlers = [
     });
   }),
 
-  http.post(`${env.apiBaseUrl}/auth/refresh`, () => {
+  http.post(apiUrl("/auth/refresh"), () => {
     return HttpResponse.json({
       data: { accessToken: "mock-access", refreshToken: "mock-refresh" },
       status: 200,
@@ -46,18 +49,10 @@ export const handlers = [
     });
   }),
 
-  http.get(`${env.apiBaseUrl}/users/:userId/my`, ({ params }) => {
-    return HttpResponse.json({
-      data: { id: Number(params.userId), name: "Lee" },
-      status: 200,
-      message: "OK",
-    });
-  }),
-
-  http.get(`${env.apiBaseUrl}/users/:userId/stats`, ({ params }) => {
+  http.get(apiUrl("/me/stats"), () => {
     return HttpResponse.json({
       data: {
-        userId: Number(params.userId),
+        userId: 1,
         level: "INTERMEDIATE",
         mannerTemperature: 36.5,
         totalCallCount: 23,
@@ -70,14 +65,13 @@ export const handlers = [
     });
   }),
 
-  http.get(`${env.apiBaseUrl}/users/:userId/expressions`, ({ params }) => {
-    const userId = Number(params.userId);
+  http.get(apiUrl("/expressions"), () => {
     return HttpResponse.json({
       data: {
         items: [
           {
             id: 1,
-            userId,
+            userId: 1,
             expression:
               "I'd appreciate it if you could send the report by Friday.",
             meaning: "금요일까지 보고서를 보내주시면 감사하겠습니다.",
@@ -85,14 +79,14 @@ export const handlers = [
           },
           {
             id: 2,
-            userId,
+            userId: 1,
             expression: "That's a fair point, but I'd like to add something.",
             meaning: "좋은 지적이에요. 다만 한 가지 덧붙이고 싶어요.",
             createdAt: "2026-04-24T10:00:00.000000",
           },
           {
             id: 3,
-            userId,
+            userId: 1,
             expression: "Sorry, could you say that one more time?",
             meaning: "죄송한데 한 번만 더 말씀해주실 수 있을까요?",
             createdAt: "2026-04-23T09:15:00.000000",
@@ -105,7 +99,7 @@ export const handlers = [
     });
   }),
 
-  http.get(`${env.apiBaseUrl}/recommended-expressions/daily`, () => {
+  http.get(apiUrl("/recommended-expressions/daily"), () => {
     return HttpResponse.json({
       data: {
         id: 1,
@@ -118,7 +112,7 @@ export const handlers = [
     });
   }),
 
-  http.get(`${env.apiBaseUrl}/icebreakers`, ({ request }) => {
+  http.get(apiUrl("/icebreakers"), ({ request }) => {
     const url = new URL(request.url);
     const count = Number(url.searchParams.get("count") ?? "5");
     const items = Array.from({ length: count }, (_, i) => ({
@@ -134,7 +128,7 @@ export const handlers = [
     });
   }),
 
-  http.post(`${env.apiBaseUrl}/users/:userId/matching`, () => {
+  http.post(apiUrl("/me/matching"), () => {
     return HttpResponse.json({
       data: null,
       status: 204,
@@ -142,7 +136,7 @@ export const handlers = [
     });
   }),
 
-  http.get(`${env.apiBaseUrl}/users/:userId/matching`, () => {
+  http.get(apiUrl("/me/matching"), () => {
     return HttpResponse.json({
       data: { status: "WAITING", partnerId: null, roomId: null },
       status: 200,
@@ -150,7 +144,7 @@ export const handlers = [
     });
   }),
 
-  http.delete(`${env.apiBaseUrl}/users/:userId/matching`, () => {
+  http.delete(apiUrl("/me/matching"), () => {
     return HttpResponse.json({
       data: null,
       status: 204,
@@ -158,12 +152,11 @@ export const handlers = [
     });
   }),
 
-  http.get(`${env.apiBaseUrl}/users/:userId/calls`, ({ request, params }) => {
+  http.get(apiUrl("/calls"), ({ request }) => {
     const url = new URL(request.url);
     const page = Number(url.searchParams.get("page") ?? 0);
     const size = Number(url.searchParams.get("size") ?? 20);
-    const userId = Number(params.userId);
-    const all = generateFakeCalls(userId, 50);
+    const all = generateFakeCalls(50);
     const slice = all.slice(page * size, page * size + size);
     return HttpResponse.json({
       data: { items: slice, hasNext: (page + 1) * size < all.length },

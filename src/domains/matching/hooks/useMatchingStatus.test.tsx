@@ -22,7 +22,7 @@ describe("useMatchingStatus", () => {
   it("enabled=false 면 호출하지 않는다", async () => {
     let callCount = 0;
     server.use(
-      http.get("http://localhost:3000/users/1/matching", () => {
+      http.get("http://localhost:3000/api/v1/me/matching", () => {
         callCount++;
         return HttpResponse.json({
           data: { status: "WAITING", partnerId: null, roomId: null },
@@ -32,17 +32,14 @@ describe("useMatchingStatus", () => {
       }),
     );
 
-    renderHook(() => useMatchingStatus(1, false), { wrapper });
+    renderHook(() => useMatchingStatus(false), { wrapper });
 
-    // 짧게 대기 후 호출 0회 확인
     await new Promise((r) => setTimeout(r, 50));
     expect(callCount).toBe(0);
   });
 
   it("enabled=true 면 WAITING 데이터를 반환한다", async () => {
-    const { result } = renderHook(() => useMatchingStatus(1, true), {
-      wrapper,
-    });
+    const { result } = renderHook(() => useMatchingStatus(true), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual({
@@ -55,7 +52,7 @@ describe("useMatchingStatus", () => {
   it("MATCHED 응답을 받으면 폴링이 멈춘다", async () => {
     let callCount = 0;
     server.use(
-      http.get("http://localhost:3000/users/1/matching", () => {
+      http.get("http://localhost:3000/api/v1/me/matching", () => {
         callCount++;
         return HttpResponse.json({
           data: { status: "MATCHED", partnerId: 2, roomId: "11111111-1111-1111-1111-111111111111" },
@@ -67,16 +64,11 @@ describe("useMatchingStatus", () => {
 
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
-    const { result } = renderHook(() => useMatchingStatus(1, true), {
-      wrapper,
-    });
+    const { result } = renderHook(() => useMatchingStatus(true), { wrapper });
 
-    await waitFor(() =>
-      expect(result.current.data?.status).toBe("MATCHED"),
-    );
+    await waitFor(() => expect(result.current.data?.status).toBe("MATCHED"));
     expect(callCount).toBe(1);
 
-    // 폴링 간격(3s)의 3배 시간 진행 — 추가 호출이 없어야 함
     await vi.advanceTimersByTimeAsync(10000);
     expect(callCount).toBe(1);
   });
@@ -84,7 +76,7 @@ describe("useMatchingStatus", () => {
   it("WAITING 응답이면 3초 후 다시 폴링한다", async () => {
     let callCount = 0;
     server.use(
-      http.get("http://localhost:3000/users/1/matching", () => {
+      http.get("http://localhost:3000/api/v1/me/matching", () => {
         callCount++;
         return HttpResponse.json({
           data: { status: "WAITING", partnerId: null, roomId: null },
@@ -96,9 +88,7 @@ describe("useMatchingStatus", () => {
 
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
-    const { result } = renderHook(() => useMatchingStatus(1, true), {
-      wrapper,
-    });
+    const { result } = renderHook(() => useMatchingStatus(true), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const firstCallCount = callCount;

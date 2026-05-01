@@ -27,7 +27,7 @@ describe("MatchingPage", () => {
 
   it("API 가 실패해도 초기 폴백 문장이 즉시 표시된다", async () => {
     server.use(
-      http.get("http://localhost:3000/icebreakers", () =>
+      http.get("http://localhost:3000/api/v1/icebreakers", () =>
         HttpResponse.json(
           { data: null, status: 500, message: "fail" },
           { status: 500 },
@@ -71,7 +71,7 @@ describe("MatchingPage", () => {
   it("마운트 시 매칭 큐 입장 POST 를 1회 송신한다", async () => {
     let postCount = 0;
     server.use(
-      http.post("http://localhost:3000/users/1/matching", () => {
+      http.post("http://localhost:3000/api/v1/me/matching", () => {
         postCount++;
         return HttpResponse.json({
           data: null,
@@ -88,7 +88,7 @@ describe("MatchingPage", () => {
 
   it("POST 가 실패하면 에러 메시지와 다시 시도 / 메인으로 버튼이 나온다", async () => {
     server.use(
-      http.post("http://localhost:3000/users/1/matching", () =>
+      http.post("http://localhost:3000/api/v1/me/matching", () =>
         HttpResponse.json(
           { data: null, status: 500, message: "fail" },
           { status: 500 },
@@ -113,7 +113,7 @@ describe("MatchingPage", () => {
     const user = userEvent.setup();
     let postCount = 0;
     server.use(
-      http.post("http://localhost:3000/users/1/matching", () => {
+      http.post("http://localhost:3000/api/v1/me/matching", () => {
         postCount++;
         return HttpResponse.json(
           { data: null, status: 500, message: "fail" },
@@ -137,7 +137,7 @@ describe("MatchingPage", () => {
     let postCount = 0;
     let deleteCount = 0;
     server.use(
-      http.post("http://localhost:3000/users/1/matching", () => {
+      http.post("http://localhost:3000/api/v1/me/matching", () => {
         postCount++;
         if (postCount === 1) {
           return HttpResponse.json(
@@ -151,7 +151,7 @@ describe("MatchingPage", () => {
           message: "NO_CONTENT",
         });
       }),
-      http.delete("http://localhost:3000/users/1/matching", () => {
+      http.delete("http://localhost:3000/api/v1/me/matching", () => {
         deleteCount++;
         return HttpResponse.json({
           data: null,
@@ -182,7 +182,7 @@ describe("MatchingPage", () => {
     let postCount = 0;
     let deleteCount = 0;
     server.use(
-      http.post("http://localhost:3000/users/1/matching", () => {
+      http.post("http://localhost:3000/api/v1/me/matching", () => {
         postCount++;
         return HttpResponse.json({
           data: null,
@@ -190,7 +190,7 @@ describe("MatchingPage", () => {
           message: "NO_CONTENT",
         });
       }),
-      http.delete("http://localhost:3000/users/1/matching", () => {
+      http.delete("http://localhost:3000/api/v1/me/matching", () => {
         deleteCount++;
         return HttpResponse.json({
           data: null,
@@ -211,13 +211,13 @@ describe("MatchingPage", () => {
   it("POST 가 실패한 채 언마운트되면 DELETE 를 보내지 않는다", async () => {
     let deleteCount = 0;
     server.use(
-      http.post("http://localhost:3000/users/1/matching", () =>
+      http.post("http://localhost:3000/api/v1/me/matching", () =>
         HttpResponse.json(
           { data: null, status: 500, message: "fail" },
           { status: 500 },
         ),
       ),
-      http.delete("http://localhost:3000/users/1/matching", () => {
+      http.delete("http://localhost:3000/api/v1/me/matching", () => {
         deleteCount++;
         return HttpResponse.json({
           data: null,
@@ -240,7 +240,7 @@ describe("MatchingPage", () => {
   it("POST 성공 후 GET 매칭 상태를 폴링한다", async () => {
     let getCount = 0;
     server.use(
-      http.get("http://localhost:3000/users/1/matching", () => {
+      http.get("http://localhost:3000/api/v1/me/matching", () => {
         getCount++;
         return HttpResponse.json({
           data: { status: "WAITING", partnerId: null, roomId: null },
@@ -257,7 +257,7 @@ describe("MatchingPage", () => {
 
   it("MATCHED 응답을 받으면 /call/:roomId 로 navigate 하고 partnerId 를 state 로 넘긴다", async () => {
     server.use(
-      http.get("http://localhost:3000/users/1/matching", () =>
+      http.get("http://localhost:3000/api/v1/me/matching", () =>
         HttpResponse.json({
           data: {
             status: "MATCHED",
@@ -293,7 +293,7 @@ describe("MatchingPage", () => {
   it("MATCHED 후 navigate 시에는 cancelMatchingQueue 가 호출되지 않는다", async () => {
     let deleteCount = 0;
     server.use(
-      http.get("http://localhost:3000/users/1/matching", () =>
+      http.get("http://localhost:3000/api/v1/me/matching", () =>
         HttpResponse.json({
           data: {
             status: "MATCHED",
@@ -304,7 +304,7 @@ describe("MatchingPage", () => {
           message: "OK",
         }),
       ),
-      http.delete("http://localhost:3000/users/1/matching", () => {
+      http.delete("http://localhost:3000/api/v1/me/matching", () => {
         deleteCount++;
         return HttpResponse.json({
           data: null,
@@ -332,7 +332,7 @@ describe("MatchingPage", () => {
     const user = userEvent.setup();
     let deleteCount = 0;
     server.use(
-      http.delete("http://localhost:3000/users/1/matching", () => {
+      http.delete("http://localhost:3000/api/v1/me/matching", () => {
         deleteCount++;
         return HttpResponse.json({
           data: null,

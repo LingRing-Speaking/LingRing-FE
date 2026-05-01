@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { useUserId } from "@/domains/auth/hooks/useUserId";
 import { useCallHistory } from "@/domains/callHistory/hooks/useCallHistory";
 import { BottomTabBar } from "@/components/BottomTabBar";
 import { PageShell } from "@/components/PageShell";
@@ -7,8 +6,7 @@ import { CallHistoryList } from "./CallHistoryList";
 import { EmptyCallHistory } from "./EmptyCallHistory";
 
 export function CallHistoryPage() {
-  const userId = useUserId();
-  const query = useCallHistory(userId);
+  const query = useCallHistory();
   const now = useMemo(() => new Date(), []);
 
   const status = (() => {

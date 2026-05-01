@@ -1,6 +1,5 @@
-import { useUserId } from "@/domains/auth/hooks/useUserId";
+import { useAuthStore } from "@/domains/auth/store";
 import { useDailyRecommendedExpression } from "@/domains/recommendedExpression/hooks/useDailyRecommendedExpression";
-import { useUserMy } from "@/domains/user/hooks/useUserMy";
 import { BottomTabBar } from "@/components/BottomTabBar";
 import { PageShell } from "@/components/PageShell";
 import { CallHero } from "./CallHero";
@@ -8,18 +7,16 @@ import { DailyExpressionCard } from "./DailyExpressionCard";
 import { Greeting } from "./Greeting";
 
 export function MainPage() {
-  const userId = useUserId();
-  const userMy = useUserMy(userId);
+  const user = useAuthStore((state) => state.user);
   const dailyExpression = useDailyRecommendedExpression();
 
   const status = (() => {
-    if (userMy.isError || dailyExpression.isError) return "error";
-    if (userMy.isPending || dailyExpression.isPending) return "loading";
+    if (dailyExpression.isError) return "error";
+    if (dailyExpression.isPending) return "loading";
     return "success";
   })();
 
   const handleRetry = () => {
-    userMy.refetch();
     dailyExpression.refetch();
   };
 
@@ -59,9 +56,9 @@ export function MainPage() {
             </div>
           )}
 
-          {status === "success" && userMy.data && (
+          {status === "success" && user && (
             <>
-              <Greeting name={userMy.data.name} />
+              <Greeting name={user.nickname} />
               <DailyExpressionCard data={dailyExpression.data ?? null} />
               <CallHero />
             </>

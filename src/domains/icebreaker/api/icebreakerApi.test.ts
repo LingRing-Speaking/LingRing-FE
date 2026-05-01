@@ -18,7 +18,7 @@ describe("icebreakerApi", () => {
   it("count 파라미터를 query string 으로 전달한다", async () => {
     let receivedCount: string | null = null;
     server.use(
-      http.get("http://localhost:3000/icebreakers", ({ request }) => {
+      http.get("http://localhost:3000/api/v1/icebreakers", ({ request }) => {
         receivedCount = new URL(request.url).searchParams.get("count");
         return HttpResponse.json({
           data: { items: [] },
@@ -35,7 +35,7 @@ describe("icebreakerApi", () => {
 
   it("500 응답이면 ApiError 를 throw 한다", async () => {
     server.use(
-      http.get("http://localhost:3000/icebreakers", () =>
+      http.get("http://localhost:3000/api/v1/icebreakers", () =>
         HttpResponse.json(
           { data: null, status: 500, message: "ICEBREAKER_FETCH_FAILED" },
           { status: 500 },

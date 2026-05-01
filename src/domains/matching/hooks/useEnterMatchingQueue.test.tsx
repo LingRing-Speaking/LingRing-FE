@@ -18,14 +18,14 @@ describe("useEnterMatchingQueue", () => {
   it("mutate 호출 후 성공하면 isSuccess 가 true 다", async () => {
     const { result } = renderHook(() => useEnterMatchingQueue(), { wrapper });
 
-    result.current.mutate(1);
+    result.current.mutate();
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
   });
 
   it("500 응답이면 isError 가 true 다", async () => {
     server.use(
-      http.post("http://localhost:3000/users/1/matching", () =>
+      http.post("http://localhost:3000/api/v1/me/matching", () =>
         HttpResponse.json(
           { data: null, status: 500, message: "fail" },
           { status: 500 },
@@ -35,7 +35,7 @@ describe("useEnterMatchingQueue", () => {
 
     const { result } = renderHook(() => useEnterMatchingQueue(), { wrapper });
 
-    result.current.mutate(1);
+    result.current.mutate();
 
     await waitFor(() => expect(result.current.isError).toBe(true));
   });

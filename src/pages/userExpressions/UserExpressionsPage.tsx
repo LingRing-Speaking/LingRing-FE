@@ -1,31 +1,29 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { PageShell } from "@/components/PageShell";
-import { useUserId } from "@/domains/auth/hooks/useUserId";
-import { useUserStats } from "@/domains/user/hooks/useUserStats";
+import { useMyStats } from "@/domains/user/hooks/useMyStats";
 import { useUserExpressions } from "@/domains/userExpression/hooks/useUserExpressions";
 import { EmptyExpressions } from "./EmptyExpressions";
 import { PhraseCard } from "./PhraseCard";
 
 export function UserExpressionsPage() {
-  const userId = useUserId();
-  const expressions = useUserExpressions(userId);
-  const userStats = useUserStats(userId);
+  const expressions = useUserExpressions();
+  const myStats = useMyStats();
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const status = (() => {
-    if (expressions.isError || userStats.isError) return "error";
-    if (expressions.isPending || userStats.isPending) return "loading";
+    if (expressions.isError || myStats.isError) return "error";
+    if (expressions.isPending || myStats.isPending) return "loading";
     return "success";
   })();
 
   const handleRetry = () => {
     expressions.refetch();
-    userStats.refetch();
+    myStats.refetch();
   };
 
   const items = expressions.data?.pages.flatMap((page) => page.items) ?? [];
-  const totalCount = userStats.data?.expressionCount ?? 0;
+  const totalCount = myStats.data?.expressionCount ?? 0;
   const isEmpty = items.length === 0;
 
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = expressions;

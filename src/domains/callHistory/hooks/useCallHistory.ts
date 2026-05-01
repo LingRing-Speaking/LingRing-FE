@@ -8,12 +8,13 @@ import type { CallHistoryList } from "../types";
 
 const PAGE_SIZE = 20;
 
-export function useCallHistory(
-  userId: number,
-): UseInfiniteQueryResult<InfiniteData<CallHistoryList, number>, Error> {
+export function useCallHistory(): UseInfiniteQueryResult<
+  InfiniteData<CallHistoryList, number>,
+  Error
+> {
   return useInfiniteQuery({
-    queryKey: ["callHistory", userId, "list"],
-    queryFn: ({ pageParam }) => fetchCallHistory(userId, pageParam, PAGE_SIZE),
+    queryKey: ["calls"],
+    queryFn: ({ pageParam }) => fetchCallHistory(pageParam, PAGE_SIZE),
     initialPageParam: 0,
     getNextPageParam: (lastPage, _allPages, lastPageParam) =>
       lastPage.hasNext ? lastPageParam + 1 : undefined,

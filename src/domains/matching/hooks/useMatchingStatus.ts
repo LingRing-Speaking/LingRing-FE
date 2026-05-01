@@ -5,12 +5,11 @@ import type { MatchingStatus } from "../types";
 const POLL_INTERVAL_MS = 3000;
 
 export function useMatchingStatus(
-  userId: number,
   enabled: boolean,
 ): UseQueryResult<MatchingStatus, Error> {
   return useQuery({
-    queryKey: ["matching", "status", userId],
-    queryFn: () => fetchMatchingStatus(userId),
+    queryKey: ["matching", "status"],
+    queryFn: fetchMatchingStatus,
     enabled,
     refetchInterval: (query) =>
       query.state.data?.status === "MATCHED" ? false : POLL_INTERVAL_MS,
