@@ -57,7 +57,7 @@ function MyPageIcon({ active }: { active: boolean }) {
 
 export function BottomTabBar() {
   const { pathname } = useLocation();
-  const isHome = pathname === "/";
+  const isHome = pathname === "/home";
   const isHistory = pathname === "/history";
   const isMyPage = pathname === "/mypage";
 
@@ -67,7 +67,7 @@ export function BottomTabBar() {
       className="absolute bottom-0 left-0 right-0 z-10 flex h-[72px] items-start border-t border-gray-100 bg-white pt-2 shadow-nav"
     >
       <Link
-        to="/"
+        to="/home"
         aria-current={isHome ? "page" : undefined}
         className={`${TAB_BASE} ${isHome ? "text-gray-900" : "text-gray-400"}`}
       >

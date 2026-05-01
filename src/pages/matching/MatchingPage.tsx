@@ -63,13 +63,13 @@ export function MatchingPage() {
   const closeSheet = () => setSheetOpen(false);
   const handleCancel = () => {
     setSheetOpen(false);
-    navigate("/");
+    navigate("/home");
   };
 
   const handleRetry = () => {
     fireEnter();
   };
-  const handleGoHome = () => navigate("/");
+  const handleGoHome = () => navigate("/home");
 
   return (
     <PageShell>

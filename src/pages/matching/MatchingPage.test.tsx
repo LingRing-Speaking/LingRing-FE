@@ -328,7 +328,7 @@ describe("MatchingPage", () => {
     expect(deleteCount).toBe(0);
   });
 
-  it("'취소하기' 버튼 클릭 시 / 로 navigate 하고 DELETE 가 송신된다", async () => {
+  it("'취소하기' 버튼 클릭 시 /home 으로 navigate 하고 DELETE 가 송신된다", async () => {
     const user = userEvent.setup();
     let deleteCount = 0;
     server.use(
@@ -345,7 +345,7 @@ describe("MatchingPage", () => {
     renderWithQueryClient(
       <Routes>
         <Route path="/matching" element={<MatchingPage />} />
-        <Route path="/" element={<div>메인 화면</div>} />
+        <Route path="/home" element={<div>메인 화면</div>} />
       </Routes>,
       { initialEntries: ["/matching"] },
     );

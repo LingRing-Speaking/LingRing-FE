@@ -145,7 +145,7 @@ describe("MainPage", () => {
   });
 
   it("표현 카드는 disabled 이고, 하단 탭의 홈은 활성 상태다", async () => {
-    renderWithQueryClient(<MainPage />);
+    renderWithQueryClient(<MainPage />, { initialEntries: ["/home"] });
 
     await waitFor(() =>
       expect(

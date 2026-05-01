@@ -43,7 +43,7 @@ const renderAt = (path: string, state?: { partnerId?: number }) => {
       >
         <Routes>
           <Route path="/call/:roomId" element={<CallPage />} />
-          <Route path="/" element={<div>홈입니다</div>} />
+          <Route path="/home" element={<div>홈입니다</div>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
