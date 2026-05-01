@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageShell } from "@/components/PageShell";
-import { useUserId } from "@/domains/auth/hooks/useUserId";
 import { cancelMatchingQueue } from "@/domains/matching/api/matchingApi";
 import { useEnterMatchingQueue } from "@/domains/matching/hooks/useEnterMatchingQueue";
 import { useMatchingStatus } from "@/domains/matching/hooks/useMatchingStatus";
@@ -17,17 +16,16 @@ const FADE_MS = 280;
 
 export function MatchingPage() {
   const navigate = useNavigate();
-  const userId = useUserId();
   const [sheetOpen, setSheetOpen] = useState(false);
   const { data: icebreakers } = useRandomIcebreakers(ICEBREAKER_COUNT);
 
   const enter = useEnterMatchingQueue();
-  const status = useMatchingStatus(userId, enter.isSuccess);
+  const status = useMatchingStatus(enter.isSuccess);
 
   const enteredRef = useRef(false);
 
   const fireEnter = () => {
-    enter.mutate(userId, {
+    enter.mutate(undefined, {
       onSuccess: () => {
         enteredRef.current = true;
       },
@@ -38,13 +36,12 @@ export function MatchingPage() {
     fireEnter();
     return () => {
       if (enteredRef.current) {
-        cancelMatchingQueue(userId).catch(() => {});
+        cancelMatchingQueue().catch(() => {});
       }
     };
-    // userId 변경 시에만 재실행 — fireEnter는 매 렌더 새 함수이지만
-    // 내부에서 사용하는 enter.mutate는 stable, userId는 deps에 포함됨.
+    // mount 시 1회만 실행. enter.mutate는 stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, []);
 
   useEffect(() => {
     const data = status.data;

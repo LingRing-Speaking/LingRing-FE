@@ -18,7 +18,7 @@ describe("recommendedExpressionApi", () => {
 
   it("404 응답이면 null 을 반환한다 (throw 하지 않는다)", async () => {
     server.use(
-      http.get("http://localhost:3000/recommended-expressions/daily", () =>
+      http.get("http://localhost:3000/api/v1/recommended-expressions/daily", () =>
         HttpResponse.json(
           {
             data: null,
@@ -37,7 +37,7 @@ describe("recommendedExpressionApi", () => {
 
   it("500 응답이면 ApiError 를 throw 한다", async () => {
     server.use(
-      http.get("http://localhost:3000/recommended-expressions/daily", () =>
+      http.get("http://localhost:3000/api/v1/recommended-expressions/daily", () =>
         HttpResponse.json(
           { data: null, status: 500, message: "internal error" },
           { status: 500 },

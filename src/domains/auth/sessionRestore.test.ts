@@ -36,7 +36,7 @@ describe("restoreSession", () => {
       refreshToken: "valid-refresh",
     });
     server.use(
-      http.get("http://localhost:3000/auth/me", () =>
+      http.get("http://localhost:3000/api/v1/me", () =>
         HttpResponse.json({
           status: 200,
           message: "OK",
@@ -61,13 +61,13 @@ describe("restoreSession", () => {
       refreshToken: "expired-refresh",
     });
     server.use(
-      http.get("http://localhost:3000/auth/me", () =>
+      http.get("http://localhost:3000/api/v1/me", () =>
         HttpResponse.json(
           { data: null, status: 401, message: "EXPIRED" },
           { status: 401 },
         ),
       ),
-      http.post("http://localhost:3000/auth/refresh", () =>
+      http.post("http://localhost:3000/api/v1/auth/refresh", () =>
         HttpResponse.json(
           { data: null, status: 401, message: "INVALID_OR_EXPIRED_REFRESH_TOKEN" },
           { status: 401 },
@@ -91,7 +91,7 @@ describe("restoreSession", () => {
       refreshToken: "valid-refresh",
     });
     server.use(
-      http.get("http://localhost:3000/auth/me", ({ request }) => {
+      http.get("http://localhost:3000/api/v1/me", ({ request }) => {
         const auth = request.headers.get("authorization");
         if (auth === "Bearer fresh-access") {
           return HttpResponse.json({
@@ -105,7 +105,7 @@ describe("restoreSession", () => {
           { status: 401 },
         );
       }),
-      http.post("http://localhost:3000/auth/refresh", () =>
+      http.post("http://localhost:3000/api/v1/auth/refresh", () =>
         HttpResponse.json({
           status: 200,
           message: "OK",
@@ -129,7 +129,7 @@ describe("restoreSession", () => {
       accessToken: "valid-access",
       refreshToken: "valid-refresh",
     });
-    server.use(http.get("http://localhost:3000/auth/me", () => HttpResponse.error()));
+    server.use(http.get("http://localhost:3000/api/v1/me", () => HttpResponse.error()));
 
     const result = await restoreSession();
 

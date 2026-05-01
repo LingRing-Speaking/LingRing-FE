@@ -8,7 +8,7 @@ import { ApiError, httpDelete, httpGet, httpPost } from "./http";
 describe("httpGet", () => {
   it("2xx 응답에서 ApiResponse 를 언랩해 data 만 반환한다", async () => {
     server.use(
-      http.get("http://localhost:3000/ping", () =>
+      http.get("http://localhost:3000/api/v1/ping", () =>
         HttpResponse.json({ data: { ok: true }, status: 200, message: "OK" }),
       ),
     );
@@ -20,7 +20,7 @@ describe("httpGet", () => {
 
   it("4xx 응답에서 ApiError 를 throw 한다", async () => {
     server.use(
-      http.get("http://localhost:3000/users/999/my", () =>
+      http.get("http://localhost:3000/api/v1/me", () =>
         HttpResponse.json(
           { data: null, status: 404, message: "사용자를 찾을 수 없습니다." },
           { status: 404 },
@@ -28,7 +28,7 @@ describe("httpGet", () => {
       ),
     );
 
-    await expect(httpGet("/users/999/my")).rejects.toMatchObject({
+    await expect(httpGet("/me")).rejects.toMatchObject({
       name: "ApiError",
       status: 404,
       message: "사용자를 찾을 수 없습니다.",
@@ -37,7 +37,7 @@ describe("httpGet", () => {
 
   it("4xx 응답 body 에 message 필드가 없으면 Unknown error 로 throw 한다", async () => {
     server.use(
-      http.get("http://localhost:3000/nomsg", () =>
+      http.get("http://localhost:3000/api/v1/nomsg", () =>
         HttpResponse.json({ data: null }, { status: 500 }),
       ),
     );
@@ -50,7 +50,7 @@ describe("httpGet", () => {
   });
 
   it("네트워크 실패 시 에러를 throw 한다", async () => {
-    server.use(http.get("http://localhost:3000/boom", () => HttpResponse.error()));
+    server.use(http.get("http://localhost:3000/api/v1/boom", () => HttpResponse.error()));
 
     await expect(httpGet("/boom")).rejects.toThrow();
   });
@@ -67,7 +67,7 @@ describe("httpGet", () => {
 describe("httpPost", () => {
   it("2xx 응답에서 ApiResponse 를 언랩해 data 만 반환한다", async () => {
     server.use(
-      http.post("http://localhost:3000/users/1/matching", () =>
+      http.post("http://localhost:3000/api/v1/me/matching", () =>
         HttpResponse.json({
           data: null,
           status: 204,
@@ -76,14 +76,14 @@ describe("httpPost", () => {
       ),
     );
 
-    const result = await httpPost<null>("/users/1/matching");
+    const result = await httpPost<null>("/me/matching");
 
     expect(result).toBeNull();
   });
 
   it("4xx 응답에서 ApiError 를 throw 한다", async () => {
     server.use(
-      http.post("http://localhost:3000/users/999/matching", () =>
+      http.post("http://localhost:3000/api/v1/me/matching", () =>
         HttpResponse.json(
           { data: null, status: 404, message: "사용자를 찾을 수 없습니다." },
           { status: 404 },
@@ -91,7 +91,7 @@ describe("httpPost", () => {
       ),
     );
 
-    await expect(httpPost("/users/999/matching")).rejects.toMatchObject({
+    await expect(httpPost("/me/matching")).rejects.toMatchObject({
       name: "ApiError",
       status: 404,
       message: "사용자를 찾을 수 없습니다.",
@@ -100,7 +100,7 @@ describe("httpPost", () => {
 
   it("4xx body 에 message 가 없으면 Unknown error 로 throw 한다", async () => {
     server.use(
-      http.post("http://localhost:3000/nomsg", () =>
+      http.post("http://localhost:3000/api/v1/nomsg", () =>
         HttpResponse.json({ data: null }, { status: 500 }),
       ),
     );
@@ -114,7 +114,7 @@ describe("httpPost", () => {
 
   it("네트워크 실패 시 에러를 throw 한다", async () => {
     server.use(
-      http.post("http://localhost:3000/boom", () => HttpResponse.error()),
+      http.post("http://localhost:3000/api/v1/boom", () => HttpResponse.error()),
     );
     await expect(httpPost("/boom")).rejects.toThrow();
   });
@@ -123,7 +123,7 @@ describe("httpPost", () => {
 describe("httpDelete", () => {
   it("2xx 응답에서 ApiResponse 를 언랩해 data 만 반환한다", async () => {
     server.use(
-      http.delete("http://localhost:3000/users/1/matching", () =>
+      http.delete("http://localhost:3000/api/v1/me/matching", () =>
         HttpResponse.json({
           data: null,
           status: 204,
@@ -132,14 +132,14 @@ describe("httpDelete", () => {
       ),
     );
 
-    const result = await httpDelete<null>("/users/1/matching");
+    const result = await httpDelete<null>("/me/matching");
 
     expect(result).toBeNull();
   });
 
   it("4xx 응답에서 ApiError 를 throw 한다", async () => {
     server.use(
-      http.delete("http://localhost:3000/users/999/matching", () =>
+      http.delete("http://localhost:3000/api/v1/me/matching", () =>
         HttpResponse.json(
           { data: null, status: 500, message: "BOOM" },
           { status: 500 },
@@ -147,7 +147,7 @@ describe("httpDelete", () => {
       ),
     );
 
-    await expect(httpDelete("/users/999/matching")).rejects.toMatchObject({
+    await expect(httpDelete("/me/matching")).rejects.toMatchObject({
       name: "ApiError",
       status: 500,
       message: "BOOM",
@@ -156,7 +156,7 @@ describe("httpDelete", () => {
 
   it("네트워크 실패 시 에러를 throw 한다", async () => {
     server.use(
-      http.delete("http://localhost:3000/boom", () => HttpResponse.error()),
+      http.delete("http://localhost:3000/api/v1/boom", () => HttpResponse.error()),
     );
     await expect(httpDelete("/boom")).rejects.toThrow();
   });
@@ -187,7 +187,7 @@ describe("401 인터셉터 + refresh 자동 재시도", () => {
   it("401 응답 시 /auth/refresh 로 새 토큰을 받고 원 요청을 1회 재시도한다", async () => {
     let protectedCalls = 0;
     server.use(
-      http.get("http://localhost:3000/protected", ({ request }) => {
+      http.get("http://localhost:3000/api/v1/protected", ({ request }) => {
         protectedCalls += 1;
         const auth = request.headers.get("authorization");
         if (auth === "Bearer new-access") {
@@ -198,7 +198,7 @@ describe("401 인터셉터 + refresh 자동 재시도", () => {
           { status: 401 },
         );
       }),
-      http.post("http://localhost:3000/auth/refresh", () =>
+      http.post("http://localhost:3000/api/v1/auth/refresh", () =>
         HttpResponse.json({
           status: 200,
           message: "OK",
@@ -224,14 +224,14 @@ describe("401 인터셉터 + refresh 자동 재시도", () => {
   it("refresh 자체가 401 이면 세션을 비우고 원 요청을 재시도하지 않는다", async () => {
     let protectedCalls = 0;
     server.use(
-      http.get("http://localhost:3000/protected", () => {
+      http.get("http://localhost:3000/api/v1/protected", () => {
         protectedCalls += 1;
         return HttpResponse.json(
           { data: null, status: 401, message: "EXPIRED" },
           { status: 401 },
         );
       }),
-      http.post("http://localhost:3000/auth/refresh", () =>
+      http.post("http://localhost:3000/api/v1/auth/refresh", () =>
         HttpResponse.json(
           { data: null, status: 401, message: "INVALID_OR_EXPIRED_REFRESH_TOKEN" },
           { status: 401 },
@@ -251,14 +251,14 @@ describe("401 인터셉터 + refresh 자동 재시도", () => {
     let protectedCalls = 0;
     let refreshCalls = 0;
     server.use(
-      http.get("http://localhost:3000/protected", () => {
+      http.get("http://localhost:3000/api/v1/protected", () => {
         protectedCalls += 1;
         return HttpResponse.json(
           { data: null, status: 401, message: "STILL_EXPIRED" },
           { status: 401 },
         );
       }),
-      http.post("http://localhost:3000/auth/refresh", () => {
+      http.post("http://localhost:3000/api/v1/auth/refresh", () => {
         refreshCalls += 1;
         return HttpResponse.json({
           status: 200,
@@ -282,13 +282,13 @@ describe("401 인터셉터 + refresh 자동 재시도", () => {
     });
     let refreshCalls = 0;
     server.use(
-      http.get("http://localhost:3000/protected", () =>
+      http.get("http://localhost:3000/api/v1/protected", () =>
         HttpResponse.json(
           { data: null, status: 401, message: "EXPIRED" },
           { status: 401 },
         ),
       ),
-      http.post("http://localhost:3000/auth/refresh", () => {
+      http.post("http://localhost:3000/api/v1/auth/refresh", () => {
         refreshCalls += 1;
         return HttpResponse.json({ data: null }, { status: 200 });
       }),

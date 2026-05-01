@@ -2,8 +2,11 @@ import { env } from "@/config/env";
 import { useAuthStore } from "@/domains/auth/store";
 import { clearTokens, saveTokens } from "@/domains/auth/storage";
 
+const API_PREFIX = "/api/v1";
 const REFRESH_PATH = "/auth/refresh";
 const UNAUTHORIZED_STATUS = 401;
+
+const buildUrl = (path: string) => `${env.apiBaseUrl}${API_PREFIX}${path}`;
 
 type ApiResponse<T> = { data: T; status: number; message: string };
 
@@ -35,7 +38,7 @@ async function refreshAccessToken(): Promise<boolean> {
 
   let res: Response;
   try {
-    res = await fetch(`${env.apiBaseUrl}${REFRESH_PATH}`, {
+    res = await fetch(buildUrl(REFRESH_PATH), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
@@ -74,7 +77,7 @@ async function request<T>(
   init?: RequestInit,
   alreadyRetried = false,
 ): Promise<T> {
-  const res = await fetch(`${env.apiBaseUrl}${path}`, withAuthHeader(init));
+  const res = await fetch(buildUrl(path), withAuthHeader(init));
 
   if (res.status === UNAUTHORIZED_STATUS && !alreadyRetried && path !== REFRESH_PATH) {
     const refreshed = await refreshAccessToken();

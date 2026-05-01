@@ -1,13 +1,11 @@
 import { httpDelete, httpGet, httpPost } from "@/lib/http";
 import type { MatchingStatus } from "../types";
 
-const matchingPath = (userId: number) => `/users/${userId}/matching`;
+const MATCHING_PATH = "/me/matching";
 
-export const enterMatchingQueue = (userId: number): Promise<void> =>
-  httpPost(matchingPath(userId));
+export const enterMatchingQueue = (): Promise<void> => httpPost(MATCHING_PATH);
 
-export const cancelMatchingQueue = (userId: number): Promise<void> =>
-  httpDelete(matchingPath(userId));
+export const cancelMatchingQueue = (): Promise<void> => httpDelete(MATCHING_PATH);
 
-export const fetchMatchingStatus = (userId: number): Promise<MatchingStatus> =>
-  httpGet<MatchingStatus>(matchingPath(userId));
+export const fetchMatchingStatus = (): Promise<MatchingStatus> =>
+  httpGet<MatchingStatus>(MATCHING_PATH);

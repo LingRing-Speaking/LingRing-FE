@@ -34,7 +34,7 @@ describe("useDailyRecommendedExpression", () => {
 
   it("404 응답 시 data 가 null 이고 isError 는 false 다", async () => {
     server.use(
-      http.get("http://localhost:3000/recommended-expressions/daily", () =>
+      http.get("http://localhost:3000/api/v1/recommended-expressions/daily", () =>
         HttpResponse.json(
           {
             data: null,
@@ -57,7 +57,7 @@ describe("useDailyRecommendedExpression", () => {
 
   it("500 응답 시 isError 가 true 다", async () => {
     server.use(
-      http.get("http://localhost:3000/recommended-expressions/daily", () =>
+      http.get("http://localhost:3000/api/v1/recommended-expressions/daily", () =>
         HttpResponse.json(
           { data: null, status: 500, message: "internal error" },
           { status: 500 },

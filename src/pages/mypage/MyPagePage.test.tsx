@@ -13,8 +13,10 @@ const FAILURE = () =>
   );
 
 describe("MyPagePage", () => {
-  it("두 쿼리가 모두 성공하면 프로필/주간 통계/내 기록 섹션을 모두 렌더한다", async () => {
-    renderWithQueryClient(<MyPagePage />);
+  it("쿼리가 성공하면 프로필/주간 통계/내 기록 섹션을 모두 렌더한다", async () => {
+    renderWithQueryClient(<MyPagePage />, {
+      user: { id: 1, nickname: "Lee" },
+    });
 
     await waitFor(() => {
       expect(screen.getByText("Lee")).toBeInTheDocument();
@@ -31,8 +33,8 @@ describe("MyPagePage", () => {
     expect(screen.getByRole("status", { name: "로딩 중" })).toBeInTheDocument();
   });
 
-  it("한 쿼리만 실패해도 에러 화면 + 다시 시도 버튼을 보여준다", async () => {
-    server.use(http.get("http://localhost:3000/users/1/stats", FAILURE));
+  it("stats 가 실패하면 에러 화면 + 다시 시도 버튼을 보여준다", async () => {
+    server.use(http.get("http://localhost:3000/api/v1/me/stats", FAILURE));
 
     renderWithQueryClient(<MyPagePage />);
 
@@ -44,20 +46,11 @@ describe("MyPagePage", () => {
     expect(screen.getByRole("button", { name: "다시 시도" })).toBeInTheDocument();
   });
 
-  it("다시 시도 버튼을 누르면 두 쿼리를 다시 부른다", async () => {
+  it("다시 시도 버튼을 누르면 stats 쿼리를 다시 부른다", async () => {
     const user = userEvent.setup();
-    let myCallCount = 0;
     let statsCallCount = 0;
     server.use(
-      http.get("http://localhost:3000/users/1/my", ({ params }) => {
-        myCallCount += 1;
-        return HttpResponse.json({
-          data: { id: Number(params.userId), name: "Lee" },
-          status: 200,
-          message: "OK",
-        });
-      }),
-      http.get("http://localhost:3000/users/1/stats", () => {
+      http.get("http://localhost:3000/api/v1/me/stats", () => {
         statsCallCount += 1;
         if (statsCallCount === 1) {
           return HttpResponse.json(
@@ -81,7 +74,9 @@ describe("MyPagePage", () => {
       }),
     );
 
-    renderWithQueryClient(<MyPagePage />);
+    renderWithQueryClient(<MyPagePage />, {
+      user: { id: 1, nickname: "Lee" },
+    });
 
     await waitFor(() =>
       expect(
@@ -94,7 +89,6 @@ describe("MyPagePage", () => {
       expect(screen.getByText("Advanced")).toBeInTheDocument();
     });
 
-    expect(myCallCount).toBeGreaterThanOrEqual(2);
     expect(statsCallCount).toBe(2);
   });
 });

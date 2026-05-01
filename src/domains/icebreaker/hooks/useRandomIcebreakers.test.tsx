@@ -24,7 +24,7 @@ describe("useRandomIcebreakers", () => {
 
   it("500 응답이면 isError 가 true 다", async () => {
     server.use(
-      http.get("http://localhost:3000/icebreakers", () =>
+      http.get("http://localhost:3000/api/v1/icebreakers", () =>
         HttpResponse.json(
           { data: null, status: 500, message: "fail" },
           { status: 500 },

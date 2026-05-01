@@ -1,6 +1,5 @@
-import { useUserId } from "@/domains/auth/hooks/useUserId";
-import { useUserMy } from "@/domains/user/hooks/useUserMy";
-import { useUserStats } from "@/domains/user/hooks/useUserStats";
+import { useAuthStore } from "@/domains/auth/store";
+import { useMyStats } from "@/domains/user/hooks/useMyStats";
 import { BottomTabBar } from "@/components/BottomTabBar";
 import { PageShell } from "@/components/PageShell";
 import { MyRecords } from "./MyRecords";
@@ -8,19 +7,17 @@ import { ProfileCard } from "./ProfileCard";
 import { WeeklyStats } from "./WeeklyStats";
 
 export function MyPagePage() {
-  const userId = useUserId();
-  const userMy = useUserMy(userId);
-  const userStats = useUserStats(userId);
+  const user = useAuthStore((state) => state.user);
+  const myStats = useMyStats();
 
   const status = (() => {
-    if (userMy.isError || userStats.isError) return "error";
-    if (userMy.isPending || userStats.isPending) return "loading";
+    if (myStats.isError) return "error";
+    if (myStats.isPending) return "loading";
     return "success";
   })();
 
   const handleRetry = () => {
-    userMy.refetch();
-    userStats.refetch();
+    myStats.refetch();
   };
 
   return (
@@ -75,18 +72,18 @@ export function MyPagePage() {
             </div>
           )}
 
-          {status === "success" && userMy.data && userStats.data && (
+          {status === "success" && user && myStats.data && (
             <>
               <ProfileCard
-                name={userMy.data.name}
-                level={userStats.data.level}
-                mannerTemperature={userStats.data.mannerTemperature}
+                name={user.nickname}
+                level={myStats.data.level}
+                mannerTemperature={myStats.data.mannerTemperature}
               />
               <WeeklyStats
-                currentStreakDays={userStats.data.currentStreakDays}
-                totalCallCount={userStats.data.totalCallCount}
+                currentStreakDays={myStats.data.currentStreakDays}
+                totalCallCount={myStats.data.totalCallCount}
               />
-              <MyRecords expressionCount={userStats.data.expressionCount} />
+              <MyRecords expressionCount={myStats.data.expressionCount} />
             </>
           )}
         </div>
