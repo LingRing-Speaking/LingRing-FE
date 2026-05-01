@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { PageShell } from "@/components/PageShell";
-import { useAuthStore } from "@/domains/auth/store";
+import { restoreSession } from "@/domains/auth/sessionRestore";
 
 const SPLASH_MIN_MS = 1500;
 const FADE_OUT_MS = 280;
@@ -11,7 +11,6 @@ const LOGO_BREATHE_DELAY_MS = 700;
 
 export function SplashPage() {
   const navigate = useNavigate();
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
@@ -19,15 +18,30 @@ export function SplashPage() {
       void SplashScreen.hide();
     }
 
-    const transitionId = window.setTimeout(() => {
-      setLeaving(true);
-      window.setTimeout(() => {
-        navigate(isAuthenticated ? "/home" : "/login", { replace: true });
-      }, FADE_OUT_MS);
-    }, SPLASH_MIN_MS);
+    let cancelled = false;
+    const fadeTimers: number[] = [];
 
-    return () => window.clearTimeout(transitionId);
-  }, [isAuthenticated, navigate]);
+    Promise.all([
+      restoreSession(),
+      new Promise<void>((resolve) => {
+        fadeTimers.push(window.setTimeout(resolve, SPLASH_MIN_MS));
+      }),
+    ]).then(([result]) => {
+      if (cancelled) return;
+      setLeaving(true);
+      fadeTimers.push(
+        window.setTimeout(() => {
+          if (cancelled) return;
+          navigate(result.kind === "restored" ? "/home" : "/login", { replace: true });
+        }, FADE_OUT_MS),
+      );
+    });
+
+    return () => {
+      cancelled = true;
+      fadeTimers.forEach((id) => window.clearTimeout(id));
+    };
+  }, [navigate]);
 
   return (
     <PageShell>

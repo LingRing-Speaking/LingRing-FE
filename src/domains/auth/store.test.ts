@@ -43,4 +43,29 @@ describe("useAuthStore", () => {
     expect(state.accessToken).toBeNull();
     expect(state.refreshToken).toBeNull();
   });
+
+  it("updateTokens는 user를 보존한 채 토큰만 갱신한다", () => {
+    useAuthStore.getState().setSession(SAMPLE_SESSION);
+    useAuthStore.getState().updateTokens({
+      accessToken: "new-access",
+      refreshToken: "new-refresh",
+    });
+    const state = useAuthStore.getState();
+    expect(state.user).toEqual(SAMPLE_SESSION.user);
+    expect(state.accessToken).toBe("new-access");
+    expect(state.refreshToken).toBe("new-refresh");
+    expect(state.isAuthenticated).toBe(true);
+  });
+
+  it("updateTokens는 user가 없는 상태(부팅 직후)에서도 토큰만 셋한다", () => {
+    useAuthStore.getState().updateTokens({
+      accessToken: "boot-access",
+      refreshToken: "boot-refresh",
+    });
+    const state = useAuthStore.getState();
+    expect(state.user).toBeNull();
+    expect(state.accessToken).toBe("boot-access");
+    expect(state.refreshToken).toBe("boot-refresh");
+    expect(state.isAuthenticated).toBe(false);
+  });
 });
