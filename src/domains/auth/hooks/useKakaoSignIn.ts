@@ -66,7 +66,7 @@ export function useKakaoSignIn(): UseKakaoSignInResult {
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
       });
-      navigate("/", { replace: true });
+      navigate("/home", { replace: true });
     } catch (err) {
       setFailure(classify(err));
     } finally {
