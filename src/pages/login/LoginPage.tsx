@@ -1,4 +1,5 @@
 import { PageShell } from "@/components/PageShell";
+import { AppleSignInButton } from "./AppleSignInButton";
 import { KakaoSignInButton } from "./KakaoSignInButton";
 
 export function LoginPage() {
@@ -27,6 +28,7 @@ export function LoginPage() {
 
         <section className="mt-auto flex flex-col gap-2.5 pb-8">
           <KakaoSignInButton />
+          <AppleSignInButton />
           <p className="mt-3.5 text-center text-[11.5px] font-medium leading-relaxed tracking-[-0.005em] text-gray-500">
             로그인 시{" "}
             <a className="text-gray-700 underline underline-offset-2" href="#">
