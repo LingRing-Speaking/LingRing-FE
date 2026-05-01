@@ -1,8 +1,9 @@
 import { ApiError } from "@/lib/http";
 import { postSocialLogin } from "./api/socialLogin";
+import { loginWithApple } from "./apple";
 import { loginWithKakao } from "./kakao";
 import { generateNickname } from "./nickname";
-import type { SocialLoginResponse } from "./types";
+import type { SocialLoginResponse, SocialProvider } from "./types";
 
 const NICKNAME_RETRY_LIMIT = 5;
 const NICKNAME_CONFLICT_STATUS = 409;
@@ -14,15 +15,17 @@ export class NicknameRetryExhaustedError extends Error {
   }
 }
 
-export async function signInWithKakao(): Promise<SocialLoginResponse> {
-  const tokens = await loginWithKakao();
+interface SocialSignInInput {
+  provider: SocialProvider;
+  idToken: string;
+  accessToken?: string;
+}
 
+async function signInWithSocial(input: SocialSignInInput): Promise<SocialLoginResponse> {
   for (let attempt = 0; attempt < NICKNAME_RETRY_LIMIT; attempt += 1) {
     try {
       return await postSocialLogin({
-        provider: "kakao",
-        idToken: tokens.idToken,
-        accessToken: tokens.accessToken,
+        ...input,
         nickname: generateNickname(),
       });
     } catch (err) {
@@ -32,4 +35,21 @@ export async function signInWithKakao(): Promise<SocialLoginResponse> {
     }
   }
   throw new NicknameRetryExhaustedError();
+}
+
+export async function signInWithKakao(): Promise<SocialLoginResponse> {
+  const tokens = await loginWithKakao();
+  return signInWithSocial({
+    provider: "kakao",
+    idToken: tokens.idToken,
+    accessToken: tokens.accessToken,
+  });
+}
+
+export async function signInWithApple(): Promise<SocialLoginResponse> {
+  const tokens = await loginWithApple();
+  return signInWithSocial({
+    provider: "apple",
+    idToken: tokens.identityToken,
+  });
 }
