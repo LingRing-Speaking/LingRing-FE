@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageShell } from "@/components/PageShell";
-import { env } from "@/config/env";
+import { useUserId } from "@/domains/auth/hooks/useUserId";
 import { cancelMatchingQueue } from "@/domains/matching/api/matchingApi";
 import { useEnterMatchingQueue } from "@/domains/matching/hooks/useEnterMatchingQueue";
 import { useMatchingStatus } from "@/domains/matching/hooks/useMatchingStatus";
@@ -17,7 +17,7 @@ const FADE_MS = 280;
 
 export function MatchingPage() {
   const navigate = useNavigate();
-  const userId = env.devUserId;
+  const userId = useUserId();
   const [sheetOpen, setSheetOpen] = useState(false);
   const { data: icebreakers } = useRandomIcebreakers(ICEBREAKER_COUNT);
 

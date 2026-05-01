@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useAuthStore } from "@/domains/auth/store";
 import { createTestQueryClient } from "../../../test/utils/renderWithQueryClient";
 import { CallPage } from "./CallPage";
 
@@ -30,6 +31,12 @@ beforeEach(() => {
   sessionState.isMuted = false;
   sessionState.toggleMute = vi.fn();
   sessionState.end = vi.fn();
+  useAuthStore.setState({
+    user: { id: 1, nickname: "tester" },
+    accessToken: "test-access",
+    refreshToken: "test-refresh",
+    isAuthenticated: true,
+  });
 });
 
 afterEach(() => vi.clearAllMocks());

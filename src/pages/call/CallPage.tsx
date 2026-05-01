@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { PageShell } from "@/components/PageShell";
-import { env } from "@/config/env";
+import { useUserId } from "@/domains/auth/hooks/useUserId";
 import { useCallSession } from "@/domains/call/hooks/useCallSession";
 import { CallTimer } from "./CallTimer";
 import { EndConfirmSheet } from "./EndConfirmSheet";
@@ -18,7 +18,7 @@ export function CallPage() {
 }
 
 function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: number }) {
-  const userId = env.devUserId;
+  const userId = useUserId();
   const navigate = useNavigate();
   const session = useCallSession({ userId, roomId, partnerId });
   const [sheetOpen, setSheetOpen] = useState(false);

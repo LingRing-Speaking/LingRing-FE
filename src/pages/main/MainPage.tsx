@@ -1,4 +1,4 @@
-import { env } from "@/config/env";
+import { useUserId } from "@/domains/auth/hooks/useUserId";
 import { useDailyRecommendedExpression } from "@/domains/recommendedExpression/hooks/useDailyRecommendedExpression";
 import { useUserMy } from "@/domains/user/hooks/useUserMy";
 import { BottomTabBar } from "@/components/BottomTabBar";
@@ -8,7 +8,8 @@ import { DailyExpressionCard } from "./DailyExpressionCard";
 import { Greeting } from "./Greeting";
 
 export function MainPage() {
-  const userMy = useUserMy(env.devUserId);
+  const userId = useUserId();
+  const userMy = useUserMy(userId);
   const dailyExpression = useDailyRecommendedExpression();
 
   const status = (() => {

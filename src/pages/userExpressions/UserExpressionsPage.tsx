@@ -1,15 +1,16 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { PageShell } from "@/components/PageShell";
-import { env } from "@/config/env";
+import { useUserId } from "@/domains/auth/hooks/useUserId";
 import { useUserStats } from "@/domains/user/hooks/useUserStats";
 import { useUserExpressions } from "@/domains/userExpression/hooks/useUserExpressions";
 import { EmptyExpressions } from "./EmptyExpressions";
 import { PhraseCard } from "./PhraseCard";
 
 export function UserExpressionsPage() {
-  const expressions = useUserExpressions(env.devUserId);
-  const userStats = useUserStats(env.devUserId);
+  const userId = useUserId();
+  const expressions = useUserExpressions(userId);
+  const userStats = useUserStats(userId);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const status = (() => {
