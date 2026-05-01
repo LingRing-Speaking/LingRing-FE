@@ -11,7 +11,7 @@ export function CallPage() {
   const partnerId = (useLocation().state as { partnerId?: number } | null)?.partnerId;
 
   if (!roomId || partnerId == null) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/home" replace />;
   }
 
   return <CallPageInner roomId={roomId} partnerId={partnerId} />;
@@ -24,7 +24,7 @@ function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: numbe
   const [sheetOpen, setSheetOpen] = useState(false);
 
   useEffect(() => {
-    if (session.status === "ended") navigate("/", { replace: true });
+    if (session.status === "ended") navigate("/home", { replace: true });
   }, [session.status, navigate]);
 
   return (
@@ -34,7 +34,7 @@ function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: numbe
         <audio ref={session.remoteAudioRef} autoPlay className="hidden" />
 
         {session.status === "error" ? (
-          <ErrorView message={session.errorMessage} onHome={() => navigate("/")} />
+          <ErrorView message={session.errorMessage} onHome={() => navigate("/home")} />
         ) : (
           <CallView
             status={session.status}

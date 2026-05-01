@@ -13,11 +13,11 @@ function renderAt(pathname: string) {
 
 describe("BottomTabBar", () => {
   it("홈·대화 기록·마이페이지는 모두 링크다", () => {
-    renderAt("/");
+    renderAt("/home");
 
     expect(screen.getByRole("link", { name: /^홈$/ })).toHaveAttribute(
       "href",
-      "/",
+      "/home",
     );
     expect(screen.getByRole("link", { name: /대화 기록/ })).toHaveAttribute(
       "href",
@@ -29,8 +29,8 @@ describe("BottomTabBar", () => {
     );
   });
 
-  it("/ 경로에서는 홈 탭이 활성 상태다", () => {
-    renderAt("/");
+  it("/home 경로에서는 홈 탭이 활성 상태다", () => {
+    renderAt("/home");
 
     expect(screen.getByRole("link", { name: /^홈$/ })).toHaveAttribute(
       "aria-current",

@@ -76,12 +76,22 @@ export default {
           "0%, 80%, 100%": { opacity: "0.25", transform: "translateY(0)" },
           "40%": { opacity: "1", transform: "translateY(-3px)" },
         },
+        "splash-enter": {
+          "0%": { opacity: "0", transform: "scale(0.94)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        "splash-leave": {
+          "0%": { opacity: "1", transform: "scale(1)" },
+          "100%": { opacity: "0", transform: "scale(1.02)" },
+        },
       },
       animation: {
         "pulse-ring": "pulse-ring 4.5s ease-out infinite",
         breathe: "breathe 3.6s ease-in-out infinite",
         halo: "halo 3.6s ease-in-out infinite",
         "dot-blink": "dot-blink 1.4s ease-in-out infinite",
+        "splash-enter": "splash-enter 700ms cubic-bezier(0.22, 0.9, 0.3, 1) forwards",
+        "splash-leave": "splash-leave 280ms cubic-bezier(0.4, 0, 1, 1) forwards",
       },
     },
   },
