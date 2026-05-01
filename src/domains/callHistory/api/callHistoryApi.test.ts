@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fetchCallHistory } from "./callHistoryApi";
 
 describe("callHistoryApi", () => {
-  it("fetchCallHistory 는 /me/calls?page=&size= 를 호출해 items, hasNext 를 반환한다", async () => {
+  it("fetchCallHistory 는 /calls?page=&size= 를 호출해 items, hasNext 를 반환한다", async () => {
     const result = await fetchCallHistory(0, 20);
 
     expect(result.items.length).toBeGreaterThan(0);

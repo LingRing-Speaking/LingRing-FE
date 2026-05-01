@@ -13,7 +13,7 @@ export function useUserExpressions(): UseInfiniteQueryResult<
   Error
 > {
   return useInfiniteQuery({
-    queryKey: ["me", "expressions"],
+    queryKey: ["expressions"],
     queryFn: ({ pageParam }) => fetchUserExpressions(pageParam, PAGE_SIZE),
     initialPageParam: 0,
     getNextPageParam: (lastPage, _allPages, lastPageParam) =>

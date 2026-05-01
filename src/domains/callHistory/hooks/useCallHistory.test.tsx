@@ -24,7 +24,7 @@ describe("useCallHistory", () => {
 
   it("hasNext 가 false 면 hasNextPage 도 false 다", async () => {
     server.use(
-      http.get("http://localhost:3000/api/v1/me/calls", () =>
+      http.get("http://localhost:3000/api/v1/calls", () =>
         HttpResponse.json({
           data: { items: [], hasNext: false },
           status: 200,
@@ -41,7 +41,7 @@ describe("useCallHistory", () => {
 
   it("fetchNextPage 를 호출하면 두 번째 페이지가 누적된다", async () => {
     server.use(
-      http.get("http://localhost:3000/api/v1/me/calls", ({ request }) => {
+      http.get("http://localhost:3000/api/v1/calls", ({ request }) => {
         const page = Number(new URL(request.url).searchParams.get("page"));
         return HttpResponse.json({
           data: {

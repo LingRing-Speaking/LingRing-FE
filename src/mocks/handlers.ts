@@ -65,7 +65,7 @@ export const handlers = [
     });
   }),
 
-  http.get(apiUrl("/me/expressions"), () => {
+  http.get(apiUrl("/expressions"), () => {
     return HttpResponse.json({
       data: {
         items: [
@@ -152,7 +152,7 @@ export const handlers = [
     });
   }),
 
-  http.get(apiUrl("/me/calls"), ({ request }) => {
+  http.get(apiUrl("/calls"), ({ request }) => {
     const url = new URL(request.url);
     const page = Number(url.searchParams.get("page") ?? 0);
     const size = Number(url.searchParams.get("size") ?? 20);

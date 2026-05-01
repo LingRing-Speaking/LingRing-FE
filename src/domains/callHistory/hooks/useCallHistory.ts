@@ -13,7 +13,7 @@ export function useCallHistory(): UseInfiniteQueryResult<
   Error
 > {
   return useInfiniteQuery({
-    queryKey: ["me", "calls"],
+    queryKey: ["calls"],
     queryFn: ({ pageParam }) => fetchCallHistory(pageParam, PAGE_SIZE),
     initialPageParam: 0,
     getNextPageParam: (lastPage, _allPages, lastPageParam) =>

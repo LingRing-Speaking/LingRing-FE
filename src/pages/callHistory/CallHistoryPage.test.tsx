@@ -20,7 +20,7 @@ describe("CallHistoryPage", () => {
 
   it("빈 응답이면 EmptyCallHistory 노출", async () => {
     server.use(
-      http.get("http://localhost:3000/api/v1/me/calls", () =>
+      http.get("http://localhost:3000/api/v1/calls", () =>
         HttpResponse.json({
           data: { items: [], hasNext: false },
           status: 200,
@@ -39,7 +39,7 @@ describe("CallHistoryPage", () => {
   it("에러 시 다시 시도 버튼 클릭하면 refetch 동작", async () => {
     let attempts = 0;
     server.use(
-      http.get("http://localhost:3000/api/v1/me/calls", () => {
+      http.get("http://localhost:3000/api/v1/calls", () => {
         attempts += 1;
         if (attempts === 1) {
           return new HttpResponse(null, { status: 500 });
