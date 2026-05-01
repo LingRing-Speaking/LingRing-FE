@@ -1,4 +1,4 @@
-import { env } from "@/config/env";
+import { useUserId } from "@/domains/auth/hooks/useUserId";
 import { useUserMy } from "@/domains/user/hooks/useUserMy";
 import { useUserStats } from "@/domains/user/hooks/useUserStats";
 import { BottomTabBar } from "@/components/BottomTabBar";
@@ -8,8 +8,9 @@ import { ProfileCard } from "./ProfileCard";
 import { WeeklyStats } from "./WeeklyStats";
 
 export function MyPagePage() {
-  const userMy = useUserMy(env.devUserId);
-  const userStats = useUserStats(env.devUserId);
+  const userId = useUserId();
+  const userMy = useUserMy(userId);
+  const userStats = useUserStats(userId);
 
   const status = (() => {
     if (userMy.isError || userStats.isError) return "error";
