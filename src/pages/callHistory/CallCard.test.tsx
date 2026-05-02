@@ -9,7 +9,7 @@ function renderWithRouter(item: CallHistoryItem) {
   return render(
     <MemoryRouter initialEntries={["/history"]}>
       <Routes>
-        <Route path="/history" element={<CallCard call={item} now={new Date(2026, 3, 29, 14, 0)} />} />
+        <Route path="/history" element={<CallCard call={item} now={new Date(2026, 3, 29, 14, 0)} onPartnerClick={() => {}} />} />
         <Route path="/calls/:callId/analysis" element={<div>analysis-page</div>} />
       </Routes>
     </MemoryRouter>,

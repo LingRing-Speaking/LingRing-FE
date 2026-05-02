@@ -9,6 +9,7 @@ type Props = {
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   onLoadMore: () => void;
+  onPartnerClick: (partnerId: number) => void;
 };
 
 export function CallHistoryList({
@@ -17,6 +18,7 @@ export function CallHistoryList({
   hasNextPage,
   isFetchingNextPage,
   onLoadMore,
+  onPartnerClick,
 }: Props) {
   const groups = useMemo(() => classifyCalls(items, now), [items, now]);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -52,7 +54,12 @@ export function CallHistoryList({
           </h2>
           <div className="flex flex-col gap-2.5">
             {group.items.map((call) => (
-              <CallCard key={call.id} call={call} now={now} />
+              <CallCard
+                key={call.id}
+                call={call}
+                now={now}
+                onPartnerClick={onPartnerClick}
+              />
             ))}
           </div>
         </section>

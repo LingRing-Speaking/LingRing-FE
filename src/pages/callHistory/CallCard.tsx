@@ -5,15 +5,16 @@ import { formatCallMeta } from "./timeBucket";
 type Props = {
   call: CallHistoryItem;
   now: Date;
+  onPartnerClick: (partnerId: number) => void;
 };
 
-export function CallCard({ call, now }: Props) {
+export function CallCard({ call, now, onPartnerClick }: Props) {
   const navigate = useNavigate();
   const initial = call.partner.name[0] ?? "?";
   const meta = formatCallMeta(new Date(call.startedAt), call.durationSec, now);
 
   const handleBodyClick = () => {
-    // TODO: 프로필 모달 이슈에서 연결
+    onPartnerClick(call.partner.id);
   };
 
   const handleActionClick = () => {

@@ -46,6 +46,7 @@ describe("CallHistoryList", () => {
         hasNextPage={false}
         isFetchingNextPage={false}
         onLoadMore={() => {}}
+        onPartnerClick={() => {}}
       />,
     );
 
@@ -86,7 +87,7 @@ describe("CallHistoryList", () => {
         now={NOW}
         hasNextPage={true}
         isFetchingNextPage={false}
-        onLoadMore={onLoadMore}
+        onLoadMore={onLoadMore} onPartnerClick={() => {}}
       />,
     );
 
@@ -127,7 +128,7 @@ describe("CallHistoryList", () => {
         now={NOW}
         hasNextPage={false}
         isFetchingNextPage={false}
-        onLoadMore={onLoadMore}
+        onLoadMore={onLoadMore} onPartnerClick={() => {}}
       />,
     );
 
