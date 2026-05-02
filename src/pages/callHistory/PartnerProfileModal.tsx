@@ -14,9 +14,10 @@ type Props = {
   partnerId: number | null;
   open: boolean;
   onClose: () => void;
+  onReport: () => void;
 };
 
-export function PartnerProfileModal({ partnerId, open, onClose }: Props) {
+export function PartnerProfileModal({ partnerId, open, onClose, onReport }: Props) {
   const profile = useUserProfile(open ? partnerId : null);
 
   useEffect(() => {
@@ -67,6 +68,16 @@ export function PartnerProfileModal({ partnerId, open, onClose }: Props) {
           {profile.isPending && <ProfileSkeleton />}
           {profile.isError && <ProfileError onRetry={() => profile.refetch()} />}
           {profile.data && <ProfileBody profile={profile.data} />}
+
+          {profile.data && (
+            <button
+              type="button"
+              onClick={onReport}
+              className="mt-2 block w-full py-2.5 text-center text-[13px] font-semibold tracking-tight text-coral-600 underline underline-offset-[3px] active:opacity-60"
+            >
+              신고하기
+            </button>
+          )}
         </div>
       </div>
     </>

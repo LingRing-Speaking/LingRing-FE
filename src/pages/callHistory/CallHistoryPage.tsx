@@ -5,11 +5,19 @@ import { PageShell } from "@/components/PageShell";
 import { CallHistoryList } from "./CallHistoryList";
 import { EmptyCallHistory } from "./EmptyCallHistory";
 import { PartnerProfileModal } from "./PartnerProfileModal";
+import { ReportModal } from "./ReportModal";
 
 export function CallHistoryPage() {
   const query = useCallHistory();
   const now = useMemo(() => new Date(), []);
   const [openPartnerId, setOpenPartnerId] = useState<number | null>(null);
+  const [reportingPartnerId, setReportingPartnerId] = useState<number | null>(null);
+
+  const closeReport = () => {
+    setReportingPartnerId(null);
+    setOpenPartnerId(null);
+  };
+  const cancelReport = () => setReportingPartnerId(null);
 
   const status = (() => {
     if (query.isError) return "error";
@@ -61,8 +69,16 @@ export function CallHistoryPage() {
 
         <PartnerProfileModal
           partnerId={openPartnerId}
-          open={openPartnerId != null}
+          open={openPartnerId != null && reportingPartnerId == null}
           onClose={() => setOpenPartnerId(null)}
+          onReport={() => setReportingPartnerId(openPartnerId)}
+        />
+
+        <ReportModal
+          partnerId={reportingPartnerId}
+          open={reportingPartnerId != null}
+          onClose={closeReport}
+          onCancel={cancelReport}
         />
 
         <BottomTabBar />
