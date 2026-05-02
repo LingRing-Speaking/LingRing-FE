@@ -1,13 +1,15 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useCallHistory } from "@/domains/callHistory/hooks/useCallHistory";
 import { BottomTabBar } from "@/components/BottomTabBar";
 import { PageShell } from "@/components/PageShell";
 import { CallHistoryList } from "./CallHistoryList";
 import { EmptyCallHistory } from "./EmptyCallHistory";
+import { PartnerProfileModal } from "./PartnerProfileModal";
 
 export function CallHistoryPage() {
   const query = useCallHistory();
   const now = useMemo(() => new Date(), []);
+  const [openPartnerId, setOpenPartnerId] = useState<number | null>(null);
 
   const status = (() => {
     if (query.isError) return "error";
@@ -53,8 +55,15 @@ export function CallHistoryPage() {
             hasNextPage={query.hasNextPage}
             isFetchingNextPage={query.isFetchingNextPage}
             onLoadMore={query.fetchNextPage}
+            onPartnerClick={setOpenPartnerId}
           />
         )}
+
+        <PartnerProfileModal
+          partnerId={openPartnerId}
+          open={openPartnerId != null}
+          onClose={() => setOpenPartnerId(null)}
+        />
 
         <BottomTabBar />
       </main>

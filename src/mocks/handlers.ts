@@ -41,6 +41,19 @@ export const handlers = [
     });
   }),
 
+  http.get(apiUrl("/users/:userId"), ({ params }) => {
+    return HttpResponse.json({
+      data: {
+        id: Number(params.userId),
+        nickname: "Sophie",
+        level: "INTERMEDIATE",
+        mannerTemperature: 36.5,
+      },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
   http.post(apiUrl("/auth/refresh"), () => {
     return HttpResponse.json({
       data: { accessToken: "mock-access", refreshToken: "mock-refresh" },

@@ -36,6 +36,57 @@ describe("CallHistoryPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("파트너 카드 클릭 시 프로필 모달이 열리고 닫기 버튼으로 사라진다", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get("http://localhost:3000/api/v1/calls", () =>
+        HttpResponse.json({
+          data: {
+            items: [
+              {
+                id: 1,
+                partner: { id: 7, name: "Sophie" },
+                startedAt: new Date().toISOString(),
+                durationSec: 312,
+                analyzed: true,
+              },
+            ],
+            hasNext: false,
+          },
+          status: 200,
+          message: "OK",
+        }),
+      ),
+      http.get("http://localhost:3000/api/v1/users/7", () =>
+        HttpResponse.json({
+          data: {
+            id: 7,
+            nickname: "Sophie",
+            level: "ADVANCED",
+            mannerTemperature: 38.5,
+          },
+          status: 200,
+          message: "OK",
+        }),
+      ),
+    );
+
+    renderWithQueryClient(<CallHistoryPage />);
+
+    const card = await screen.findByRole("button", { name: /Sophie/ });
+    await user.click(card);
+
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toBeInTheDocument();
+    expect(await screen.findByText("Advanced")).toBeInTheDocument();
+    expect(screen.getByText("38.5°C")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "닫기" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+  });
+
   it("에러 시 다시 시도 버튼 클릭하면 refetch 동작", async () => {
     let attempts = 0;
     server.use(
