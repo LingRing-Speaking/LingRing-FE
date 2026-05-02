@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/domains/auth/store";
 import { useMyStats } from "@/domains/user/hooks/useMyStats";
 import { BottomTabBar } from "@/components/BottomTabBar";
@@ -7,6 +8,7 @@ import { ProfileCard } from "./ProfileCard";
 import { WeeklyStats } from "./WeeklyStats";
 
 export function MyPagePage() {
+  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const myStats = useMyStats();
 
@@ -31,8 +33,8 @@ export function MyPagePage() {
             <button
               type="button"
               aria-label="앱 설정"
-              disabled
-              className="-mr-2 flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-full text-gray-700"
+              onClick={() => navigate("/settings")}
+              className="-mr-2 flex h-10 w-10 items-center justify-center rounded-full text-gray-700 transition-colors active:bg-gray-100"
             >
               <svg
                 viewBox="0 0 24 24"
