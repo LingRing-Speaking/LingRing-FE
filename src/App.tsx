@@ -9,6 +9,7 @@ import { MyPagePage } from "@/pages/mypage/MyPagePage";
 import { SplashPage } from "@/pages/splash/SplashPage";
 import { UserExpressionsPage } from "@/pages/userExpressions/UserExpressionsPage";
 import { CallHistoryPage } from "@/pages/callHistory/CallHistoryPage";
+import { SettingsPage } from "@/pages/settings/SettingsPage";
 
 function ProtectedRoutes() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="/mypage" element={<MyPagePage />} />
             <Route path="/expressions" element={<UserExpressionsPage />} />
             <Route path="/history" element={<CallHistoryPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
