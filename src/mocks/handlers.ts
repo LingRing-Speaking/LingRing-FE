@@ -165,6 +165,14 @@ export const handlers = [
     });
   }),
 
+  http.post(apiUrl("/reports"), () => {
+    return HttpResponse.json({
+      data: null,
+      status: 204,
+      message: "NO_CONTENT",
+    });
+  }),
+
   http.get(apiUrl("/calls"), ({ request }) => {
     const url = new URL(request.url);
     const page = Number(url.searchParams.get("page") ?? 0);
