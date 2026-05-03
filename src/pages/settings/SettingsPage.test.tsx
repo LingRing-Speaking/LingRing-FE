@@ -22,11 +22,21 @@ vi.mock("@capacitor/preferences", () => ({
 }));
 
 describe("SettingsPage", () => {
-  it("로그아웃 행과 버전 텍스트를 렌더한다", () => {
+  it("로그아웃·탈퇴하기 행과 버전 텍스트를 렌더한다", () => {
     renderWithQueryClient(<SettingsPage />);
 
     expect(screen.getByRole("button", { name: "로그아웃" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "탈퇴하기" })).toBeInTheDocument();
     expect(screen.getByText("LingRing 1.0.0")).toBeInTheDocument();
+  });
+
+  it("탈퇴하기 행 클릭 → /settings/withdraw 로 이동", async () => {
+    const user = userEvent.setup();
+    renderWithQueryClient(<SettingsPage />);
+
+    await user.click(screen.getByRole("button", { name: "탈퇴하기" }));
+
+    expect(navigateMock).toHaveBeenCalledWith("/settings/withdraw");
   });
 
   it("뒤로가기 버튼을 누르면 navigate(-1)이 호출된다", async () => {

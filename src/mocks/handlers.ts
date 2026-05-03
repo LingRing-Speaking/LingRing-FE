@@ -70,6 +70,14 @@ export const handlers = [
     });
   }),
 
+  http.post(apiUrl("/me/withdraw"), () => {
+    return HttpResponse.json({
+      data: null,
+      status: 204,
+      message: "NO_CONTENT",
+    });
+  }),
+
   http.get(apiUrl("/me/stats"), () => {
     return HttpResponse.json({
       data: {

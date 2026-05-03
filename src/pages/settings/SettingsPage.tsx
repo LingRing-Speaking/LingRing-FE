@@ -62,6 +62,15 @@ export function SettingsPage() {
                 로그아웃
               </span>
             </button>
+            <button
+              type="button"
+              onClick={() => navigate("/settings/withdraw")}
+              className="flex min-h-[52px] w-full items-center justify-between gap-3 border-t border-gray-100 px-[18px] py-[15px] text-left transition-colors active:bg-gray-50"
+            >
+              <span className="flex-1 text-[15px] font-medium tracking-tight text-coral-600">
+                탈퇴하기
+              </span>
+            </button>
           </div>
 
           <p className="mb-2 mt-8 text-center text-[12.5px] font-medium tracking-tight tabular-nums text-gray-400">
