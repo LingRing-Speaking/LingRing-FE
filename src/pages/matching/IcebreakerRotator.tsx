@@ -1,17 +1,158 @@
+import {
+  type TouchEvent as ReactTouchEvent,
+  type TransitionEvent as ReactTransitionEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type { Icebreaker } from "@/domains/icebreaker/types";
 import { useSentenceRotation } from "./useSentenceRotation";
+
+const SWIPE_RATIO = 0.25;
+const FALLBACK_CARD_WIDTH = 320;
+const SLIDE_DURATION_MS = 280;
 
 type Props = {
   sentences: Icebreaker[];
   intervalMs: number;
-  fadeMs: number;
 };
 
-export function IcebreakerRotator({ sentences, intervalMs, fadeMs }: Props) {
-  const { index, currentItem, isSwapping } = useSentenceRotation(sentences, {
-    intervalMs,
-    fadeMs,
-  });
+type SlideTarget = "next" | "prev" | "snap";
+
+export function IcebreakerRotator({ sentences, intervalMs }: Props) {
+  const { index, currentItem, prevItem, nextItem, goNext, goPrev } =
+    useSentenceRotation(sentences);
+
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [cardWidth, setCardWidth] = useState(FALLBACK_CARD_WIDTH);
+  const [dragX, setDragX] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const isPausedRef = useRef(false);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const pendingActionRef = useRef<SlideTarget | null>(null);
+  const intervalIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useLayoutEffect(() => {
+    const container = trackRef.current?.parentElement;
+    if (!container) return;
+    const measure = () => {
+      const w = container.clientWidth;
+      if (w > 0) setCardWidth(w);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
+  const triggerAutoNext = useCallback(() => {
+    if (isPausedRef.current) return;
+    if (pendingActionRef.current !== null) return;
+    pendingActionRef.current = "next";
+    setIsAnimating(true);
+    setDragX(-cardWidth);
+  }, [cardWidth]);
+
+  const startAutoTimer = useCallback(() => {
+    if (intervalIdRef.current) clearInterval(intervalIdRef.current);
+    if (sentences.length <= 1) return;
+    intervalIdRef.current = setInterval(triggerAutoNext, intervalMs);
+  }, [intervalMs, sentences.length, triggerAutoNext]);
+
+  const stopAutoTimer = useCallback(() => {
+    if (intervalIdRef.current) {
+      clearInterval(intervalIdRef.current);
+      intervalIdRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    startAutoTimer();
+    return () => stopAutoTimer();
+  }, [startAutoTimer, stopAutoTimer]);
+
+  const handleTouchStart = (e: ReactTouchEvent<HTMLDivElement>) => {
+    if (pendingActionRef.current !== null) return;
+    const t = e.touches[0];
+    if (!t) return;
+    touchStartRef.current = { x: t.clientX, y: t.clientY };
+    isPausedRef.current = true;
+  };
+
+  const handleTouchMove = (e: ReactTouchEvent<HTMLDivElement>) => {
+    const start = touchStartRef.current;
+    if (!start) return;
+    if (pendingActionRef.current !== null) return;
+    const t = e.touches[0];
+    if (!t) return;
+    setDragX(t.clientX - start.x);
+  };
+
+  const handleTouchEnd = (e: ReactTouchEvent<HTMLDivElement>) => {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start) {
+      isPausedRef.current = false;
+      return;
+    }
+    const t = e.changedTouches[0];
+    if (!t) {
+      pendingActionRef.current = "snap";
+      setIsAnimating(true);
+      setDragX(0);
+      return;
+    }
+    const deltaX = t.clientX - start.x;
+    const deltaY = t.clientY - start.y;
+    const absX = Math.abs(deltaX);
+    const isHorizontal = absX > Math.abs(deltaY);
+    const threshold = cardWidth * SWIPE_RATIO;
+
+    setIsAnimating(true);
+    if (isHorizontal && absX >= threshold) {
+      const target: SlideTarget = deltaX < 0 ? "next" : "prev";
+      pendingActionRef.current = target;
+      setDragX(deltaX < 0 ? -cardWidth : cardWidth);
+    } else {
+      pendingActionRef.current = "snap";
+      setDragX(0);
+    }
+  };
+
+  const handleTouchCancel = () => {
+    touchStartRef.current = null;
+    pendingActionRef.current = "snap";
+    setIsAnimating(true);
+    setDragX(0);
+    isPausedRef.current = false;
+  };
+
+  const handleTransitionEnd = (e: ReactTransitionEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+    const action = pendingActionRef.current;
+    pendingActionRef.current = null;
+    setIsAnimating(false);
+
+    if (action === "next") {
+      goNext();
+      setDragX(0);
+      isPausedRef.current = false;
+      startAutoTimer();
+    } else if (action === "prev") {
+      goPrev();
+      setDragX(0);
+      isPausedRef.current = false;
+      startAutoTimer();
+    } else if (action === "snap") {
+      isPausedRef.current = false;
+    }
+  };
+
+  const trackTransform = `translateX(calc(-33.3333% + ${dragX}px))`;
+  const trackTransition = isAnimating
+    ? `transform ${SLIDE_DURATION_MS}ms ease-out`
+    : "none";
 
   return (
     <section className="mt-2 mb-4 w-full" aria-live="polite">
@@ -21,23 +162,29 @@ export function IcebreakerRotator({ sentences, intervalMs, fadeMs }: Props) {
         </span>
         이런 문장으로 시작해보세요
       </p>
-      <div className="relative flex min-h-[142px] flex-col justify-center overflow-hidden rounded-lg border border-gray-100 bg-white px-5 py-5 shadow-card">
-        <p
-          className={`m-0 mb-2 text-[19px] font-bold leading-snug tracking-[-0.01em] text-gray-900 transition-[opacity,transform] ease-in-out ${
-            isSwapping ? "-translate-y-1.5 opacity-0" : "translate-y-0 opacity-100"
-          }`}
-          style={{ transitionDuration: `${fadeMs}ms` }}
+      <div
+        data-testid="rotator-card"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
+        className="relative min-h-[142px] overflow-hidden rounded-lg border border-gray-100 bg-white shadow-card touch-pan-y"
+      >
+        <div
+          ref={trackRef}
+          data-testid="rotator-track"
+          onTransitionEnd={handleTransitionEnd}
+          className="flex"
+          style={{
+            width: "300%",
+            transform: trackTransform,
+            transition: trackTransition,
+          }}
         >
-          {currentItem?.expression ?? ""}
-        </p>
-        <p
-          className={`m-0 text-[13px] font-medium leading-relaxed text-gray-600 transition-[opacity,transform] ease-in-out ${
-            isSwapping ? "-translate-y-1.5 opacity-0" : "translate-y-0 opacity-100"
-          }`}
-          style={{ transitionDuration: `${fadeMs}ms` }}
-        >
-          {currentItem?.meaning ?? ""}
-        </p>
+          <SlotCard slot="prev" item={prevItem} />
+          <SlotCard slot="current" item={currentItem} />
+          <SlotCard slot="next" item={nextItem} />
+        </div>
       </div>
       <div className="mt-3.5 flex justify-center gap-1.5">
         {sentences.map((s, i) => {
@@ -55,5 +202,26 @@ export function IcebreakerRotator({ sentences, intervalMs, fadeMs }: Props) {
         })}
       </div>
     </section>
+  );
+}
+
+type SlotProps = {
+  slot: "prev" | "current" | "next";
+  item: Icebreaker | undefined;
+};
+
+function SlotCard({ slot, item }: SlotProps) {
+  return (
+    <div
+      data-slot={slot}
+      className="flex w-1/3 flex-shrink-0 flex-col justify-center min-h-[142px] px-5 py-5"
+    >
+      <p className="m-0 mb-2 text-[19px] font-bold leading-snug tracking-[-0.01em] text-gray-900">
+        {item?.expression ?? ""}
+      </p>
+      <p className="m-0 text-[13px] font-medium leading-relaxed text-gray-600">
+        {item?.meaning ?? ""}
+      </p>
+    </div>
   );
 }

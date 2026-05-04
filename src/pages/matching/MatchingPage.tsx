@@ -12,7 +12,6 @@ import { IcebreakerRotator } from "./IcebreakerRotator";
 
 const ICEBREAKER_COUNT = 5;
 const ROTATION_INTERVAL_MS = 7000;
-const FADE_MS = 280;
 
 export function MatchingPage() {
   const navigate = useNavigate();
@@ -141,7 +140,6 @@ export function MatchingPage() {
             <IcebreakerRotator
               sentences={sentences}
               intervalMs={ROTATION_INTERVAL_MS}
-              fadeMs={FADE_MS}
             />
 
             <div className="mt-auto flex justify-center pb-6 pt-2">

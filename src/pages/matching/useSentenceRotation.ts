@@ -1,20 +1,16 @@
-import { useEffect, useRef, useState } from "react";
-
-type Options = {
-  intervalMs: number;
-  fadeMs: number;
-};
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Result<T> = {
   index: number;
   currentItem: T | undefined;
-  isSwapping: boolean;
+  prevItem: T | undefined;
+  nextItem: T | undefined;
+  goNext: () => void;
+  goPrev: () => void;
 };
 
-export function useSentenceRotation<T>(items: T[], options: Options): Result<T> {
-  const { intervalMs, fadeMs } = options;
+export function useSentenceRotation<T>(items: T[]): Result<T> {
   const [index, setIndex] = useState(0);
-  const [isSwapping, setIsSwapping] = useState(false);
   const itemsRef = useRef(items);
   itemsRef.current = items;
 
@@ -28,37 +24,27 @@ export function useSentenceRotation<T>(items: T[], options: Options): Result<T> 
     }
   }, [items.length, index]);
 
-  useEffect(() => {
-    if (items.length <= 1) return;
+  const goNext = useCallback(() => {
+    const total = itemsRef.current.length;
+    if (total <= 1) return;
+    setIndex((prev) => (prev + 1) % total);
+  }, []);
 
-    const cleanups: Array<() => void> = [];
+  const goPrev = useCallback(() => {
+    const total = itemsRef.current.length;
+    if (total <= 1) return;
+    setIndex((prev) => (prev - 1 + total) % total);
+  }, []);
 
-    const intervalId = setInterval(() => {
-      setIsSwapping(true);
-      const fadeTimeoutId = setTimeout(() => {
-        setIndex((prev) => {
-          const total = itemsRef.current.length;
-          if (total === 0) return 0;
-          return (prev + 1) % total;
-        });
-        setIsSwapping(false);
-      }, fadeMs);
-
-      cleanups.push(() => clearTimeout(fadeTimeoutId));
-    }, intervalMs);
-
-    return () => {
-      clearInterval(intervalId);
-      cleanups.forEach((fn) => fn());
-      setIsSwapping(false);
-    };
-  }, [items.length, intervalMs, fadeMs]);
-
-  const safeIndex = items.length === 0 ? 0 : Math.min(index, items.length - 1);
+  const total = items.length;
+  const safeIndex = total === 0 ? 0 : Math.min(index, total - 1);
 
   return {
     index: safeIndex,
     currentItem: items[safeIndex],
-    isSwapping,
+    prevItem: total === 0 ? undefined : items[(safeIndex - 1 + total) % total],
+    nextItem: total === 0 ? undefined : items[(safeIndex + 1) % total],
+    goNext,
+    goPrev,
   };
 }
