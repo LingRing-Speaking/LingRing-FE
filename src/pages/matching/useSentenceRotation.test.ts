@@ -101,4 +101,146 @@ describe("useSentenceRotation", () => {
     expect(result.current.currentItem).toBeUndefined();
     expect(result.current.index).toBe(0);
   });
+
+  it("goNext() 는 index 를 +1 한다", () => {
+    const { result } = renderHook(() =>
+      useSentenceRotation(items, { intervalMs: 1000, fadeMs: 100 }),
+    );
+
+    act(() => {
+      result.current.goNext();
+    });
+
+    expect(result.current.index).toBe(1);
+  });
+
+  it("goNext() 는 마지막 index 에서 0 으로 wrap 한다", () => {
+    const { result } = renderHook(() =>
+      useSentenceRotation(items, { intervalMs: 1000, fadeMs: 100 }),
+    );
+
+    act(() => {
+      result.current.goNext();
+      result.current.goNext();
+      result.current.goNext();
+    });
+
+    expect(result.current.index).toBe(0);
+  });
+
+  it("goNext() 후 자동 타이머가 리셋된다 (intervalMs 직전엔 자동 진행 없음)", () => {
+    const { result } = renderHook(() =>
+      useSentenceRotation(items, { intervalMs: 1000, fadeMs: 100 }),
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(900);
+    });
+    act(() => {
+      result.current.goNext();
+    });
+    expect(result.current.index).toBe(1);
+
+    act(() => {
+      vi.advanceTimersByTime(900);
+    });
+    expect(result.current.index).toBe(1);
+  });
+
+  it("goPrev() 는 index 를 -1 한다", () => {
+    const { result } = renderHook(() =>
+      useSentenceRotation(items, { intervalMs: 1000, fadeMs: 100 }),
+    );
+
+    act(() => {
+      result.current.goNext();
+    });
+    expect(result.current.index).toBe(1);
+
+    act(() => {
+      result.current.goPrev();
+    });
+    expect(result.current.index).toBe(0);
+  });
+
+  it("goPrev() 는 index 0 에서 마지막으로 wrap 한다", () => {
+    const { result } = renderHook(() =>
+      useSentenceRotation(items, { intervalMs: 1000, fadeMs: 100 }),
+    );
+
+    act(() => {
+      result.current.goPrev();
+    });
+
+    expect(result.current.index).toBe(items.length - 1);
+  });
+
+  it("goPrev() 후 자동 타이머가 리셋된다", () => {
+    const { result } = renderHook(() =>
+      useSentenceRotation(items, { intervalMs: 1000, fadeMs: 100 }),
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(900);
+    });
+    act(() => {
+      result.current.goPrev();
+    });
+    expect(result.current.index).toBe(items.length - 1);
+
+    act(() => {
+      vi.advanceTimersByTime(900);
+    });
+    expect(result.current.index).toBe(items.length - 1);
+  });
+
+  it("pause() 후엔 시간이 흘러도 자동 진행하지 않는다", () => {
+    const { result } = renderHook(() =>
+      useSentenceRotation(items, { intervalMs: 1000, fadeMs: 100 }),
+    );
+
+    act(() => {
+      result.current.pause();
+    });
+    act(() => {
+      vi.advanceTimersByTime((1000 + 100) * 3);
+    });
+
+    expect(result.current.index).toBe(0);
+  });
+
+  it("resume() 후엔 자동 진행이 7초+fade 만에 재개된다", () => {
+    const { result } = renderHook(() =>
+      useSentenceRotation(items, { intervalMs: 1000, fadeMs: 100 }),
+    );
+
+    act(() => {
+      result.current.pause();
+    });
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(result.current.index).toBe(0);
+
+    act(() => {
+      result.current.resume();
+    });
+    act(() => {
+      vi.advanceTimersByTime(1000 + 100);
+    });
+    expect(result.current.index).toBe(1);
+  });
+
+  it("문장이 1개면 goNext/goPrev 호출이 무시된다", () => {
+    const { result } = renderHook(() =>
+      useSentenceRotation([items[0]], { intervalMs: 1000, fadeMs: 100 }),
+    );
+
+    act(() => {
+      result.current.goNext();
+      result.current.goPrev();
+    });
+
+    expect(result.current.index).toBe(0);
+  });
 });

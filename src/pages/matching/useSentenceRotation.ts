@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Options = {
   intervalMs: number;
@@ -9,6 +9,10 @@ type Result<T> = {
   index: number;
   currentItem: T | undefined;
   isSwapping: boolean;
+  goNext: () => void;
+  goPrev: () => void;
+  pause: () => void;
+  resume: () => void;
 };
 
 export function useSentenceRotation<T>(items: T[], options: Options): Result<T> {
@@ -17,6 +21,34 @@ export function useSentenceRotation<T>(items: T[], options: Options): Result<T> 
   const [isSwapping, setIsSwapping] = useState(false);
   const itemsRef = useRef(items);
   itemsRef.current = items;
+
+  const intervalIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fadeTimeoutIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPausedRef = useRef(false);
+
+  const tick = useCallback(() => {
+    setIsSwapping(true);
+    fadeTimeoutIdRef.current = setTimeout(() => {
+      setIndex((prev) => {
+        const total = itemsRef.current.length;
+        if (total === 0) return 0;
+        return (prev + 1) % total;
+      });
+      setIsSwapping(false);
+    }, fadeMs);
+  }, [fadeMs]);
+
+  const startAutoTimer = useCallback(() => {
+    if (intervalIdRef.current) clearInterval(intervalIdRef.current);
+    intervalIdRef.current = setInterval(tick, intervalMs);
+  }, [intervalMs, tick]);
+
+  const stopAutoTimer = useCallback(() => {
+    if (intervalIdRef.current) {
+      clearInterval(intervalIdRef.current);
+      intervalIdRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (items.length === 0) {
@@ -30,29 +62,48 @@ export function useSentenceRotation<T>(items: T[], options: Options): Result<T> 
 
   useEffect(() => {
     if (items.length <= 1) return;
-
-    const cleanups: Array<() => void> = [];
-
-    const intervalId = setInterval(() => {
-      setIsSwapping(true);
-      const fadeTimeoutId = setTimeout(() => {
-        setIndex((prev) => {
-          const total = itemsRef.current.length;
-          if (total === 0) return 0;
-          return (prev + 1) % total;
-        });
-        setIsSwapping(false);
-      }, fadeMs);
-
-      cleanups.push(() => clearTimeout(fadeTimeoutId));
-    }, intervalMs);
+    if (!isPausedRef.current) startAutoTimer();
 
     return () => {
-      clearInterval(intervalId);
-      cleanups.forEach((fn) => fn());
+      stopAutoTimer();
+      if (fadeTimeoutIdRef.current) {
+        clearTimeout(fadeTimeoutIdRef.current);
+        fadeTimeoutIdRef.current = null;
+      }
       setIsSwapping(false);
     };
-  }, [items.length, intervalMs, fadeMs]);
+  }, [items.length, startAutoTimer, stopAutoTimer]);
+
+  const goNext = useCallback(() => {
+    const total = itemsRef.current.length;
+    if (total <= 1) return;
+    setIndex((prev) => (prev + 1) % total);
+    isPausedRef.current = false;
+    startAutoTimer();
+  }, [startAutoTimer]);
+
+  const goPrev = useCallback(() => {
+    const total = itemsRef.current.length;
+    if (total <= 1) return;
+    setIndex((prev) => (prev - 1 + total) % total);
+    isPausedRef.current = false;
+    startAutoTimer();
+  }, [startAutoTimer]);
+
+  const pause = useCallback(() => {
+    isPausedRef.current = true;
+    stopAutoTimer();
+    if (fadeTimeoutIdRef.current) {
+      clearTimeout(fadeTimeoutIdRef.current);
+      fadeTimeoutIdRef.current = null;
+      setIsSwapping(false);
+    }
+  }, [stopAutoTimer]);
+
+  const resume = useCallback(() => {
+    isPausedRef.current = false;
+    if (itemsRef.current.length > 1) startAutoTimer();
+  }, [startAutoTimer]);
 
   const safeIndex = items.length === 0 ? 0 : Math.min(index, items.length - 1);
 
@@ -60,5 +111,9 @@ export function useSentenceRotation<T>(items: T[], options: Options): Result<T> 
     index: safeIndex,
     currentItem: items[safeIndex],
     isSwapping,
+    goNext,
+    goPrev,
+    pause,
+    resume,
   };
 }
