@@ -12,14 +12,14 @@ function renderAt(pathname: string) {
 }
 
 describe("BottomTabBar", () => {
-  it("홈·통화기록·마이페이지는 모두 링크다", () => {
+  it("홈·통화 기록·마이페이지는 모두 링크다", () => {
     renderAt("/home");
 
     expect(screen.getByRole("link", { name: /^홈$/ })).toHaveAttribute(
       "href",
       "/home",
     );
-    expect(screen.getByRole("link", { name: /통화기록/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /통화 기록/ })).toHaveAttribute(
       "href",
       "/history",
     );
@@ -53,10 +53,10 @@ describe("BottomTabBar", () => {
     );
   });
 
-  it("/history 경로에서는 통화기록 탭이 활성 상태다", () => {
+  it("/history 경로에서는 통화 기록 탭이 활성 상태다", () => {
     renderAt("/history");
 
-    expect(screen.getByRole("link", { name: /통화기록/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /통화 기록/ })).toHaveAttribute(
       "aria-current",
       "page",
     );

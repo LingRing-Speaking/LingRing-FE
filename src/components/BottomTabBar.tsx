@@ -84,7 +84,7 @@ export function BottomTabBar() {
         className={`${TAB_BASE} ${isHistory ? "text-gray-900" : "text-gray-400"}`}
       >
         <CallHistoryIcon active={isHistory} />
-        <span>통화기록</span>
+        <span>통화 기록</span>
       </Link>
 
       <Link

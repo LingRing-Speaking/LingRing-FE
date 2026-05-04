@@ -11,7 +11,7 @@ describe("CallHistoryPage", () => {
     renderWithQueryClient(<CallHistoryPage />);
 
     await waitFor(() =>
-      expect(screen.getByRole("heading", { level: 1, name: "통화기록" })).toBeInTheDocument(),
+      expect(screen.getByRole("heading", { level: 1, name: "통화 기록" })).toBeInTheDocument(),
     );
     // 적어도 한 그룹 헤더가 렌더돼야 한다 (시드가 매일 분포 갱신되므로 어떤 라벨이든)
     const groupHeadings = screen.getAllByRole("heading", { level: 2 });
