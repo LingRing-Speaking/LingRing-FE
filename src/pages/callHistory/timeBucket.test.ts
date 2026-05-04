@@ -140,4 +140,24 @@ describe("formatCallMeta", () => {
     const startedAt = new Date(2026, 3, 29, 10, 0, 0);
     expect(formatCallMeta(startedAt, 605, now)).toBe("오늘 오전 10:00 · 10분 5초");
   });
+
+  it("1시간 정확히 (3600초 → '1시간')", () => {
+    const startedAt = new Date(2026, 3, 29, 10, 0, 0);
+    expect(formatCallMeta(startedAt, 3600, now)).toBe("오늘 오전 10:00 · 1시간");
+  });
+
+  it("1시간 + 분 (3700초 → '1시간 1분', 초는 생략)", () => {
+    const startedAt = new Date(2026, 3, 29, 10, 0, 0);
+    expect(formatCallMeta(startedAt, 3700, now)).toBe("오늘 오전 10:00 · 1시간 1분");
+  });
+
+  it("1시간 + 초만 (3641초 → '1시간', 분·초 생략)", () => {
+    const startedAt = new Date(2026, 3, 29, 10, 0, 0);
+    expect(formatCallMeta(startedAt, 3641, now)).toBe("오늘 오전 10:00 · 1시간");
+  });
+
+  it("2시간 + 분 (7320초 → '2시간 2분')", () => {
+    const startedAt = new Date(2026, 3, 29, 10, 0, 0);
+    expect(formatCallMeta(startedAt, 7320, now)).toBe("오늘 오전 10:00 · 2시간 2분");
+  });
 });

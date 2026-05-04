@@ -50,10 +50,14 @@ function pad2(n: number): string {
 }
 
 function formatDuration(durationSec: number): string {
-  const m = Math.floor(durationSec / 60);
+  const totalMinutes = Math.floor(durationSec / 60);
   const s = durationSec % 60;
-  if (m === 0) return `${s}초`;
-  return `${m}분 ${s}초`;
+  if (totalMinutes === 0) return `${s}초`;
+  if (totalMinutes < 60) return `${totalMinutes}분 ${s}초`;
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (m === 0) return `${h}시간`;
+  return `${h}시간 ${m}분`;
 }
 
 function formatTimeOfDay(d: Date): string {
