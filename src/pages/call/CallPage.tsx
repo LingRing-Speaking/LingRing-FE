@@ -98,12 +98,13 @@ function CallView({
         <button
           type="button"
           aria-label="음소거"
+          aria-pressed={isMuted}
           onClick={onMute}
           className={`flex h-16 w-16 items-center justify-center rounded-full shadow-ctrl transition active:scale-95 ${
             isMuted ? "bg-gray-900 text-white" : "bg-white text-gray-800"
           }`}
         >
-          <MicIcon />
+          <MicIcon muted={isMuted} />
         </button>
         <button
           type="button"
@@ -144,7 +145,7 @@ function ErrorView({ message, onHome }: { message: string | null; onHome: () => 
   );
 }
 
-function MicIcon() {
+function MicIcon({ muted }: { muted: boolean }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -158,6 +159,7 @@ function MicIcon() {
       <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
       <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
       <path d="M12 19v3" />
+      {muted && <line data-testid="mic-slash" x1="4" y1="4" x2="20" y2="20" />}
     </svg>
   );
 }
