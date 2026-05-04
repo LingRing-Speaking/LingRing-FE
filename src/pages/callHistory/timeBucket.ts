@@ -52,7 +52,8 @@ function pad2(n: number): string {
 function formatDuration(durationSec: number): string {
   const m = Math.floor(durationSec / 60);
   const s = durationSec % 60;
-  return `${m}:${pad2(s)}`;
+  if (m === 0) return `${s}초`;
+  return `${m}분 ${s}초`;
 }
 
 function formatTimeOfDay(d: Date): string {

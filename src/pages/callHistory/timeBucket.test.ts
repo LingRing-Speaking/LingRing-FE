@@ -103,41 +103,41 @@ describe("formatCallMeta", () => {
 
   it("오늘 오후 시각 포맷", () => {
     const startedAt = new Date(2026, 3, 29, 19, 30, 0);
-    expect(formatCallMeta(startedAt, 323, now)).toBe("오늘 오후 7:30 · 5:23");
+    expect(formatCallMeta(startedAt, 323, now)).toBe("오늘 오후 7:30 · 5분 23초");
   });
 
   it("오늘 오전 시각 포맷 (자정 직후는 오전 12:01)", () => {
     const startedAt = new Date(2026, 3, 29, 0, 1, 0);
-    expect(formatCallMeta(startedAt, 60, now)).toBe("오늘 오전 12:01 · 1:00");
+    expect(formatCallMeta(startedAt, 60, now)).toBe("오늘 오전 12:01 · 1분 0초");
   });
 
   it("정오는 오후 12:00", () => {
     const startedAt = new Date(2026, 3, 29, 12, 0, 0);
-    expect(formatCallMeta(startedAt, 605, now)).toBe("오늘 오후 12:00 · 10:05");
+    expect(formatCallMeta(startedAt, 605, now)).toBe("오늘 오후 12:00 · 10분 5초");
   });
 
   it("이번 주 (어제 = 1일 전)", () => {
     const startedAt = new Date(2026, 3, 28, 12, 0, 0);
-    expect(formatCallMeta(startedAt, 432, now)).toBe("1일 전 · 7:12");
+    expect(formatCallMeta(startedAt, 432, now)).toBe("1일 전 · 7분 12초");
   });
 
   it("최근 6일 이내 (3일 전)", () => {
     const startedAt = new Date(2026, 3, 26, 12, 0, 0);
-    expect(formatCallMeta(startedAt, 432, now)).toBe("3일 전 · 7:12");
+    expect(formatCallMeta(startedAt, 432, now)).toBe("3일 전 · 7분 12초");
   });
 
   it("그 이전은 'M월 D일'", () => {
     const startedAt = new Date(2026, 3, 12, 12, 0, 0);
-    expect(formatCallMeta(startedAt, 500, now)).toBe("4월 12일 · 8:20");
+    expect(formatCallMeta(startedAt, 500, now)).toBe("4월 12일 · 8분 20초");
   });
 
-  it("초 자리 패딩 (9초 → 0:09)", () => {
+  it("1분 미만이면 분 표기를 생략하고 '초'만 노출", () => {
     const startedAt = new Date(2026, 3, 29, 10, 0, 0);
-    expect(formatCallMeta(startedAt, 9, now)).toBe("오늘 오전 10:00 · 0:09");
+    expect(formatCallMeta(startedAt, 9, now)).toBe("오늘 오전 10:00 · 9초");
   });
 
-  it("긴 길이 (605초 → 10:05)", () => {
+  it("긴 길이 (605초 → 10분 5초)", () => {
     const startedAt = new Date(2026, 3, 29, 10, 0, 0);
-    expect(formatCallMeta(startedAt, 605, now)).toBe("오늘 오전 10:00 · 10:05");
+    expect(formatCallMeta(startedAt, 605, now)).toBe("오늘 오전 10:00 · 10분 5초");
   });
 });
