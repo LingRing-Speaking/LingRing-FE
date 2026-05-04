@@ -30,7 +30,7 @@ export function CallHistoryPage() {
 
   return (
     <PageShell>
-      <main className="relative flex flex-1 flex-col bg-gray-50">
+      <main className="relative flex flex-1 flex-col overflow-hidden bg-gray-50">
         {status === "loading" && (
           <div className="flex flex-1 items-center justify-center">
             <div
