@@ -17,6 +17,8 @@ const sessionState = {
   errorMessage: null as string | null,
   isMuted: false,
   toggleMute: vi.fn(),
+  isSpeakerOn: false,
+  toggleSpeaker: vi.fn(),
   end: vi.fn(),
   remoteAudioRef: createRef<HTMLAudioElement>(),
 };
@@ -30,6 +32,8 @@ beforeEach(() => {
   sessionState.errorMessage = null;
   sessionState.isMuted = false;
   sessionState.toggleMute = vi.fn();
+  sessionState.isSpeakerOn = false;
+  sessionState.toggleSpeaker = vi.fn();
   sessionState.end = vi.fn();
   useAuthStore.setState({
     user: { id: 1, nickname: "tester" },
@@ -78,10 +82,44 @@ describe("CallPage", () => {
     expect(
       screen.getByRole("button", { name: "음소거" }),
     ).toBeEnabled();
-    expect(screen.getByRole("button", { name: "스피커" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "스피커" })).toBeEnabled();
     expect(
       screen.getByRole("button", { name: "통화 종료" }),
     ).toBeInTheDocument();
+  });
+
+  it("스피커 버튼 클릭 시 toggleSpeaker 가 호출된다", async () => {
+    sessionState.status = "connected";
+    renderAt("/call/abc", { partnerId: 2 });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "스피커" }));
+
+    expect(sessionState.toggleSpeaker).toHaveBeenCalledOnce();
+  });
+
+  it("isSpeakerOn=true 면 스피커 버튼이 활성 시각 클래스 + aria-pressed=true 를 가진다", () => {
+    sessionState.status = "connected";
+    sessionState.isSpeakerOn = true;
+    renderAt("/call/abc", { partnerId: 2 });
+
+    const speakerBtn = screen.getByRole("button", { name: "스피커" });
+    expect(speakerBtn.className).toMatch(/bg-gray-900/);
+    expect(speakerBtn.className).toMatch(/text-white/);
+    expect(speakerBtn.className).not.toMatch(/bg-white/);
+    expect(speakerBtn).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("isSpeakerOn=false 면 스피커 버튼이 기본 시각 클래스 + aria-pressed=false 를 가진다", () => {
+    sessionState.status = "connected";
+    sessionState.isSpeakerOn = false;
+    renderAt("/call/abc", { partnerId: 2 });
+
+    const speakerBtn = screen.getByRole("button", { name: "스피커" });
+    expect(speakerBtn.className).toMatch(/bg-white/);
+    expect(speakerBtn.className).toMatch(/text-gray-800/);
+    expect(speakerBtn.className).not.toMatch(/bg-gray-900/);
+    expect(speakerBtn).toHaveAttribute("aria-pressed", "false");
   });
 
   it("mute 버튼 클릭 시 toggleMute 가 호출된다", async () => {

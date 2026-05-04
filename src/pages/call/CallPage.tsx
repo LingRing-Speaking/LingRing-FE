@@ -40,6 +40,8 @@ function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: numbe
             status={session.status}
             isMuted={session.isMuted}
             onMute={session.toggleMute}
+            isSpeakerOn={session.isSpeakerOn}
+            onSpeaker={session.toggleSpeaker}
             onEnd={() => setSheetOpen(true)}
             partnerId={partnerId}
           />
@@ -62,12 +64,16 @@ function CallView({
   status,
   isMuted,
   onMute,
+  isSpeakerOn,
+  onSpeaker,
   onEnd,
   partnerId,
 }: {
   status: "connecting" | "connected" | "ended";
   isMuted: boolean;
   onMute: () => void;
+  isSpeakerOn: boolean;
+  onSpeaker: () => void;
   onEnd: () => void;
   partnerId: number;
 }) {
@@ -109,9 +115,11 @@ function CallView({
         <button
           type="button"
           aria-label="스피커"
-          disabled
-          className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-gray-400 shadow-ctrl"
-          title="추후 지원 예정"
+          aria-pressed={isSpeakerOn}
+          onClick={onSpeaker}
+          className={`flex h-16 w-16 items-center justify-center rounded-full shadow-ctrl transition active:scale-95 ${
+            isSpeakerOn ? "bg-gray-900 text-white" : "bg-white text-gray-800"
+          }`}
         >
           <SpeakerIcon />
         </button>

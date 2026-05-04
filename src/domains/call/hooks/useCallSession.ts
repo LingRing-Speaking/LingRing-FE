@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { env } from "@/config/env";
+import { setSpeakerphone } from "@/lib/native/audioRoute";
 import type {
   ServerMessage,
   IceCandidatePayload,
@@ -23,6 +24,8 @@ export type UseCallSessionResult = {
   errorMessage: string | null;
   isMuted: boolean;
   toggleMute: () => void;
+  isSpeakerOn: boolean;
+  toggleSpeaker: () => void;
   end: () => void;
   remoteAudioRef: React.RefObject<HTMLAudioElement>;
 };
@@ -33,6 +36,7 @@ export function useCallSession(
   const [status, setStatus] = useState<CallStatus>("connecting");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
+  const [isSpeakerOn, setIsSpeakerOn] = useState(false);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
   const peerRef = useRef<PeerSession | null>(null);
@@ -138,6 +142,20 @@ export function useCallSession(
       finishEnded();
     });
 
+    // 백그라운드에서 일부 환경(특히 모바일 WebView)이 audio 재생을 일시 정지할 수 있어
+    // visible 복귀 시 paused 라면 다시 play() 를 시도한다 (안전망)
+    const handleVisibilityChange = () => {
+      if (document.hidden) return;
+      const el = remoteAudioRef.current;
+      if (!el || !el.srcObject) return;
+      if (el.paused) {
+        void el.play().catch(() => {
+          // 자동재생 정책 거부 — 사용자 인터랙션 시점에 다시 시도되도록 무시
+        });
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     (async () => {
       try {
         await peer.start();
@@ -151,6 +169,7 @@ export function useCallSession(
 
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       cleanup();
     };
     // userId/roomId/partnerId 변경 시에만 재실행
@@ -165,6 +184,14 @@ export function useCallSession(
       const next = !isMuted;
       peerRef.current?.setMicEnabled(!next);
       setIsMuted(next);
+    },
+    isSpeakerOn,
+    toggleSpeaker: () => {
+      const next = !isSpeakerOn;
+      void setSpeakerphone(next).catch(() => {
+        // 네이티브 라우팅 실패는 무시 — UI 상태는 사용자 의도대로 반영
+      });
+      setIsSpeakerOn(next);
     },
     end: () => {
       if (cleanedUpRef.current) return;

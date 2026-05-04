@@ -1,11 +1,16 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setSpeakerphone } from "@/lib/native/audioRoute";
 import type {
   ClientMessage,
   ServerMessage,
 } from "../signaling/types";
 import { useCallSession } from "./useCallSession";
+
+vi.mock("@/lib/native/audioRoute", () => ({
+  setSpeakerphone: vi.fn().mockResolvedValue(undefined),
+}));
 
 // --- mocks ---
 const sendMock = vi.fn<(msg: ClientMessage) => void>();
@@ -454,5 +459,90 @@ describe("useCallSession", () => {
 
     expect(peerCloseMock).toHaveBeenCalledTimes(1);
     expect(closeWsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("visibilitychange visible 복귀 시 remote audio 가 paused 면 play() 를 다시 호출한다", async () => {
+    const playMock = vi.fn().mockResolvedValue(undefined);
+    const mockAudio = {
+      srcObject: {} as MediaStream,
+      paused: true,
+      play: playMock,
+    } as unknown as HTMLAudioElement;
+
+    const { result } = renderHook(() => useCallSession(baseOpts));
+    await waitFor(() => expect(sendMock).toHaveBeenCalledWith({ type: "JOIN" }));
+
+    // CallPage 가 ref 를 audio element 에 연결한 상태를 시뮬
+    (result.current.remoteAudioRef as { current: HTMLAudioElement | null }).current = mockAudio;
+
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(playMock).toHaveBeenCalled();
+  });
+
+  it("visibilitychange visible 복귀 시 audio 가 paused 가 아니면 play() 를 호출하지 않는다", async () => {
+    const playMock = vi.fn().mockResolvedValue(undefined);
+    const mockAudio = {
+      srcObject: {} as MediaStream,
+      paused: false,
+      play: playMock,
+    } as unknown as HTMLAudioElement;
+
+    const { result } = renderHook(() => useCallSession(baseOpts));
+    await waitFor(() => expect(sendMock).toHaveBeenCalledWith({ type: "JOIN" }));
+
+    (result.current.remoteAudioRef as { current: HTMLAudioElement | null }).current = mockAudio;
+
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(playMock).not.toHaveBeenCalled();
+  });
+
+  it("초기 isSpeakerOn 은 false 이다", async () => {
+    const { result } = renderHook(() => useCallSession(baseOpts));
+    await waitFor(() => expect(peerStartMock).toHaveBeenCalled());
+    expect(result.current.isSpeakerOn).toBe(false);
+  });
+
+  it("toggleSpeaker() 는 setSpeakerphone 호출과 isSpeakerOn 을 토글한다", async () => {
+    const { result } = renderHook(() => useCallSession(baseOpts));
+    await waitFor(() => expect(peerStartMock).toHaveBeenCalled());
+
+    await act(async () => {
+      result.current.toggleSpeaker();
+    });
+
+    expect(setSpeakerphone).toHaveBeenLastCalledWith(true);
+    expect(result.current.isSpeakerOn).toBe(true);
+
+    await act(async () => {
+      result.current.toggleSpeaker();
+    });
+
+    expect(setSpeakerphone).toHaveBeenLastCalledWith(false);
+    expect(result.current.isSpeakerOn).toBe(false);
+  });
+
+  it("unmount 후에는 visibilitychange 핸들러가 해제된다", async () => {
+    const playMock = vi.fn().mockResolvedValue(undefined);
+    const mockAudio = {
+      srcObject: {} as MediaStream,
+      paused: true,
+      play: playMock,
+    } as unknown as HTMLAudioElement;
+
+    const { result, unmount } = renderHook(() => useCallSession(baseOpts));
+    await waitFor(() => expect(sendMock).toHaveBeenCalled());
+
+    (result.current.remoteAudioRef as { current: HTMLAudioElement | null }).current = mockAudio;
+    unmount();
+
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    expect(playMock).not.toHaveBeenCalled();
   });
 });
