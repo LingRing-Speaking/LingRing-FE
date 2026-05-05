@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom"
 import { PageShell } from "@/components/PageShell";
 import { useUserId } from "@/domains/auth/hooks/useUserId";
 import { useCallSession } from "@/domains/call/hooks/useCallSession";
+import { useUserProfile } from "@/domains/user/hooks/useUserProfile";
 import { CallTimer } from "./CallTimer";
 import { EndConfirmSheet } from "./EndConfirmSheet";
 
@@ -21,6 +22,7 @@ function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: numbe
   const userId = useUserId();
   const navigate = useNavigate();
   const session = useCallSession({ userId, roomId, partnerId });
+  const profile = useUserProfile(partnerId);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   useEffect(() => {
@@ -44,6 +46,8 @@ function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: numbe
             onSpeaker={session.toggleSpeaker}
             onEnd={() => setSheetOpen(true)}
             partnerId={partnerId}
+            nickname={profile.data?.nickname ?? null}
+            profileImage={profile.data?.profileImage ?? null}
           />
         )}
 
@@ -68,6 +72,8 @@ function CallView({
   onSpeaker,
   onEnd,
   partnerId,
+  nickname,
+  profileImage,
 }: {
   status: "connecting" | "connected" | "ended";
   isMuted: boolean;
@@ -76,28 +82,47 @@ function CallView({
   onSpeaker: () => void;
   onEnd: () => void;
   partnerId: number;
+  nickname: string | null;
+  profileImage: string | null;
 }) {
   return (
     <>
       <div className="relative z-[2] flex flex-col items-center gap-2 px-5 pt-4">
         <CallTimer active={status === "connected"} />
-        <p className="m-0 text-[13px] font-medium text-gray-600">
-          {status === "connecting" ? "연결 중…" : `상대 #${partnerId}`}
-        </p>
       </div>
 
       <section className="relative z-[1] flex flex-1 flex-col items-center justify-center px-6">
-        <div className="relative mb-6 flex h-60 w-60 items-center justify-center">
+        <div className="relative mb-1.5 flex h-60 w-60 items-center justify-center">
           <span
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(31,191,146,0.18)_0%,rgba(31,191,146,0)_70%)] animate-halo"
           />
           <div className="relative flex h-40 w-40 items-center justify-center overflow-hidden rounded-full border-[3px] border-white bg-gradient-to-br from-mint-300 via-mint-500 to-coral-500 text-white shadow-orb">
-            <span className="select-none text-[56px] font-bold tracking-[-0.02em] text-white">
-              {String(partnerId).slice(-1)}
-            </span>
+            {profileImage ? (
+              <img
+                src={profileImage}
+                alt="상대 프로필 이미지"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="select-none text-[56px] font-bold tracking-[-0.02em] text-white">
+                {nickname?.charAt(0) ?? String(partnerId).slice(-1)}
+              </span>
+            )}
           </div>
         </div>
+        <p className="m-0 text-[26px] font-bold leading-tight tracking-[-0.02em] text-gray-900">
+          {nickname ?? `상대 #${partnerId}`}
+        </p>
+        <p className="m-0 mt-1 inline-flex items-center justify-center gap-1.5 text-[14px] font-medium text-gray-600">
+          <span
+            aria-hidden="true"
+            className={`inline-block h-1.5 w-1.5 rounded-full ${
+              status === "connected" ? "bg-mint-500" : "bg-gray-400"
+            }`}
+          />
+          {status === "connected" ? "연결됨" : "연결 중…"}
+        </p>
       </section>
 
       <div className="relative z-[2] flex items-center justify-center gap-7 px-6 pb-9 pt-2">
