@@ -23,8 +23,22 @@ const sessionState = {
   remoteAudioRef: createRef<HTMLAudioElement>(),
 };
 
+type PartnerProfile = {
+  id: number;
+  nickname: string;
+  profileImage: string | null;
+  level: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+  mannerTemperature: number;
+};
+
+const profileState: { data: PartnerProfile | null } = { data: null };
+
 vi.mock("@/domains/call/hooks/useCallSession", () => ({
   useCallSession: () => sessionState,
+}));
+
+vi.mock("@/domains/user/hooks/useUserProfile", () => ({
+  useUserProfile: () => ({ data: profileState.data }),
 }));
 
 beforeEach(() => {
@@ -35,6 +49,7 @@ beforeEach(() => {
   sessionState.isSpeakerOn = false;
   sessionState.toggleSpeaker = vi.fn();
   sessionState.end = vi.fn();
+  profileState.data = null;
   useAuthStore.setState({
     user: { id: 1, nickname: "tester", profileImage: null },
     accessToken: "test-access",
@@ -67,11 +82,18 @@ describe("CallPage", () => {
     expect(screen.getByText("홈입니다")).toBeInTheDocument();
   });
 
-  it("connecting 상태에서는 '연결 중' 라벨을 보여준다", () => {
+  it("connecting 상태에서는 '연결 중…' 라벨을 보여준다", () => {
     sessionState.status = "connecting";
     renderAt("/call/abc", { partnerId: 2 });
 
-    expect(screen.getByText(/연결 중/)).toBeInTheDocument();
+    expect(screen.getByText("연결 중…")).toBeInTheDocument();
+  });
+
+  it("connected 상태에서는 '연결됨' 라벨을 보여준다", () => {
+    sessionState.status = "connected";
+    renderAt("/call/abc", { partnerId: 2 });
+
+    expect(screen.getByText("연결됨")).toBeInTheDocument();
   });
 
   it("connected 상태에서는 타이머와 mute/speaker/end 버튼을 보여준다", () => {
@@ -195,5 +217,59 @@ describe("CallPage", () => {
     await waitFor(() =>
       expect(screen.getByText("홈입니다")).toBeInTheDocument(),
     );
+  });
+
+  it("profileImage 가 있으면 상대 프로필 이미지를 렌더한다", () => {
+    sessionState.status = "connected";
+    profileState.data = {
+      id: 2,
+      nickname: "에이미",
+      profileImage: "https://cdn.example.com/p/2.jpg",
+      level: "BEGINNER",
+      mannerTemperature: 36.5,
+    };
+    renderAt("/call/abc", { partnerId: 2 });
+
+    const img = screen.getByAltText("상대 프로필 이미지") as HTMLImageElement;
+    expect(img).toBeInTheDocument();
+    expect(img.src).toBe("https://cdn.example.com/p/2.jpg");
+  });
+
+  it("profileImage 가 null 이고 nickname 이 있으면 닉네임 첫 글자를 보여준다", () => {
+    sessionState.status = "connected";
+    profileState.data = {
+      id: 2,
+      nickname: "에이미",
+      profileImage: null,
+      level: "BEGINNER",
+      mannerTemperature: 36.5,
+    };
+    renderAt("/call/abc", { partnerId: 2 });
+
+    expect(screen.queryByAltText("상대 프로필 이미지")).not.toBeInTheDocument();
+    expect(screen.getByText("에")).toBeInTheDocument();
+  });
+
+  it("프로필이 로드되면 사진 밑에 닉네임을 표시한다 (partnerId fallback 대신)", () => {
+    sessionState.status = "connected";
+    profileState.data = {
+      id: 42,
+      nickname: "재크",
+      profileImage: null,
+      level: "INTERMEDIATE",
+      mannerTemperature: 36.5,
+    };
+    renderAt("/call/abc", { partnerId: 42 });
+
+    expect(screen.getByText("재크")).toBeInTheDocument();
+    expect(screen.queryByText("상대 #42")).not.toBeInTheDocument();
+  });
+
+  it("프로필이 아직 없으면 사진 밑에 partnerId fallback 을 보여준다", () => {
+    sessionState.status = "connected";
+    profileState.data = null;
+    renderAt("/call/abc", { partnerId: 42 });
+
+    expect(screen.getByText("상대 #42")).toBeInTheDocument();
   });
 });
