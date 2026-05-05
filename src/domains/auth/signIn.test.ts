@@ -23,7 +23,7 @@ const mockApi = vi.mocked(postSocialLogin);
 const SUCCESS_RESPONSE = {
   accessToken: "access-jwt",
   refreshToken: "refresh-jwt",
-  user: { id: 1, nickname: "x-y-1234" },
+  user: { id: 1, nickname: "x-y-1234", profileImage: null },
 };
 
 describe("signInWithKakao", () => {

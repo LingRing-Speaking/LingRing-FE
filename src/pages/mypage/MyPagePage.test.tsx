@@ -15,7 +15,7 @@ const FAILURE = () =>
 describe("MyPagePage", () => {
   it("쿼리가 성공하면 프로필/주간 통계/내 기록 섹션을 모두 렌더한다", async () => {
     renderWithQueryClient(<MyPagePage />, {
-      user: { id: 1, nickname: "Lee" },
+      user: { id: 1, nickname: "Lee", profileImage: null },
     });
 
     await waitFor(() => {
@@ -75,7 +75,7 @@ describe("MyPagePage", () => {
     );
 
     renderWithQueryClient(<MyPagePage />, {
-      user: { id: 1, nickname: "Lee" },
+      user: { id: 1, nickname: "Lee", profileImage: null },
     });
 
     await waitFor(() =>

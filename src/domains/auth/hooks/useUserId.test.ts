@@ -6,7 +6,7 @@ import { useUserId } from "./useUserId";
 describe("useUserId", () => {
   it("인증된 사용자가 있으면 user.id 를 반환한다", () => {
     useAuthStore.setState({
-      user: { id: 42, nickname: "happy-tiger-1234" },
+      user: { id: 42, nickname: "happy-tiger-1234", profileImage: null },
       accessToken: "access",
       refreshToken: "refresh",
       isAuthenticated: true,
@@ -19,7 +19,7 @@ describe("useUserId", () => {
 
   it("store 의 user 값이 바뀌면 새 id 를 반환한다", () => {
     useAuthStore.setState({
-      user: { id: 7, nickname: "first" },
+      user: { id: 7, nickname: "first", profileImage: null },
       accessToken: "a",
       refreshToken: "r",
       isAuthenticated: true,
@@ -29,7 +29,7 @@ describe("useUserId", () => {
     expect(result.current).toBe(7);
 
     useAuthStore.setState({
-      user: { id: 99, nickname: "second" },
+      user: { id: 99, nickname: "second", profileImage: null },
       accessToken: "a",
       refreshToken: "r",
       isAuthenticated: true,

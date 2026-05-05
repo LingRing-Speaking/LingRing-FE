@@ -1,6 +1,6 @@
 export type CallHistoryItem = {
   id: number;
-  partner: { id: number; name: string };
+  partner: { id: number; name: string; profileImage: string | null };
   startedAt: string; // ISO 8601 (예: "2026-04-29T19:30:00+09:00")
   durationSec: number;
   analyzed: boolean;

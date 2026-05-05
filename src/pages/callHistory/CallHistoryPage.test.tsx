@@ -45,7 +45,7 @@ describe("CallHistoryPage", () => {
             items: [
               {
                 id: 1,
-                partner: { id: 7, name: "Sophie" },
+                partner: { id: 7, name: "Sophie", profileImage: null },
                 startedAt: new Date().toISOString(),
                 durationSec: 312,
                 analyzed: true,
@@ -62,6 +62,7 @@ describe("CallHistoryPage", () => {
           data: {
             id: 7,
             nickname: "Sophie",
+            profileImage: null,
             level: "ADVANCED",
             mannerTemperature: 38.5,
           },
@@ -100,7 +101,7 @@ describe("CallHistoryPage", () => {
             items: [
               {
                 id: 1,
-                partner: { id: 1001, name: "Retry" },
+                partner: { id: 1001, name: "Retry", profileImage: null },
                 startedAt: new Date().toISOString(),
                 durationSec: 60,
                 analyzed: false,

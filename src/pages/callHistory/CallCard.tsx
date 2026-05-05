@@ -28,10 +28,18 @@ export function CallCard({ call, now, onPartnerClick }: Props) {
         onClick={handleBodyClick}
         className="flex flex-1 items-center gap-3 rounded-xl bg-transparent px-1 py-1.5 text-left active:bg-gray-50"
       >
-        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-mint-400 via-mint-500 to-coral-500">
-          <span className="text-[20px] font-bold leading-none tracking-tight text-white">
-            {initial}
-          </span>
+        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-mint-400 via-mint-500 to-coral-500">
+          {call.partner.profileImage ? (
+            <img
+              src={call.partner.profileImage}
+              alt="상대 프로필 이미지"
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <span className="text-[20px] font-bold leading-none tracking-tight text-white">
+              {initial}
+            </span>
+          )}
         </div>
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="text-[15.5px] font-bold leading-snug tracking-tight text-gray-900">

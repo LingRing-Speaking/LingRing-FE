@@ -36,7 +36,7 @@ beforeEach(() => {
   sessionState.toggleSpeaker = vi.fn();
   sessionState.end = vi.fn();
   useAuthStore.setState({
-    user: { id: 1, nickname: "tester" },
+    user: { id: 1, nickname: "tester", profileImage: null },
     accessToken: "test-access",
     refreshToken: "test-refresh",
     isAuthenticated: true,

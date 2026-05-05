@@ -99,7 +99,10 @@ async function request<T>(
   return (body as ApiResponse<T>).data;
 }
 
-function jsonInit(method: "POST" | "DELETE", body?: unknown): RequestInit {
+function jsonInit(
+  method: "POST" | "DELETE" | "PATCH",
+  body?: unknown,
+): RequestInit {
   if (body === undefined) return { method };
   return {
     method,
@@ -113,5 +116,28 @@ export const httpGet = <T>(path: string): Promise<T> => request<T>(path);
 export const httpPost = <T = void>(path: string, body?: unknown): Promise<T> =>
   request<T>(path, jsonInit("POST", body));
 
+export const httpPatch = <T = void>(path: string, body?: unknown): Promise<T> =>
+  request<T>(path, jsonInit("PATCH", body));
+
 export const httpDelete = <T = void>(path: string, body?: unknown): Promise<T> =>
   request<T>(path, jsonInit("DELETE", body));
+
+/**
+ * 외부 절대 URL(예: S3 presigned URL)에 인증 헤더 없이 raw PUT 한다.
+ * presigned URL에 Authorization 헤더가 붙으면 S3가 서명 불일치로 거부하므로
+ * 기존 request() 래퍼를 우회한다.
+ */
+export async function httpPutRaw(
+  uploadUrl: string,
+  body: Blob,
+  contentType: string,
+): Promise<void> {
+  const res = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": contentType },
+    body,
+  });
+  if (!res.ok) {
+    throw new ApiError(res.status, `S3 PUT failed: ${res.status}`);
+  }
+}

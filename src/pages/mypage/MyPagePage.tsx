@@ -78,6 +78,7 @@ export function MyPagePage() {
             <>
               <ProfileCard
                 name={user.nickname}
+                profileImage={user.profileImage}
                 level={myStats.data.level}
                 mannerTemperature={myStats.data.mannerTemperature}
               />

@@ -5,7 +5,7 @@ import { classifyCalls } from "./timeBucket";
 function makeCall(startedAt: string, id = 1): CallHistoryItem {
   return {
     id,
-    partner: { id: 1000 + id, name: `P${id}` },
+    partner: { id: 1000 + id, name: `P${id}`, profileImage: null },
     startedAt,
     durationSec: 60,
     analyzed: false,

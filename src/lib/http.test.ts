@@ -165,7 +165,7 @@ describe("httpDelete", () => {
 describe("401 인터셉터 + refresh 자동 재시도", () => {
   beforeEach(() => {
     useAuthStore.setState({
-      user: { id: 1, nickname: "tester" },
+      user: { id: 1, nickname: "tester", profileImage: null },
       accessToken: "expired-access",
       refreshToken: "valid-refresh",
       isAuthenticated: true,
@@ -214,7 +214,7 @@ describe("401 인터셉터 + refresh 자동 재시도", () => {
     const state = useAuthStore.getState();
     expect(state.accessToken).toBe("new-access");
     expect(state.refreshToken).toBe("new-refresh");
-    expect(state.user).toEqual({ id: 1, nickname: "tester" });
+    expect(state.user).toEqual({ id: 1, nickname: "tester", profileImage: null });
     expect(storage.saveTokens).toHaveBeenCalledWith({
       accessToken: "new-access",
       refreshToken: "new-refresh",

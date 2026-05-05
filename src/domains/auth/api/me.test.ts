@@ -11,14 +11,14 @@ describe("getMe", () => {
         HttpResponse.json({
           status: 200,
           message: "OK",
-          data: { id: 42, nickname: "happy-tiger-9821" },
+          data: { id: 42, nickname: "happy-tiger-9821", profileImage: null },
         }),
       ),
     );
 
     const result = await getMe();
 
-    expect(result).toEqual({ id: 42, nickname: "happy-tiger-9821" });
+    expect(result).toEqual({ id: 42, nickname: "happy-tiger-9821", profileImage: null });
   });
 
   it("401(INVALID_OR_EXPIRED_ACCESS_TOKEN) 응답은 ApiError(status 401)로 throw된다", async () => {

@@ -3,6 +3,7 @@ export type Level = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
 export type UserProfile = {
   id: number;
   nickname: string;
+  profileImage: string | null;
   level: Level;
   mannerTemperature: number;
 };
