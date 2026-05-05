@@ -24,6 +24,7 @@ describe("useUserProfile", () => {
           data: {
             id: 7,
             nickname: "Sophie",
+            profileImage: null,
             level: "ADVANCED",
             mannerTemperature: 38.5,
           },
@@ -37,6 +38,7 @@ describe("useUserProfile", () => {
     expect(result.current.data).toEqual({
       id: 7,
       nickname: "Sophie",
+      profileImage: null,
       level: "ADVANCED",
       mannerTemperature: 38.5,
     });

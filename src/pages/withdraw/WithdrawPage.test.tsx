@@ -195,7 +195,7 @@ describe("WithdrawPage", () => {
     );
 
     renderWithQueryClient(<WithdrawPage />, {
-      user: { id: 1, nickname: "tester" },
+      user: { id: 1, nickname: "tester", profileImage: null },
     });
 
     await user.click(screen.getByRole("radio", { name: "원하는 기능이 없어요" }));

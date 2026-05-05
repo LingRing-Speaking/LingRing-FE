@@ -40,7 +40,7 @@ describe("restoreSession", () => {
         HttpResponse.json({
           status: 200,
           message: "OK",
-          data: { id: 7, nickname: "happy-otter-1234" },
+          data: { id: 7, nickname: "happy-otter-1234", profileImage: null },
         }),
       ),
     );
@@ -50,7 +50,7 @@ describe("restoreSession", () => {
     expect(result).toEqual({ kind: "restored" });
     const state = useAuthStore.getState();
     expect(state.isAuthenticated).toBe(true);
-    expect(state.user).toEqual({ id: 7, nickname: "happy-otter-1234" });
+    expect(state.user).toEqual({ id: 7, nickname: "happy-otter-1234", profileImage: null });
     expect(state.accessToken).toBe("valid-access");
     expect(state.refreshToken).toBe("valid-refresh");
   });
@@ -97,7 +97,7 @@ describe("restoreSession", () => {
           return HttpResponse.json({
             status: 200,
             message: "OK",
-            data: { id: 7, nickname: "happy-otter-1234" },
+            data: { id: 7, nickname: "happy-otter-1234", profileImage: null },
           });
         }
         return HttpResponse.json(
@@ -121,7 +121,7 @@ describe("restoreSession", () => {
     expect(state.isAuthenticated).toBe(true);
     expect(state.accessToken).toBe("fresh-access");
     expect(state.refreshToken).toBe("fresh-refresh");
-    expect(state.user).toEqual({ id: 7, nickname: "happy-otter-1234" });
+    expect(state.user).toEqual({ id: 7, nickname: "happy-otter-1234", profileImage: null });
   });
 
   it("네트워크 오류이면 세션을 건드리지 않고 network_error 를 반환한다", async () => {

@@ -5,7 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { useAuthStore } from "@/domains/auth/store";
 import type { User } from "@/domains/auth/types";
 
-const DEFAULT_TEST_USER: User = { id: 1, nickname: "tester" };
+const DEFAULT_TEST_USER: User = { id: 1, nickname: "tester", profileImage: null };
 
 export function createTestQueryClient() {
   return new QueryClient({

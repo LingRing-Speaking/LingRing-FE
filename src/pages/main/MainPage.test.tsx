@@ -25,7 +25,7 @@ const NOT_FOUND_RESPONSE = () =>
 describe("MainPage", () => {
   it("store 의 user.nickname 과 표현 응답을 함께 렌더한다", async () => {
     renderWithQueryClient(<MainPage />, {
-      user: { id: 1, nickname: "Lee" },
+      user: { id: 1, nickname: "Lee", profileImage: null },
     });
 
     await waitFor(() => expect(screen.getByText("Lee")).toBeInTheDocument());
@@ -44,7 +44,7 @@ describe("MainPage", () => {
     );
 
     renderWithQueryClient(<MainPage />, {
-      user: { id: 1, nickname: "Lee" },
+      user: { id: 1, nickname: "Lee", profileImage: null },
     });
 
     await waitFor(() =>

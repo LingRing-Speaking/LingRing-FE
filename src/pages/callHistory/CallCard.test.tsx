@@ -18,7 +18,7 @@ function renderWithRouter(item: CallHistoryItem) {
 
 const baseCall: CallHistoryItem = {
   id: 42,
-  partner: { id: 1042, name: "Jenson" },
+  partner: { id: 1042, name: "Jenson", profileImage: null },
   startedAt: new Date(2026, 3, 29, 19, 30, 0).toISOString(),
   durationSec: 323,
   analyzed: false,
@@ -30,6 +30,18 @@ describe("CallCard", () => {
     expect(screen.getByText("J")).toBeInTheDocument();
     expect(screen.getByText("Jenson")).toBeInTheDocument();
     expect(screen.getByText(/오늘 오후 7:30/)).toBeInTheDocument();
+  });
+
+  it("partner.profileImage 가 있으면 이니셜 대신 이미지가 노출된다", () => {
+    renderWithRouter({
+      ...baseCall,
+      partner: { ...baseCall.partner, profileImage: "https://cdn/x.png" },
+    });
+    expect(screen.getByAltText("상대 프로필 이미지")).toHaveAttribute(
+      "src",
+      "https://cdn/x.png",
+    );
+    expect(screen.queryByText("J")).not.toBeInTheDocument();
   });
 
   it("analyzed=false 일 때 '분석하기' 버튼이 보인다", () => {

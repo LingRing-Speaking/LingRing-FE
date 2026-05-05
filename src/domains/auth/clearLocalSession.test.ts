@@ -10,7 +10,7 @@ vi.mock("./storage", () => ({ clearTokens: vi.fn() }));
 beforeEach(() => {
   vi.clearAllMocks();
   useAuthStore.setState({
-    user: { id: 1, nickname: "tester" },
+    user: { id: 1, nickname: "tester", profileImage: null },
     accessToken: "test-access",
     refreshToken: "test-refresh",
     isAuthenticated: true,

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { useAuthStore } from "./store";
 
 const SAMPLE_SESSION = {
-  user: { id: 42, nickname: "funny-otter-1234" },
+  user: { id: 42, nickname: "funny-otter-1234", profileImage: null },
   accessToken: "access-jwt",
   refreshToken: "refresh-jwt",
 };

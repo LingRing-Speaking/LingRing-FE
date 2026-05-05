@@ -24,6 +24,7 @@ function generateFakeCalls(n: number): CallHistoryItem[] {
       partner: {
         id: 1000 + i,
         name: FAKE_PARTNER_NAMES[i % FAKE_PARTNER_NAMES.length],
+        profileImage: null,
       },
       startedAt,
       durationSec,
@@ -35,7 +36,7 @@ function generateFakeCalls(n: number): CallHistoryItem[] {
 export const handlers = [
   http.get(apiUrl("/me"), () => {
     return HttpResponse.json({
-      data: { id: 1, nickname: "lee-tiger-1234" },
+      data: { id: 1, nickname: "lee-tiger-1234", profileImage: null },
       status: 200,
       message: "OK",
     });
@@ -46,6 +47,7 @@ export const handlers = [
       data: {
         id: Number(params.userId),
         nickname: "Sophie",
+        profileImage: null,
         level: "INTERMEDIATE",
         mannerTemperature: 36.5,
       },

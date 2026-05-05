@@ -1,4 +1,6 @@
+import { useState } from "react";
 import type { Level } from "@/domains/user/types";
+import { ProfileEditModal } from "./ProfileEditModal";
 
 const LEVEL_LABEL: Record<Level, string> = {
   BEGINNER: "Beginner",
@@ -11,11 +13,13 @@ const DEFAULT_TEMPERATURE_DESCRIPTION = "평소에 친절한 대화를 하고 �
 
 type Props = {
   name: string;
+  profileImage: string | null;
   level: Level;
   mannerTemperature: number;
 };
 
-export function ProfileCard({ name, level, mannerTemperature }: Props) {
+export function ProfileCard({ name, profileImage, level, mannerTemperature }: Props) {
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const initial = name.charAt(0);
   const levelLabel = LEVEL_LABEL[level];
   const fillWidth = `${(mannerTemperature / MAX_TEMPERATURE) * 100}%`;
@@ -24,9 +28,13 @@ export function ProfileCard({ name, level, mannerTemperature }: Props) {
     <section className="mb-4 rounded-[18px] bg-white p-5 shadow-card">
       <div className="relative flex items-center gap-3.5">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-mint-400 via-mint-500 to-coral-500">
-          <span className="text-[26px] font-bold leading-none tracking-tight text-white">
-            {initial}
-          </span>
+          {profileImage ? (
+            <img src={profileImage} alt="프로필 이미지" className="h-full w-full object-cover" />
+          ) : (
+            <span className="text-[26px] font-bold leading-none tracking-tight text-white">
+              {initial}
+            </span>
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="mb-1.5 text-[18px] font-bold leading-tight tracking-tight text-gray-900">
@@ -39,8 +47,8 @@ export function ProfileCard({ name, level, mannerTemperature }: Props) {
         <button
           type="button"
           aria-label="프로필 편집"
-          disabled
-          className="absolute right-0 top-0 flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-full bg-gray-100 text-gray-700"
+          onClick={() => setIsEditOpen(true)}
+          className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-700 active:bg-gray-200"
         >
           <svg
             viewBox="0 0 24 24"
@@ -83,6 +91,15 @@ export function ProfileCard({ name, level, mannerTemperature }: Props) {
           {DEFAULT_TEMPERATURE_DESCRIPTION}
         </p>
       </div>
+
+      {isEditOpen && (
+        <ProfileEditModal
+          open
+          currentNickname={name}
+          currentProfileImage={profileImage}
+          onClose={() => setIsEditOpen(false)}
+        />
+      )}
     </section>
   );
 }

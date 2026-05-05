@@ -14,7 +14,7 @@ describe("postSocialLogin", () => {
           data: {
             accessToken: "access-jwt",
             refreshToken: "refresh-jwt",
-            user: { id: 42, nickname: "funny-otter-1234" },
+            user: { id: 42, nickname: "funny-otter-1234", profileImage: null },
           },
         }),
       ),

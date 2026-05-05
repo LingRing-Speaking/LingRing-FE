@@ -48,7 +48,7 @@ describe("useCallHistory", () => {
             items: [
               {
                 id: page + 1,
-                partner: { id: 1000 + page, name: `P${page}` },
+                partner: { id: 1000 + page, name: `P${page}`, profileImage: null },
                 startedAt: "2026-04-29T12:00:00+09:00",
                 durationSec: 120,
                 analyzed: false,
