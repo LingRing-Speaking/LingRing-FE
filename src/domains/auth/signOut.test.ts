@@ -70,4 +70,16 @@ describe("signOut", () => {
     expect(clearTokens).toHaveBeenCalledOnce();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
+
+  it("카카오 SDK가 응답하지 않아도(hang) signOut은 카카오를 기다리지 않고 완료된다", async () => {
+    vi.mocked(logout).mockResolvedValue(undefined);
+    vi.mocked(logoutFromKakao).mockReturnValue(new Promise(() => {}));
+    vi.mocked(clearTokens).mockResolvedValue(undefined);
+
+    await signOut();
+
+    expect(logoutFromKakao).toHaveBeenCalledOnce();
+    expect(clearTokens).toHaveBeenCalledOnce();
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+  });
 });
