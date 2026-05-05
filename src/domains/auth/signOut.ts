@@ -10,11 +10,9 @@ export async function signOut(): Promise<void> {
   } catch {
     // BE 로그아웃 실패는 무시 — 네트워크가 끊겨도 로컬 세션은 끊는다
   }
-  try {
-    await logoutFromKakao();
-  } catch {
-    // 카카오 SDK 측 logout 실패는 무시 — 로컬 정리는 계속 진행
-  }
+  // 카카오 SDK goLogout()이 콜백을 돌려주지 않고 hang하는 경우가 있어 await하지 않는다 — 로컬 세션 정리가 카카오 응답에 묶이지 않게.
+  void logoutFromKakao().catch(() => {});
+
   await clearTokens();
   useAuthStore.getState().clearSession();
 }
