@@ -1,6 +1,7 @@
 import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { AuthGuard } from "@/domains/auth/AuthGuard";
+import { OnboardingGuard } from "@/domains/onboarding/OnboardingGuard";
 import { LoginPage } from "@/pages/login/LoginPage";
 import { MainPage } from "@/pages/main/MainPage";
 import { MatchingPage } from "@/pages/matching/MatchingPage";
@@ -11,12 +12,21 @@ import { UserExpressionsPage } from "@/pages/userExpressions/UserExpressionsPage
 import { CallHistoryPage } from "@/pages/callHistory/CallHistoryPage";
 import { SettingsPage } from "@/pages/settings/SettingsPage";
 import { WithdrawPage } from "@/pages/withdraw/WithdrawPage";
+import { OnboardingTermsPage } from "@/pages/onboarding/OnboardingTermsPage";
 
-function ProtectedRoutes() {
+function AuthenticatedRoutes() {
   return (
     <AuthGuard>
       <Outlet />
     </AuthGuard>
+  );
+}
+
+function OnboardedRoutes() {
+  return (
+    <OnboardingGuard>
+      <Outlet />
+    </OnboardingGuard>
   );
 }
 
@@ -27,15 +37,18 @@ export default function App() {
         <Routes>
           <Route path="/" element={<SplashPage />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route element={<ProtectedRoutes />}>
-            <Route path="/home" element={<MainPage />} />
-            <Route path="/matching" element={<MatchingPage />} />
-            <Route path="/call/:roomId" element={<CallPage />} />
-            <Route path="/mypage" element={<MyPagePage />} />
-            <Route path="/expressions" element={<UserExpressionsPage />} />
-            <Route path="/history" element={<CallHistoryPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/settings/withdraw" element={<WithdrawPage />} />
+          <Route element={<AuthenticatedRoutes />}>
+            <Route path="/onboarding/terms" element={<OnboardingTermsPage />} />
+            <Route element={<OnboardedRoutes />}>
+              <Route path="/home" element={<MainPage />} />
+              <Route path="/matching" element={<MatchingPage />} />
+              <Route path="/call/:roomId" element={<CallPage />} />
+              <Route path="/mypage" element={<MyPagePage />} />
+              <Route path="/expressions" element={<UserExpressionsPage />} />
+              <Route path="/history" element={<CallHistoryPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/settings/withdraw" element={<WithdrawPage />} />
+            </Route>
           </Route>
         </Routes>
       </BrowserRouter>

@@ -80,6 +80,21 @@ export const handlers = [
     });
   }),
 
+  http.post(apiUrl("/me/agreements"), () => {
+    return HttpResponse.json({
+      data: {
+        user: {
+          id: 1,
+          nickname: "lee-tiger-1234",
+          profileImage: null,
+          requiresOnboarding: false,
+        },
+      },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
   http.get(apiUrl("/me/stats"), () => {
     return HttpResponse.json({
       data: {
