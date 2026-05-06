@@ -4,6 +4,7 @@ export interface User {
   id: number;
   nickname: string;
   profileImage: string | null;
+  requiresOnboarding?: boolean;
 }
 
 export interface SocialLoginResponse {

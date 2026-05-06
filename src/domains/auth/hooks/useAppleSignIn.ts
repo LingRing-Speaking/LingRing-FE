@@ -69,7 +69,8 @@ export function useAppleSignIn(): UseAppleSignInResult {
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
       });
-      navigate("/home", { replace: true });
+      const next = result.user.requiresOnboarding ? "/onboarding/terms" : "/home";
+      navigate(next, { replace: true });
     } catch (err) {
       setFailure(classify(err));
     } finally {

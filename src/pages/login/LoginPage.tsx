@@ -31,11 +31,21 @@ export function LoginPage() {
           <AppleSignInButton />
           <p className="mt-3.5 text-center text-[11.5px] font-medium leading-relaxed tracking-[-0.005em] text-gray-500">
             로그인 시{" "}
-            <a className="text-gray-700 underline underline-offset-2" href="#">
+            <a
+              className="text-gray-700 underline underline-offset-2"
+              href="https://shore-crib-2ec.notion.site/35833d3a895c80d8a5a0c87c164591d3"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               서비스 이용약관
             </a>
             과{" "}
-            <a className="text-gray-700 underline underline-offset-2" href="#">
+            <a
+              className="text-gray-700 underline underline-offset-2"
+              href="https://shore-crib-2ec.notion.site/35833d3a895c80aab0abfe8db6dc94d9"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               개인정보 처리방침
             </a>
             에 동의해요
