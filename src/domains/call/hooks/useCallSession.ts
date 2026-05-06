@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { env } from "@/config/env";
-import { setSpeakerphone } from "@/lib/native/audioRoute";
+import {
+  configureCallAudioRoute,
+  endCallAudioRoute,
+  setSpeakerphone,
+} from "@/lib/native/audioRoute";
 import type {
   ServerMessage,
   IceCandidatePayload,
@@ -36,6 +40,9 @@ export function useCallSession(
   const [status, setStatus] = useState<CallStatus>("connecting");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
+  // 첫 진입은 이어피스 default — RTCAudioSession 의 mode .voiceChat 자연 default 와 일치.
+  // 정책 근거: memory project_call_audio_routing. 방안 3 (#84) 의 native libwebrtc 도입으로
+  // 이어피스 default + 사용자 토글 양방향 + 마이크 안정 모두 만족 가능해짐.
   const [isSpeakerOn, setIsSpeakerOn] = useState(false);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
@@ -48,6 +55,9 @@ export function useCallSession(
     cleanedUpRef.current = true;
     peerRef.current?.close();
     wsRef.current?.close();
+    void endCallAudioRoute().catch(() => {
+      // 네이티브 audio session 해제 실패는 무시 — 앱 라이프사이클이 정리해줌
+    });
   };
 
   const setError = (msg: string) => {
@@ -80,8 +90,17 @@ export function useCallSession(
         });
       },
       onConnectionStateChange: (s) => {
-        if (s === "connected") setStatus("connected");
-        else if (s === "failed") setError(CONNECTION_FAILED_MESSAGE);
+        if (s === "connected") {
+          setStatus("connected");
+          // WebKit RTC 의 모든 startup reconfig 가 끝난 시점이라 여기서 카테고리/라우팅을 정상화.
+          // peer.start() 직후 (= getUserMedia 직후) 는 connection establishment 시점에 한 번 더
+          // reconfig 되므로 reset 됨. saghul: "after stream establishment" 권장과 일치.
+          void configureCallAudioRoute().catch(() => {
+            // 네이티브 라우팅 셋업 실패는 UI 에 영향 안 주고 무시
+          });
+        } else if (s === "failed") {
+          setError(CONNECTION_FAILED_MESSAGE);
+        }
       },
     });
     peerRef.current = peer;

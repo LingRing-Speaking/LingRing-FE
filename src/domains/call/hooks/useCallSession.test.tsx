@@ -1,7 +1,11 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { setSpeakerphone } from "@/lib/native/audioRoute";
+import {
+  configureCallAudioRoute,
+  endCallAudioRoute,
+  setSpeakerphone,
+} from "@/lib/native/audioRoute";
 import type {
   ClientMessage,
   ServerMessage,
@@ -10,6 +14,8 @@ import { useCallSession } from "./useCallSession";
 
 vi.mock("@/lib/native/audioRoute", () => ({
   setSpeakerphone: vi.fn().mockResolvedValue(undefined),
+  configureCallAudioRoute: vi.fn().mockResolvedValue(undefined),
+  endCallAudioRoute: vi.fn().mockResolvedValue(undefined),
 }));
 
 // --- mocks ---
@@ -269,6 +275,35 @@ describe("useCallSession", () => {
     expect(result.current.status).toBe("connected");
   });
 
+  it("connection 확립 전에는 configureCallAudioRoute 가 호출되지 않는다", async () => {
+    renderHook(() => useCallSession(baseOpts));
+    await waitFor(() => expect(peerStartMock).toHaveBeenCalled());
+
+    expect(configureCallAudioRoute).not.toHaveBeenCalled();
+  });
+
+  it("onConnectionStateChange('connected') 시점에 configureCallAudioRoute 가 호출된다", async () => {
+    renderHook(() => useCallSession(baseOpts));
+    await waitFor(() => expect(lastPeerCallbacks).not.toBeNull());
+
+    await act(async () => {
+      lastPeerCallbacks!.onConnectionStateChange("connected");
+    });
+
+    await waitFor(() =>
+      expect(configureCallAudioRoute).toHaveBeenCalledTimes(1),
+    );
+  });
+
+  it("cleanup 시 endCallAudioRoute 가 호출된다", async () => {
+    const { unmount } = renderHook(() => useCallSession(baseOpts));
+    await waitFor(() => expect(sendMock).toHaveBeenCalledWith({ type: "JOIN" }));
+
+    unmount();
+
+    expect(endCallAudioRoute).toHaveBeenCalled();
+  });
+
   it("HANGUP 수신 → status='ended', cleanup, HANGUP 재송신 X", async () => {
     const { result } = renderHook(() => useCallSession(baseOpts));
     await waitFor(() => expect(sendMock).toHaveBeenCalledWith({ type: "JOIN" }));
@@ -502,13 +537,13 @@ describe("useCallSession", () => {
     expect(playMock).not.toHaveBeenCalled();
   });
 
-  it("초기 isSpeakerOn 은 false 이다", async () => {
+  it("초기 isSpeakerOn 은 false 이다 (이어피스 default 정책)", async () => {
     const { result } = renderHook(() => useCallSession(baseOpts));
     await waitFor(() => expect(peerStartMock).toHaveBeenCalled());
     expect(result.current.isSpeakerOn).toBe(false);
   });
 
-  it("toggleSpeaker() 는 setSpeakerphone 호출과 isSpeakerOn 을 토글한다", async () => {
+  it("toggleSpeaker() 는 setSpeakerphone 호출과 isSpeakerOn 을 토글한다 (false→true→false)", async () => {
     const { result } = renderHook(() => useCallSession(baseOpts));
     await waitFor(() => expect(peerStartMock).toHaveBeenCalled());
 
