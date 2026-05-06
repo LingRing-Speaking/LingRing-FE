@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { Avatar } from "@/components/Avatar";
 import type { CallHistoryItem } from "@/domains/callHistory/types";
 import { formatCallMeta } from "./timeBucket";
 
@@ -10,7 +11,6 @@ type Props = {
 
 export function CallCard({ call, now, onPartnerClick }: Props) {
   const navigate = useNavigate();
-  const initial = call.partner.name[0] ?? "?";
   const meta = formatCallMeta(new Date(call.startedAt), call.durationSec, now);
 
   const handleBodyClick = () => {
@@ -28,19 +28,13 @@ export function CallCard({ call, now, onPartnerClick }: Props) {
         onClick={handleBodyClick}
         className="flex flex-1 items-center gap-3 rounded-xl bg-transparent px-1 py-1.5 text-left active:bg-gray-50"
       >
-        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-mint-400 via-mint-500 to-coral-500">
-          {call.partner.profileImage ? (
-            <img
-              src={call.partner.profileImage}
-              alt="상대 프로필 이미지"
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <span className="text-[20px] font-bold leading-none tracking-tight text-white">
-              {initial}
-            </span>
-          )}
-        </div>
+        <Avatar
+          src={call.partner.profileImage}
+          name={call.partner.name}
+          size="sm"
+          alt="상대 프로필 이미지"
+          className="flex-shrink-0"
+        />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="text-[15.5px] font-bold leading-snug tracking-tight text-gray-900">
             {call.partner.name}

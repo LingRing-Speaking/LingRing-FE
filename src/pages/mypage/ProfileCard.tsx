@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Avatar } from "@/components/Avatar";
 import type { Level } from "@/domains/user/types";
 import { ProfileEditModal } from "./ProfileEditModal";
 
@@ -20,22 +21,19 @@ type Props = {
 
 export function ProfileCard({ name, profileImage, level, mannerTemperature }: Props) {
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const initial = name.charAt(0);
   const levelLabel = LEVEL_LABEL[level];
   const fillWidth = `${(mannerTemperature / MAX_TEMPERATURE) * 100}%`;
 
   return (
     <section className="mb-4 rounded-[18px] bg-white p-5 shadow-card">
       <div className="relative flex items-center gap-3.5">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-mint-400 via-mint-500 to-coral-500">
-          {profileImage ? (
-            <img src={profileImage} alt="프로필 이미지" className="h-full w-full object-cover" />
-          ) : (
-            <span className="text-[26px] font-bold leading-none tracking-tight text-white">
-              {initial}
-            </span>
-          )}
-        </div>
+        <Avatar
+          src={profileImage}
+          name={name}
+          size="md"
+          alt="프로필 이미지"
+          className="shrink-0"
+        />
         <div className="min-w-0 flex-1">
           <h2 className="mb-1.5 text-[18px] font-bold leading-tight tracking-tight text-gray-900">
             {name}
