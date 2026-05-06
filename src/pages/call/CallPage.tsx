@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Avatar } from "@/components/Avatar";
 import { PageShell } from "@/components/PageShell";
 import { useUserId } from "@/domains/auth/hooks/useUserId";
 import { useCallSession } from "@/domains/call/hooks/useCallSession";
@@ -97,19 +98,13 @@ function CallView({
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(31,191,146,0.18)_0%,rgba(31,191,146,0)_70%)] animate-halo"
           />
-          <div className="relative flex h-40 w-40 items-center justify-center overflow-hidden rounded-full border-[3px] border-white bg-gradient-to-br from-mint-300 via-mint-500 to-coral-500 text-white shadow-orb">
-            {profileImage ? (
-              <img
-                src={profileImage}
-                alt="상대 프로필 이미지"
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <span className="select-none text-[56px] font-bold tracking-[-0.02em] text-white">
-                {nickname?.charAt(0) ?? String(partnerId).slice(-1)}
-              </span>
-            )}
-          </div>
+          <Avatar
+            src={profileImage}
+            name={nickname ?? String(partnerId)}
+            size="xl"
+            alt="상대 프로필 이미지"
+            className="relative border-[3px] border-white shadow-orb"
+          />
         </div>
         <p className="m-0 text-[26px] font-bold leading-tight tracking-[-0.02em] text-gray-900">
           {nickname ?? `상대 #${partnerId}`}

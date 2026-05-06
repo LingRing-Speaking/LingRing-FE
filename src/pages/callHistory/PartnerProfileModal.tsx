@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Avatar } from "@/components/Avatar";
 import { useUserProfile } from "@/domains/user/hooks/useUserProfile";
 import type { Level } from "@/domains/user/types";
 
@@ -95,25 +96,17 @@ function ProfileBody({
     mannerTemperature: number;
   };
 }) {
-  const initial = profile.nickname.charAt(0);
   const fillWidth = `${(profile.mannerTemperature / MAX_TEMPERATURE) * 100}%`;
 
   return (
     <>
       <div className="mb-[18px] mt-1 flex flex-col items-center gap-2.5">
-        <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-mint-400 via-mint-500 to-coral-500">
-          {profile.profileImage ? (
-            <img
-              src={profile.profileImage}
-              alt="상대 프로필 이미지"
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <span className="text-[32px] font-bold leading-none tracking-tight text-white">
-              {initial}
-            </span>
-          )}
-        </div>
+        <Avatar
+          src={profile.profileImage}
+          name={profile.nickname}
+          size="lg"
+          alt="상대 프로필 이미지"
+        />
         <h2
           id="partner-profile-name"
           className="m-0 mt-1 text-[20px] font-bold leading-tight tracking-tight text-gray-900"
