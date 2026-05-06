@@ -15,7 +15,8 @@ let package = Package(
         .package(name: "CapacitorCommunityAppleSignIn", path: "../../../node_modules/@capacitor-community/apple-sign-in"),
         .package(name: "CapacitorPreferences", path: "../../../node_modules/@capacitor/preferences"),
         .package(name: "CapacitorSplashScreen", path: "../../../node_modules/@capacitor/splash-screen"),
-        .package(name: "CapacitorKakaoLoginPlugin", path: "../../../node_modules/capacitor-kakao-login-plugin")
+        .package(name: "CapacitorKakaoLoginPlugin", path: "../../../node_modules/capacitor-kakao-login-plugin"),
+        .package(url: "https://github.com/stasel/WebRTC.git", .upToNextMajor(from: "147.0.0"))
     ],
     targets: [
         .target(
@@ -26,7 +27,8 @@ let package = Package(
                 .product(name: "CapacitorCommunityAppleSignIn", package: "CapacitorCommunityAppleSignIn"),
                 .product(name: "CapacitorPreferences", package: "CapacitorPreferences"),
                 .product(name: "CapacitorSplashScreen", package: "CapacitorSplashScreen"),
-                .product(name: "CapacitorKakaoLoginPlugin", package: "CapacitorKakaoLoginPlugin")
+                .product(name: "CapacitorKakaoLoginPlugin", package: "CapacitorKakaoLoginPlugin"),
+                .product(name: "WebRTC", package: "WebRTC")
             ]
         )
     ]

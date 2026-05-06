@@ -1,6 +1,6 @@
 import UIKit
 import Capacitor
-import AVFoundation
+import WebRTC
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -9,24 +9,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // 카카오 SDK 초기화는 capacitor-kakao-login-plugin 의 load() 에서 처리 (Info.plist 의 KAKAO_NATIVE_APP_KEY 사용)
-        configureAudioSessionForVoiceCall()
+        // 방안 3 (#84): libwebrtc 의 RTCAudioSession 을 manual 모드로 둠. 우리가 명시적으로
+        // isAudioEnabled / setActive 를 통제하므로 WebKit fight 없이 안정적인 라우팅 가능.
+        RTCAudioSession.sharedInstance().useManualAudio = true
         return true
-    }
-
-    // 음성 통화용 AVAudioSession 구성 — 백그라운드에서도 WebRTC 오디오가 유지되도록.
-    // 기본 출력은 이어피스(receiver) — 일반 전화 통화 UX. 스피커폰은 사용자가 명시 토글 시에만.
-    private func configureAudioSessionForVoiceCall() {
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setCategory(
-                .playAndRecord,
-                mode: .voiceChat,
-                options: [.allowBluetooth]
-            )
-            try session.setActive(true)
-        } catch {
-            NSLog("AVAudioSession configuration failed: \(error.localizedDescription)")
-        }
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
