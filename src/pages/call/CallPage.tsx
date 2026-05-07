@@ -4,6 +4,8 @@ import { Avatar } from "@/components/Avatar";
 import { PageShell } from "@/components/PageShell";
 import { useUserId } from "@/domains/auth/hooks/useUserId";
 import { useCallSession } from "@/domains/call/hooks/useCallSession";
+import { ReportModal } from "@/domains/report/components/ReportModal";
+import { PartnerProfileModal } from "@/domains/user/components/PartnerProfileModal";
 import { useUserProfile } from "@/domains/user/hooks/useUserProfile";
 import { CallTimer } from "./CallTimer";
 import { EndConfirmSheet } from "./EndConfirmSheet";
@@ -25,10 +27,17 @@ function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: numbe
   const session = useCallSession({ userId, roomId, partnerId });
   const profile = useUserProfile(partnerId);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
 
   useEffect(() => {
     if (session.status === "ended") navigate("/home", { replace: true });
   }, [session.status, navigate]);
+
+  const closeReport = () => {
+    setIsReportOpen(false);
+    setIsProfileOpen(false);
+  };
 
   return (
     <PageShell>
@@ -49,6 +58,7 @@ function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: numbe
             partnerId={partnerId}
             nickname={profile.data?.nickname ?? null}
             profileImage={profile.data?.profileImage ?? null}
+            onPartnerInfoOpen={() => setIsProfileOpen(true)}
           />
         )}
 
@@ -59,6 +69,20 @@ function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: numbe
             setSheetOpen(false);
             session.end();
           }}
+        />
+
+        <PartnerProfileModal
+          partnerId={partnerId}
+          open={isProfileOpen && !isReportOpen}
+          onClose={() => setIsProfileOpen(false)}
+          onReport={() => setIsReportOpen(true)}
+        />
+
+        <ReportModal
+          partnerId={isReportOpen ? partnerId : null}
+          open={isReportOpen}
+          onClose={closeReport}
+          onCancel={() => setIsReportOpen(false)}
         />
       </main>
     </PageShell>
@@ -75,6 +99,7 @@ function CallView({
   partnerId,
   nickname,
   profileImage,
+  onPartnerInfoOpen,
 }: {
   status: "connecting" | "connected" | "ended";
   isMuted: boolean;
@@ -85,6 +110,7 @@ function CallView({
   partnerId: number;
   nickname: string | null;
   profileImage: string | null;
+  onPartnerInfoOpen: () => void;
 }) {
   return (
     <>
@@ -93,31 +119,38 @@ function CallView({
       </div>
 
       <section className="relative z-[1] flex flex-1 flex-col items-center justify-center px-6">
-        <div className="relative mb-1.5 flex h-60 w-60 items-center justify-center">
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(31,191,146,0.18)_0%,rgba(31,191,146,0)_70%)] animate-halo"
-          />
-          <Avatar
-            src={profileImage}
-            name={nickname ?? String(partnerId)}
-            size="xl"
-            alt="상대 프로필 이미지"
-            className="relative border-[3px] border-white shadow-orb"
-          />
-        </div>
-        <p className="m-0 text-[26px] font-bold leading-tight tracking-[-0.02em] text-gray-900">
-          {nickname ?? `상대 #${partnerId}`}
-        </p>
-        <p className="m-0 mt-1 inline-flex items-center justify-center gap-1.5 text-[14px] font-medium text-gray-600">
-          <span
-            aria-hidden="true"
-            className={`inline-block h-1.5 w-1.5 rounded-full ${
-              status === "connected" ? "bg-mint-500" : "bg-gray-400"
-            }`}
-          />
-          {status === "connected" ? "연결됨" : "연결 중…"}
-        </p>
+        <button
+          type="button"
+          onClick={onPartnerInfoOpen}
+          aria-label="상대방 정보 보기"
+          className="flex flex-col items-center px-6 py-2 transition-opacity active:opacity-70"
+        >
+          <div className="relative mb-1.5 flex h-60 w-60 items-center justify-center">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(31,191,146,0.18)_0%,rgba(31,191,146,0)_70%)] animate-halo"
+            />
+            <Avatar
+              src={profileImage}
+              name={nickname ?? String(partnerId)}
+              size="xl"
+              alt="상대 프로필 이미지"
+              className="relative border-[3px] border-white shadow-orb"
+            />
+          </div>
+          <p className="m-0 text-[26px] font-bold leading-tight tracking-[-0.02em] text-gray-900">
+            {nickname ?? `상대 #${partnerId}`}
+          </p>
+          <p className="m-0 mt-1 inline-flex items-center justify-center gap-1.5 text-[14px] font-medium text-gray-600">
+            <span
+              aria-hidden="true"
+              className={`inline-block h-1.5 w-1.5 rounded-full ${
+                status === "connected" ? "bg-mint-500" : "bg-gray-400"
+              }`}
+            />
+            {status === "connected" ? "연결됨" : "연결 중…"}
+          </p>
+        </button>
       </section>
 
       <div className="relative z-[2] flex items-center justify-center gap-7 px-6 pb-9 pt-2">
