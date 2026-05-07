@@ -30,6 +30,24 @@ describe("SettingsPage", () => {
     expect(screen.getByText("LingRing 1.0.0")).toBeInTheDocument();
   });
 
+  it("도움말 그룹에 문의하기·이용약관·개인정보처리방침 링크를 노출한다", () => {
+    renderWithQueryClient(<SettingsPage />);
+
+    const supportLink = screen.getByRole("link", { name: /문의하기/ });
+    expect(supportLink).toHaveAttribute("href", "mailto:spqjekdl1004@naver.com");
+    expect(supportLink).not.toHaveAttribute("target");
+
+    const termsLink = screen.getByRole("link", { name: /이용약관/ });
+    expect(termsLink.getAttribute("href")).toMatch(/notion\.site/);
+    expect(termsLink).toHaveAttribute("target", "_blank");
+    expect(termsLink).toHaveAttribute("rel", "noopener noreferrer");
+
+    const privacyLink = screen.getByRole("link", { name: /개인정보처리방침/ });
+    expect(privacyLink.getAttribute("href")).toMatch(/notion\.site/);
+    expect(privacyLink).toHaveAttribute("target", "_blank");
+    expect(privacyLink).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
   it("탈퇴하기 행 클릭 → /settings/withdraw 로 이동", async () => {
     const user = userEvent.setup();
     renderWithQueryClient(<SettingsPage />);
