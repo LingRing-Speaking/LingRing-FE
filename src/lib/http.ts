@@ -32,7 +32,20 @@ function withAuthHeader(init?: RequestInit): RequestInit | undefined {
   };
 }
 
+// 동시에 여러 요청이 401 을 받아도 /auth/refresh 는 단 1회만 발사되도록 게이팅한다.
+// BE 는 refresh 토큰을 회전시키며 옛 토큰 재사용 시 모든 세션을 폐기하므로
+// (TokenIssuer.rotate + reuse detection), 동시 호출을 막지 않으면 race 로 즉시 로그아웃된다.
+let refreshInFlight: Promise<boolean> | null = null;
+
 async function refreshAccessToken(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = doRefresh().finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
+}
+
+async function doRefresh(): Promise<boolean> {
   const refreshToken = useAuthStore.getState().refreshToken;
   if (!refreshToken) return false;
 

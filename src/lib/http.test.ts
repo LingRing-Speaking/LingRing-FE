@@ -297,4 +297,56 @@ describe("401 인터셉터 + refresh 자동 재시도", () => {
     await expect(httpGet("/protected")).rejects.toBeInstanceOf(ApiError);
     expect(refreshCalls).toBe(0);
   });
+
+  it("동시에 여러 401 이 발생해도 /auth/refresh 는 1번만 호출되고 모든 원 요청이 새 access 로 재시도된다", async () => {
+    let refreshCalls = 0;
+    const protectedCalls: Record<string, number> = { p1: 0, p2: 0, p3: 0 };
+    const REFRESH_DELAY_MS = 40;
+
+    const protectedHandler = (key: keyof typeof protectedCalls) =>
+      ({ request }: { request: Request }) => {
+        protectedCalls[key] += 1;
+        const auth = request.headers.get("authorization");
+        if (auth === "Bearer new-access") {
+          return HttpResponse.json({
+            data: { ok: true, key },
+            status: 200,
+            message: "OK",
+          });
+        }
+        return HttpResponse.json(
+          { data: null, status: 401, message: "EXPIRED" },
+          { status: 401 },
+        );
+      };
+
+    server.use(
+      http.get("http://localhost:3000/api/v1/p1", protectedHandler("p1")),
+      http.get("http://localhost:3000/api/v1/p2", protectedHandler("p2")),
+      http.get("http://localhost:3000/api/v1/p3", protectedHandler("p3")),
+      http.post("http://localhost:3000/api/v1/auth/refresh", async () => {
+        refreshCalls += 1;
+        await new Promise((resolve) => setTimeout(resolve, REFRESH_DELAY_MS));
+        return HttpResponse.json({
+          status: 200,
+          message: "OK",
+          data: { accessToken: "new-access", refreshToken: "new-refresh" },
+        });
+      }),
+    );
+
+    const [r1, r2, r3] = await Promise.all([
+      httpGet<{ ok: boolean; key: string }>("/p1"),
+      httpGet<{ ok: boolean; key: string }>("/p2"),
+      httpGet<{ ok: boolean; key: string }>("/p3"),
+    ]);
+
+    expect(r1).toMatchObject({ ok: true, key: "p1" });
+    expect(r2).toMatchObject({ ok: true, key: "p2" });
+    expect(r3).toMatchObject({ ok: true, key: "p3" });
+    expect(refreshCalls).toBe(1);
+    expect(protectedCalls).toEqual({ p1: 2, p2: 2, p3: 2 });
+    expect(useAuthStore.getState().accessToken).toBe("new-access");
+    expect(useAuthStore.getState().refreshToken).toBe("new-refresh");
+  });
 });
