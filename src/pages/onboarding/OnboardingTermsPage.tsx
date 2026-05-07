@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageShell } from "@/components/PageShell";
+import {
+  LEGAL_PRIVACY_POLICY_URL,
+  LEGAL_TERMS_URL,
+  LEGAL_TERMS_VERSION,
+} from "@/config/legal";
 import { useAcceptOnboarding } from "@/domains/onboarding/hooks/useAcceptOnboarding";
 import type { AgreementItem } from "@/domains/onboarding/api/postAgreement";
-
-const TERMS_VERSION = "2026-05-06";
-const PRIVACY_POLICY_URL = "https://shore-crib-2ec.notion.site/35833d3a895c80aab0abfe8db6dc94d9";
-const TERMS_OF_SERVICE_URL = "https://shore-crib-2ec.notion.site/35833d3a895c80d8a5a0c87c164591d3";
 
 interface AgreementOption {
   key: AgreementItem;
@@ -16,8 +17,8 @@ interface AgreementOption {
 
 const AGREEMENTS: AgreementOption[] = [
   { key: "over14", label: "만 14세 이상입니다" },
-  { key: "terms", label: "이용약관 동의", externalUrl: TERMS_OF_SERVICE_URL },
-  { key: "privacy", label: "개인정보처리방침 동의", externalUrl: PRIVACY_POLICY_URL },
+  { key: "terms", label: "이용약관 동의", externalUrl: LEGAL_TERMS_URL },
+  { key: "privacy", label: "개인정보처리방침 동의", externalUrl: LEGAL_PRIVACY_POLICY_URL },
   { key: "voiceAi", label: "통화 음성이 AI 분석에 사용되는 것에 동의" },
 ];
 
@@ -51,7 +52,7 @@ export function OnboardingTermsPage() {
     if (!allChecked || acceptOnboarding.isPending) return;
     acceptOnboarding.mutate(
       {
-        termsVersion: TERMS_VERSION,
+        termsVersion: LEGAL_TERMS_VERSION,
         agreedItems: AGREEMENTS.map(({ key }) => key),
       },
       {

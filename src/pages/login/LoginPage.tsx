@@ -1,4 +1,5 @@
 import { PageShell } from "@/components/PageShell";
+import { LEGAL_PRIVACY_POLICY_URL, LEGAL_TERMS_URL } from "@/config/legal";
 import { AppleSignInButton } from "./AppleSignInButton";
 import { KakaoSignInButton } from "./KakaoSignInButton";
 
@@ -33,7 +34,7 @@ export function LoginPage() {
             로그인 시{" "}
             <a
               className="text-gray-700 underline underline-offset-2"
-              href="https://shore-crib-2ec.notion.site/35833d3a895c80d8a5a0c87c164591d3"
+              href={LEGAL_TERMS_URL}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -42,7 +43,7 @@ export function LoginPage() {
             과{" "}
             <a
               className="text-gray-700 underline underline-offset-2"
-              href="https://shore-crib-2ec.notion.site/35833d3a895c80aab0abfe8db6dc94d9"
+              href={LEGAL_PRIVACY_POLICY_URL}
               target="_blank"
               rel="noopener noreferrer"
             >
