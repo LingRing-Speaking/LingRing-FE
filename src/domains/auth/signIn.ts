@@ -19,6 +19,7 @@ interface SocialSignInInput {
   provider: SocialProvider;
   idToken: string;
   accessToken?: string;
+  authorizationCode?: string;
 }
 
 async function signInWithSocial(input: SocialSignInInput): Promise<SocialLoginResponse> {
@@ -51,5 +52,6 @@ export async function signInWithApple(): Promise<SocialLoginResponse> {
   return signInWithSocial({
     provider: "apple",
     idToken: tokens.identityToken,
+    authorizationCode: tokens.authorizationCode,
   });
 }

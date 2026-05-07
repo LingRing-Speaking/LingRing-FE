@@ -3,7 +3,10 @@ import { Capacitor } from "@capacitor/core";
 
 const APPLE_CLIENT_ID = "com.lingring.app";
 const APPLE_REDIRECT_URI = "";
-const APPLE_SCOPES = "email name";
+// LingRing 은 email/name 사용처가 없어 권한 요청 자체를 하지 않음.
+// `authorizationCode` 는 scope 와 무관하게 항상 응답에 포함되며, 본 앱은 BE 의
+// Apple 토큰 revoke 흐름(LingRing-BE #77)을 위해 BE 로 forward 한다.
+const APPLE_SCOPES = "";
 const IOS_PLATFORM = "ios";
 
 export interface AppleTokens {

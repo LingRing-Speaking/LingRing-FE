@@ -83,7 +83,7 @@ describe("signInWithApple", () => {
     });
   });
 
-  it("happy path — provider=apple 과 identityToken 으로 호출한다 (accessToken 없음)", async () => {
+  it("happy path — provider=apple 과 identityToken·authorizationCode 로 호출한다 (accessToken 없음)", async () => {
     mockApi.mockResolvedValueOnce(SUCCESS_RESPONSE);
 
     const result = await signInWithApple();
@@ -94,6 +94,7 @@ describe("signInWithApple", () => {
     expect(payload).toMatchObject({
       provider: "apple",
       idToken: "apple-id-jwt",
+      authorizationCode: "apple-auth-code",
     });
     expect(payload?.accessToken).toBeUndefined();
   });
