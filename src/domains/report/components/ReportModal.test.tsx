@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import { server } from "@/mocks/server";
-import { renderWithQueryClient } from "../../../test/utils/renderWithQueryClient";
+import { renderWithQueryClient } from "../../../../test/utils/renderWithQueryClient";
 import { ReportModal } from "./ReportModal";
 
 const noop = () => undefined;

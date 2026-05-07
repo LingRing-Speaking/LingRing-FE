@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { useCallHistory } from "@/domains/callHistory/hooks/useCallHistory";
+import { ReportModal } from "@/domains/report/components/ReportModal";
+import { PartnerProfileModal } from "@/domains/user/components/PartnerProfileModal";
 import { BottomTabBar } from "@/components/BottomTabBar";
 import { PageShell } from "@/components/PageShell";
 import { CallHistoryList } from "./CallHistoryList";
 import { EmptyCallHistory } from "./EmptyCallHistory";
-import { PartnerProfileModal } from "./PartnerProfileModal";
-import { ReportModal } from "./ReportModal";
 
 export function CallHistoryPage() {
   const query = useCallHistory();

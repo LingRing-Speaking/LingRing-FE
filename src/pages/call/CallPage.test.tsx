@@ -272,4 +272,48 @@ describe("CallPage", () => {
 
     expect(screen.getByText("상대 #42")).toBeInTheDocument();
   });
+
+  describe("상대방 프로필 모달", () => {
+    it("프로필 영역(아바타·닉네임) 탭 시 PartnerProfileModal 이 열린다", async () => {
+      sessionState.status = "connected";
+      profileState.data = {
+        id: 2,
+        nickname: "에이미",
+        profileImage: null,
+        level: "BEGINNER",
+        mannerTemperature: 36.5,
+      };
+      renderAt("/call/abc", { partnerId: 2 });
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: "상대방 정보 보기" }));
+
+      const dialog = await screen.findByRole("dialog");
+      expect(dialog).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "신고하기" }),
+      ).toBeInTheDocument();
+    });
+
+    it("프로필 모달의 [신고하기] 클릭 → 신고 모달로 전환된다", async () => {
+      sessionState.status = "connected";
+      profileState.data = {
+        id: 2,
+        nickname: "에이미",
+        profileImage: null,
+        level: "BEGINNER",
+        mannerTemperature: 36.5,
+      };
+      renderAt("/call/abc", { partnerId: 2 });
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: "상대방 정보 보기" }));
+      await user.click(await screen.findByRole("button", { name: "신고하기" }));
+
+      // ReportModal 의 사유 라디오 노출 = 신고 모달로 전환된 표지
+      expect(
+        await screen.findByRole("radio", { name: "부적절한 대화" }),
+      ).toBeInTheDocument();
+    });
+  });
 });
