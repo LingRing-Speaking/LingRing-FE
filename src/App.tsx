@@ -8,7 +8,9 @@ import { MatchingPage } from "@/pages/matching/MatchingPage";
 import { CallPage } from "@/pages/call/CallPage";
 import { MyPagePage } from "@/pages/mypage/MyPagePage";
 import { SplashPage } from "@/pages/splash/SplashPage";
-import { UserExpressionsPage } from "@/pages/userExpressions/UserExpressionsPage";
+// 저장한 표현 기능 미출시 — 라우트 자체를 비활성화하여 진입을 원천 차단.
+// 출시 시 import 와 Route 복원.
+// import { UserExpressionsPage } from "@/pages/userExpressions/UserExpressionsPage";
 import { CallHistoryPage } from "@/pages/callHistory/CallHistoryPage";
 import { SettingsPage } from "@/pages/settings/SettingsPage";
 import { WithdrawPage } from "@/pages/withdraw/WithdrawPage";
@@ -44,7 +46,7 @@ export default function App() {
               <Route path="/matching" element={<MatchingPage />} />
               <Route path="/call/:roomId" element={<CallPage />} />
               <Route path="/mypage" element={<MyPagePage />} />
-              <Route path="/expressions" element={<UserExpressionsPage />} />
+              {/* <Route path="/expressions" element={<UserExpressionsPage />} /> — 미출시 */}
               <Route path="/history" element={<CallHistoryPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/settings/withdraw" element={<WithdrawPage />} />

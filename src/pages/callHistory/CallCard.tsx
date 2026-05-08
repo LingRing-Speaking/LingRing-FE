@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import { Avatar } from "@/components/Avatar";
 import type { CallHistoryItem } from "@/domains/callHistory/types";
 import { formatCallMeta } from "./timeBucket";
@@ -10,23 +9,20 @@ type Props = {
 };
 
 export function CallCard({ call, now, onPartnerClick }: Props) {
-  const navigate = useNavigate();
   const meta = formatCallMeta(new Date(call.startedAt), call.durationSec, now);
 
   const handleBodyClick = () => {
     onPartnerClick(call.partner.id);
   };
 
-  const handleActionClick = () => {
-    navigate(`/calls/${call.id}/analysis`);
-  };
-
   return (
-    <div className="flex items-center gap-1 rounded-[18px] bg-white py-2 pl-3 pr-2 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+    <div className="rounded-[18px] bg-white py-2 px-3 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+      {/* AI 분석 기능 미출시 — 분석 버튼 영역 자체를 노출하지 않음.
+          출시 시 분석 버튼을 우측에 추가하고 onClick → navigate(`/calls/${id}/analysis`) 복원. */}
       <button
         type="button"
         onClick={handleBodyClick}
-        className="flex flex-1 items-center gap-3 rounded-xl bg-transparent px-1 py-1.5 text-left active:bg-gray-50"
+        className="flex w-full items-center gap-3 rounded-xl bg-transparent px-1 py-1.5 text-left active:bg-gray-50"
       >
         <Avatar
           src={call.partner.profileImage}
@@ -43,17 +39,6 @@ export function CallCard({ call, now, onPartnerClick }: Props) {
             {meta}
           </span>
         </div>
-      </button>
-      <button
-        type="button"
-        onClick={handleActionClick}
-        className={
-          call.analyzed
-            ? "flex flex-shrink-0 items-center gap-1 rounded-[10px] bg-transparent px-2 py-2 text-[13px] font-semibold leading-none tracking-tight text-gray-500 active:text-gray-800"
-            : "flex flex-shrink-0 items-center gap-1 rounded-[10px] bg-mint-500 px-3 py-2 text-[13px] font-bold leading-none tracking-tight text-white active:bg-mint-600"
-        }
-      >
-        {call.analyzed ? "분석 보기" : "분석하기"}
       </button>
     </div>
   );

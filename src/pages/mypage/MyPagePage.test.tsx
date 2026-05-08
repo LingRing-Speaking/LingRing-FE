@@ -24,7 +24,9 @@ describe("MyPagePage", () => {
     expect(screen.getByText("Intermediate")).toBeInTheDocument();
     expect(screen.getByText("7")).toBeInTheDocument();
     expect(screen.getByText("23")).toBeInTheDocument();
-    expect(screen.getByText("42개")).toBeInTheDocument();
+    // 저장한 표현 기능 미출시 — '내 기록' 섹션 자체가 마이페이지에 마운트되지 않는다
+    expect(screen.queryByText("저장한 표현")).not.toBeInTheDocument();
+    expect(screen.queryByText("내 기록")).not.toBeInTheDocument();
   });
 
   it("로딩 중에는 스피너를 보여준다", () => {
