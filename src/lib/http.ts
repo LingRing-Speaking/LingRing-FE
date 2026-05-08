@@ -109,6 +109,19 @@ async function request<T>(
     throw new ApiError(res.status, message);
   }
 
+  // BE 컨벤션: GlobalExceptionHandler 가 에러도 HTTP 200 으로 응답하면서
+  // envelope body.status 에 진짜 의미 status (예: 400, 409) 를 박는다.
+  // → HTTP status 가 정상이어도 envelope status 가 비-2xx 면 ApiError throw.
+  const envelope = body as { status?: unknown; message?: unknown };
+  if (
+    typeof envelope.status === "number" &&
+    (envelope.status < 200 || envelope.status >= 300)
+  ) {
+    const message =
+      typeof envelope.message === "string" ? envelope.message : "Unknown error";
+    throw new ApiError(envelope.status, message);
+  }
+
   return (body as ApiResponse<T>).data;
 }
 

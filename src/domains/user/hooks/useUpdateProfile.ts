@@ -40,6 +40,10 @@ export function useUpdateProfile(): UseMutationResult<
   return useMutation({
     mutationFn: runUpdateProfile,
     onSuccess: (user) => {
+      // 방어: BE 응답 envelope 가 비-2xx 면 http.ts 에서 ApiError 던지지만,
+      // 만약 200 + body.data=null 같은 비정상 케이스가 흘러들어와도 store 의 user 를
+      // null 로 덮지 않도록 가드.
+      if (!user) return;
       useAuthStore.getState().updateUser(user);
     },
   });
