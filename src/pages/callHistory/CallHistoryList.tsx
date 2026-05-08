@@ -43,7 +43,7 @@ export function CallHistoryList({
       <h1 className="m-0 mt-2.5 text-[22px] font-extrabold leading-[1.3] tracking-[-0.02em] text-gray-900">
         통화 기록
       </h1>
-      <p className="mb-5 mt-1 text-[11.5px] font-medium leading-none tracking-tight text-gray-400">
+      <p className="mb-5 mt-3 text-[14px] font-medium leading-snug tracking-tight text-gray-400">
         ⓘ 1분 이상 통화부터 기록돼요
       </p>
       {groups.map((group, index) => (

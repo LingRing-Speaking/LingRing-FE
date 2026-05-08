@@ -9,7 +9,7 @@ export function WeeklyStats({ currentStreakDays, totalCallCount }: Props) {
       <h3 className="mx-1 mb-3 mt-7 text-[15px] font-bold tracking-tight text-gray-800">
         이번 주 학습 현황
       </h3>
-      <div className="mb-1.5 grid grid-cols-2 gap-2.5">
+      <div className="mb-3 grid grid-cols-2 gap-2.5">
         <div className="flex flex-col gap-0.5 rounded-[18px] bg-white px-[18px] pt-[18px] pb-5 shadow-card">
           <span aria-hidden="true" className="mb-1.5 text-[22px] leading-none">
             🔥
@@ -39,7 +39,7 @@ export function WeeklyStats({ currentStreakDays, totalCallCount }: Props) {
           </span>
         </div>
       </div>
-      <p className="mb-4 ml-1 text-[11.5px] font-medium leading-none tracking-tight text-gray-400">
+      <p className="mb-4 ml-1 text-[14px] font-medium leading-snug tracking-tight text-gray-400">
         ⓘ 1분 이상 통화부터 집계돼요
       </p>
     </>
