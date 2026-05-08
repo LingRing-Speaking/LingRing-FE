@@ -24,7 +24,9 @@ describe("MyPagePage", () => {
     expect(screen.getByText("Intermediate")).toBeInTheDocument();
     expect(screen.getByText("7")).toBeInTheDocument();
     expect(screen.getByText("23")).toBeInTheDocument();
-    expect(screen.getByText("42개")).toBeInTheDocument();
+    // 저장한 표현은 미출시 — 카운트 대신 "준비 중" 배지가 노출된다
+    expect(screen.getByText("저장한 표현")).toBeInTheDocument();
+    expect(screen.getByText("준비 중")).toBeInTheDocument();
   });
 
   it("로딩 중에는 스피너를 보여준다", () => {

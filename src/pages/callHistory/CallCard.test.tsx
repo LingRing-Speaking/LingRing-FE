@@ -1,18 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { CallHistoryItem } from "@/domains/callHistory/types";
 import { CallCard } from "./CallCard";
 
-function renderWithRouter(item: CallHistoryItem) {
+function renderCard(item: CallHistoryItem, onPartnerClick: (id: number) => void = () => {}) {
   return render(
-    <MemoryRouter initialEntries={["/history"]}>
-      <Routes>
-        <Route path="/history" element={<CallCard call={item} now={new Date(2026, 3, 29, 14, 0)} onPartnerClick={() => {}} />} />
-        <Route path="/calls/:callId/analysis" element={<div>analysis-page</div>} />
-      </Routes>
-    </MemoryRouter>,
+    <CallCard call={item} now={new Date(2026, 3, 29, 14, 0)} onPartnerClick={onPartnerClick} />,
   );
 }
 
@@ -26,14 +20,14 @@ const baseCall: CallHistoryItem = {
 
 describe("CallCard", () => {
   it("partner 이름 첫 글자(이니셜)와 이름·메타 텍스트를 노출한다", () => {
-    renderWithRouter(baseCall);
+    renderCard(baseCall);
     expect(screen.getByText("J")).toBeInTheDocument();
     expect(screen.getByText("Jenson")).toBeInTheDocument();
     expect(screen.getByText(/오늘 오후 7:30/)).toBeInTheDocument();
   });
 
   it("partner.profileImage 가 있으면 이니셜 대신 이미지가 노출된다", () => {
-    renderWithRouter({
+    renderCard({
       ...baseCall,
       partner: { ...baseCall.partner, profileImage: "https://cdn/x.png" },
     });
@@ -44,26 +38,25 @@ describe("CallCard", () => {
     expect(screen.queryByText("J")).not.toBeInTheDocument();
   });
 
-  it("analyzed=false 일 때 '분석하기' 버튼이 보인다", () => {
-    renderWithRouter({ ...baseCall, analyzed: false });
-    expect(
-      screen.getByRole("button", { name: /분석하기/ }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /분석 보기/ }),
-    ).not.toBeInTheDocument();
+  it("AI 분석 기능 미출시 — '분석 준비 중' disabled 버튼만 보인다 (analyzed 무관)", () => {
+    renderCard({ ...baseCall, analyzed: false });
+    const btn = screen.getByRole("button", { name: /분석 준비 중/ });
+    expect(btn).toBeInTheDocument();
+    expect(btn).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /^분석하기/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^분석 보기/ })).not.toBeInTheDocument();
   });
 
-  it("analyzed=true 일 때 '분석 보기' 버튼이 보인다", () => {
-    renderWithRouter({ ...baseCall, analyzed: true });
-    expect(
-      screen.getByRole("button", { name: /분석 보기/ }),
-    ).toBeInTheDocument();
+  it("analyzed=true 라도 동일하게 '분석 준비 중' disabled 버튼만 보인다", () => {
+    renderCard({ ...baseCall, analyzed: true });
+    const btn = screen.getByRole("button", { name: /분석 준비 중/ });
+    expect(btn).toBeDisabled();
   });
 
-  it("액션 버튼 클릭 시 /calls/:id/analysis 로 이동한다", async () => {
-    renderWithRouter(baseCall);
-    await userEvent.click(screen.getByRole("button", { name: /분석하기/ }));
-    expect(screen.getByText("analysis-page")).toBeInTheDocument();
+  it("body(아바타·이름 영역) 클릭 시 onPartnerClick 이 호출된다", async () => {
+    const onPartnerClick = vi.fn();
+    renderCard(baseCall, onPartnerClick);
+    await userEvent.click(screen.getByText("Jenson"));
+    expect(onPartnerClick).toHaveBeenCalledWith(1042);
   });
 });

@@ -86,7 +86,7 @@ export function MyPagePage() {
                 currentStreakDays={myStats.data.currentStreakDays}
                 totalCallCount={myStats.data.totalCallCount}
               />
-              <MyRecords expressionCount={myStats.data.expressionCount} />
+              <MyRecords />
             </>
           )}
         </div>

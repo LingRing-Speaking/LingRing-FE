@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import { Avatar } from "@/components/Avatar";
 import type { CallHistoryItem } from "@/domains/callHistory/types";
 import { formatCallMeta } from "./timeBucket";
@@ -10,15 +9,10 @@ type Props = {
 };
 
 export function CallCard({ call, now, onPartnerClick }: Props) {
-  const navigate = useNavigate();
   const meta = formatCallMeta(new Date(call.startedAt), call.durationSec, now);
 
   const handleBodyClick = () => {
     onPartnerClick(call.partner.id);
-  };
-
-  const handleActionClick = () => {
-    navigate(`/calls/${call.id}/analysis`);
   };
 
   return (
@@ -44,16 +38,14 @@ export function CallCard({ call, now, onPartnerClick }: Props) {
           </span>
         </div>
       </button>
+      {/* AI 분석 기능은 미출시 — 준비 중 라벨로 disabled. 출시 시 navigate 흐름 복원 */}
       <button
         type="button"
-        onClick={handleActionClick}
-        className={
-          call.analyzed
-            ? "flex flex-shrink-0 items-center gap-1 rounded-[10px] bg-transparent px-2 py-2 text-[13px] font-semibold leading-none tracking-tight text-gray-500 active:text-gray-800"
-            : "flex flex-shrink-0 items-center gap-1 rounded-[10px] bg-mint-500 px-3 py-2 text-[13px] font-bold leading-none tracking-tight text-white active:bg-mint-600"
-        }
+        disabled
+        aria-label="AI 분석 준비 중"
+        className="flex flex-shrink-0 items-center gap-1 rounded-[10px] bg-gray-100 px-2.5 py-2 text-[12px] font-semibold leading-none tracking-tight text-gray-400"
       >
-        {call.analyzed ? "분석 보기" : "분석하기"}
+        분석 준비 중
       </button>
     </div>
   );

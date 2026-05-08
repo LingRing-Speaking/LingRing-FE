@@ -28,6 +28,9 @@ export function EmptyCallHistory() {
       <p className="m-0 max-w-[240px] text-[14.5px] font-medium leading-[1.55] tracking-[-0.01em] text-gray-500">
         첫 통화를 시작해보세요.
       </p>
+      <p className="mt-3 text-[12px] font-medium leading-none tracking-tight text-gray-400">
+        ⓘ 1분 이상 통화부터 기록돼요
+      </p>
     </div>
   );
 }
