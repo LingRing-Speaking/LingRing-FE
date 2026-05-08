@@ -62,6 +62,52 @@ describe("httpGet", () => {
     expect(err.name).toBe("ApiError");
     expect(err.status).toBe(500);
   });
+
+  // BE GlobalExceptionHandler 컨벤션:
+  // 에러도 HTTP 200 으로 응답하면서 envelope body.status 에 진짜 의미 status 를 박는다.
+  // FE 는 HTTP 가 정상이어도 envelope status 가 비-2xx 면 ApiError 로 throw 해야 한다.
+  it("HTTP 200 인데 envelope status 가 4xx 면 envelope status 로 ApiError 를 throw 한다", async () => {
+    server.use(
+      http.get("http://localhost:3000/api/v1/envelope-error", () =>
+        HttpResponse.json({
+          data: null,
+          status: 400,
+          message: "이미지에 부적절한 콘텐츠가 감지되었습니다. 다른 이미지를 선택해주세요.",
+        }),
+      ),
+    );
+
+    await expect(httpGet("/envelope-error")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 400,
+      message: "이미지에 부적절한 콘텐츠가 감지되었습니다. 다른 이미지를 선택해주세요.",
+    });
+  });
+
+  it("envelope status 가 5xx 여도 동일하게 ApiError 를 throw 한다", async () => {
+    server.use(
+      http.get("http://localhost:3000/api/v1/envelope-500", () =>
+        HttpResponse.json({ data: null, status: 500, message: "BOOM" }),
+      ),
+    );
+
+    await expect(httpGet("/envelope-500")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 500,
+      message: "BOOM",
+    });
+  });
+
+  it("envelope status 가 2xx 이면 정상 언랩한다 (회귀 방지)", async () => {
+    server.use(
+      http.get("http://localhost:3000/api/v1/ok-201", () =>
+        HttpResponse.json({ data: { id: 7 }, status: 201, message: "Created" }),
+      ),
+    );
+
+    const result = await httpGet<{ id: number }>("/ok-201");
+    expect(result).toEqual({ id: 7 });
+  });
 });
 
 describe("httpPost", () => {
