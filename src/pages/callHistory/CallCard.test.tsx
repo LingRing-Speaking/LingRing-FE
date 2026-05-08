@@ -29,7 +29,7 @@ describe("CallCard", () => {
   it("partner.profileImage 가 있으면 이니셜 대신 이미지가 노출된다", () => {
     renderCard({
       ...baseCall,
-      partner: { ...baseCall.partner, profileImage: "https://cdn/x.png" },
+      partner: { id: 1042, name: "Jenson", profileImage: "https://cdn/x.png" },
     });
     expect(screen.getByAltText("상대 프로필 이미지")).toHaveAttribute(
       "src",
@@ -56,5 +56,31 @@ describe("CallCard", () => {
     renderCard(baseCall, onPartnerClick);
     await userEvent.click(screen.getByText("Jenson"));
     expect(onPartnerClick).toHaveBeenCalledWith(1042);
+  });
+
+  describe("partner=null (상대가 탈퇴한 통화)", () => {
+    const unknownCall: CallHistoryItem = { ...baseCall, partner: null };
+
+    it("'알 수 없음' 텍스트와 ? 플레이스홀더 아바타를 노출한다", () => {
+      renderCard(unknownCall);
+      expect(screen.getByText("알 수 없음")).toBeInTheDocument();
+      expect(screen.getByText("?")).toBeInTheDocument();
+      // Avatar 컴포넌트의 alt 가 없어야 함 (Avatar 자체가 렌더되지 않음)
+      expect(screen.queryByAltText("상대 프로필 이미지")).not.toBeInTheDocument();
+    });
+
+    it("body 버튼이 disabled 라 클릭해도 onPartnerClick 이 호출되지 않는다", async () => {
+      const onPartnerClick = vi.fn();
+      renderCard(unknownCall, onPartnerClick);
+      const btn = screen.getByRole("button");
+      expect(btn).toBeDisabled();
+      await userEvent.click(btn);
+      expect(onPartnerClick).not.toHaveBeenCalled();
+    });
+
+    it("메타 텍스트(시각·길이)는 partner 유무와 무관하게 그대로 표시된다", () => {
+      renderCard(unknownCall);
+      expect(screen.getByText(/오늘 오후 7:30/)).toBeInTheDocument();
+    });
   });
 });

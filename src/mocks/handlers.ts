@@ -19,16 +19,20 @@ function generateFakeCalls(n: number): CallHistoryItem[] {
     const hoursAgo = Math.round((i * i) / 2 + i * 2);
     const startedAt = new Date(now - hoursAgo * 3600_000).toISOString();
     const durationSec = 60 + ((i * 37) % 540); // 1:00 ~ 9:59
+    // 7번째마다 partner=null (탈퇴한 사용자) → "알 수 없음" 시연
+    const partner = i % 7 === 6
+      ? null
+      : {
+          id: 1000 + i,
+          name: FAKE_PARTNER_NAMES[i % FAKE_PARTNER_NAMES.length],
+          profileImage: null,
+        };
     return {
       id: i + 1,
-      partner: {
-        id: 1000 + i,
-        name: FAKE_PARTNER_NAMES[i % FAKE_PARTNER_NAMES.length],
-        profileImage: null,
-      },
+      partner,
       startedAt,
       durationSec,
-      analyzed: i % 3 !== 0, // 3개 중 1개는 미분석 → "분석하기" 버튼이 골고루 노출
+      analyzed: i % 3 !== 0,
     };
   });
 }

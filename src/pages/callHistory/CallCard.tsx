@@ -2,6 +2,8 @@ import { Avatar } from "@/components/Avatar";
 import type { CallHistoryItem } from "@/domains/callHistory/types";
 import { formatCallMeta } from "./timeBucket";
 
+const UNKNOWN_PARTNER_NAME = "알 수 없음";
+
 type Props = {
   call: CallHistoryItem;
   now: Date;
@@ -10,9 +12,12 @@ type Props = {
 
 export function CallCard({ call, now, onPartnerClick }: Props) {
   const meta = formatCallMeta(new Date(call.startedAt), call.durationSec, now);
+  const { partner } = call;
+  const isUnknown = partner === null;
 
   const handleBodyClick = () => {
-    onPartnerClick(call.partner.id);
+    if (!partner) return;
+    onPartnerClick(partner.id);
   };
 
   return (
@@ -22,18 +27,32 @@ export function CallCard({ call, now, onPartnerClick }: Props) {
       <button
         type="button"
         onClick={handleBodyClick}
-        className="flex w-full items-center gap-3 rounded-xl bg-transparent px-1 py-1.5 text-left active:bg-gray-50"
+        disabled={isUnknown}
+        className="flex w-full items-center gap-3 rounded-xl bg-transparent px-1 py-1.5 text-left active:bg-gray-50 disabled:active:bg-transparent disabled:cursor-default"
       >
-        <Avatar
-          src={call.partner.profileImage}
-          name={call.partner.name}
-          size="sm"
-          alt="상대 프로필 이미지"
-          className="flex-shrink-0"
-        />
+        {partner ? (
+          <Avatar
+            src={partner.profileImage}
+            name={partner.name}
+            size="sm"
+            alt="상대 프로필 이미지"
+            className="flex-shrink-0"
+          />
+        ) : (
+          <div
+            aria-hidden="true"
+            className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-[20px] font-bold leading-none text-gray-400"
+          >
+            ?
+          </div>
+        )}
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="text-[15.5px] font-bold leading-snug tracking-tight text-gray-900">
-            {call.partner.name}
+          <span
+            className={`text-[15.5px] font-bold leading-snug tracking-tight ${
+              isUnknown ? "text-gray-400" : "text-gray-900"
+            }`}
+          >
+            {partner?.name ?? UNKNOWN_PARTNER_NAME}
           </span>
           <span className="text-[12.5px] font-medium leading-none tracking-tight text-gray-500 tabular-nums">
             {meta}
