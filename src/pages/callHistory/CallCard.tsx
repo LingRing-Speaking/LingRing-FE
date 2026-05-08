@@ -16,11 +16,13 @@ export function CallCard({ call, now, onPartnerClick }: Props) {
   };
 
   return (
-    <div className="flex items-center gap-1 rounded-[18px] bg-white py-2 pl-3 pr-2 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+    <div className="rounded-[18px] bg-white py-2 px-3 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+      {/* AI 분석 기능 미출시 — 분석 버튼 영역 자체를 노출하지 않음.
+          출시 시 분석 버튼을 우측에 추가하고 onClick → navigate(`/calls/${id}/analysis`) 복원. */}
       <button
         type="button"
         onClick={handleBodyClick}
-        className="flex flex-1 items-center gap-3 rounded-xl bg-transparent px-1 py-1.5 text-left active:bg-gray-50"
+        className="flex w-full items-center gap-3 rounded-xl bg-transparent px-1 py-1.5 text-left active:bg-gray-50"
       >
         <Avatar
           src={call.partner.profileImage}
@@ -37,15 +39,6 @@ export function CallCard({ call, now, onPartnerClick }: Props) {
             {meta}
           </span>
         </div>
-      </button>
-      {/* AI 분석 기능은 미출시 — 준비 중 라벨로 disabled. 출시 시 navigate 흐름 복원 */}
-      <button
-        type="button"
-        disabled
-        aria-label="AI 분석 준비 중"
-        className="flex flex-shrink-0 items-center gap-1 rounded-[10px] bg-gray-100 px-2.5 py-2 text-[12px] font-semibold leading-none tracking-tight text-gray-400"
-      >
-        분석 준비 중
       </button>
     </div>
   );

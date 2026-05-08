@@ -38,19 +38,17 @@ describe("CallCard", () => {
     expect(screen.queryByText("J")).not.toBeInTheDocument();
   });
 
-  it("AI 분석 기능 미출시 — '분석 준비 중' disabled 버튼만 보인다 (analyzed 무관)", () => {
+  it("AI 분석 기능 미출시 — 분석 관련 버튼이 일절 노출되지 않는다 (analyzed=false)", () => {
     renderCard({ ...baseCall, analyzed: false });
-    const btn = screen.getByRole("button", { name: /분석 준비 중/ });
-    expect(btn).toBeInTheDocument();
-    expect(btn).toBeDisabled();
-    expect(screen.queryByRole("button", { name: /^분석하기/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^분석 보기/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /분석/ })).not.toBeInTheDocument();
+    // 카드는 partner body 1개의 button 만 노출
+    expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 
-  it("analyzed=true 라도 동일하게 '분석 준비 중' disabled 버튼만 보인다", () => {
+  it("analyzed=true 라도 동일하게 분석 버튼이 노출되지 않는다", () => {
     renderCard({ ...baseCall, analyzed: true });
-    const btn = screen.getByRole("button", { name: /분석 준비 중/ });
-    expect(btn).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /분석/ })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 
   it("body(아바타·이름 영역) 클릭 시 onPartnerClick 이 호출된다", async () => {
