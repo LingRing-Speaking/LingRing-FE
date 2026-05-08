@@ -1,15 +1,50 @@
+import { useRef, useState } from "react";
 import { PageShell } from "@/components/PageShell";
 import { LEGAL_PRIVACY_POLICY_URL, LEGAL_TERMS_URL } from "@/config/legal";
 import { AppleSignInButton } from "./AppleSignInButton";
+import { DemoLoginModal } from "./DemoLoginModal";
 import { KakaoSignInButton } from "./KakaoSignInButton";
 
+// App Store 리뷰어용 demo 로그인 진입 — 로고를 짧은 시간 안에 5번 연속 탭하면 모달 노출.
+const REQUIRED_TAPS = 5;
+const TAP_RESET_MS = 1500;
+
+function useLogoTapCounter(onActivate: () => void) {
+  const [, setCount] = useState(0);
+  const lastTapAtRef = useRef(0);
+
+  return () => {
+    const now = Date.now();
+    setCount((prev) => {
+      const next = now - lastTapAtRef.current > TAP_RESET_MS ? 1 : prev + 1;
+      lastTapAtRef.current = now;
+      if (next >= REQUIRED_TAPS) {
+        onActivate();
+        return 0;
+      }
+      return next;
+    });
+  };
+}
+
 export function LoginPage() {
+  const [isDemoOpen, setIsDemoOpen] = useState(false);
+  const handleLogoTap = useLogoTapCounter(() => setIsDemoOpen(true));
+
   return (
     <PageShell>
       <main className="relative flex flex-1 flex-col bg-white px-6">
         <section className="flex flex-col items-center pt-14">
           <div className="mb-9 flex flex-col items-center gap-1.5">
-            <LogoSymbol />
+            {/* 로고 5번 연속 탭 → App Review 리뷰어용 데모 로그인 모달 (숨겨진 입구) */}
+            <button
+              type="button"
+              onClick={handleLogoTap}
+              aria-label="LingRing 로고"
+              className="cursor-default"
+            >
+              <LogoSymbol />
+            </button>
             <span className="text-[30px] font-extrabold tracking-[-0.03em] text-gray-900">
               Ling
               <span className="bg-gradient-to-r from-mint-500 to-coral-500 bg-clip-text text-transparent">
@@ -53,6 +88,8 @@ export function LoginPage() {
           </p>
         </section>
       </main>
+
+      <DemoLoginModal open={isDemoOpen} onClose={() => setIsDemoOpen(false)} />
     </PageShell>
   );
 }
