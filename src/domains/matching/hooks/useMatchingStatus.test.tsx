@@ -46,6 +46,7 @@ describe("useMatchingStatus", () => {
       status: "WAITING",
       partnerId: null,
       roomId: null,
+      confirmDeadline: null,
     });
   });
 

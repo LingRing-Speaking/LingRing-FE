@@ -188,7 +188,12 @@ export const handlers = [
 
   http.get(apiUrl("/me/matching"), () => {
     return HttpResponse.json({
-      data: { status: "WAITING", partnerId: null, roomId: null },
+      data: {
+        status: "WAITING",
+        partnerId: null,
+        roomId: null,
+        confirmDeadline: null,
+      },
       status: 200,
       message: "OK",
     });
