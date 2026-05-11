@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageShell } from "@/components/PageShell";
 import { cancelMatchingQueue } from "@/domains/matching/api/matchingApi";
+import { useAcceptMatch } from "@/domains/matching/hooks/useAcceptMatch";
+import { useDeclineMatch } from "@/domains/matching/hooks/useDeclineMatch";
 import { useEnterMatchingQueue } from "@/domains/matching/hooks/useEnterMatchingQueue";
 import { useMatchingStatus } from "@/domains/matching/hooks/useMatchingStatus";
 import { useRandomIcebreakers } from "@/domains/icebreaker/hooks/useRandomIcebreakers";
@@ -9,6 +11,7 @@ import { BreathingOrb } from "./BreathingOrb";
 import { CancelConfirmSheet } from "./CancelConfirmSheet";
 import { FALLBACK_ICEBREAKERS } from "./fallbackIcebreakers";
 import { IcebreakerRotator } from "./IcebreakerRotator";
+import { MatchConfirmModal } from "./MatchConfirmModal";
 
 const ICEBREAKER_COUNT = 5;
 const ROTATION_INTERVAL_MS = 7000;
@@ -20,6 +23,8 @@ export function MatchingPage() {
 
   const enter = useEnterMatchingQueue();
   const status = useMatchingStatus(enter.isSuccess);
+  const accept = useAcceptMatch();
+  const decline = useDeclineMatch();
 
   const enteredRef = useRef(false);
 
@@ -66,6 +71,25 @@ export function MatchingPage() {
     fireEnter();
   };
   const handleGoHome = () => navigate("/home");
+
+  const handleAccept = () => {
+    if (accept.isPending) return;
+    accept.mutate();
+  };
+  const handleDecline = () => {
+    if (decline.isPending) return;
+    decline.mutate();
+  };
+  const handleTimeout = () => {
+    if (decline.isPending) return;
+    decline.mutate();
+  };
+
+  const data = status.data;
+  const showConfirmModal =
+    data?.status === "AWAITING_CONFIRM" &&
+    data.partnerId != null &&
+    data.confirmDeadline != null;
 
   return (
     <PageShell>
@@ -152,6 +176,17 @@ export function MatchingPage() {
               </button>
             </div>
           </div>
+        )}
+
+        {showConfirmModal && data?.partnerId != null && data.confirmDeadline != null && (
+          <MatchConfirmModal
+            partnerId={data.partnerId}
+            confirmDeadline={data.confirmDeadline}
+            onAccept={handleAccept}
+            onDecline={handleDecline}
+            onTimeout={handleTimeout}
+            isResponding={accept.isPending || decline.isPending}
+          />
         )}
 
         <CancelConfirmSheet open={sheetOpen} onKeep={closeSheet} onCancel={handleCancel} />

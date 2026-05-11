@@ -263,6 +263,7 @@ describe("MatchingPage", () => {
             status: "MATCHED",
             partnerId: 2,
             roomId: "11111111-1111-1111-1111-111111111111",
+            confirmDeadline: null,
           },
           status: 200,
           message: "OK",
@@ -299,6 +300,7 @@ describe("MatchingPage", () => {
             status: "MATCHED",
             partnerId: 2,
             roomId: "11111111-1111-1111-1111-111111111111",
+            confirmDeadline: null,
           },
           status: 200,
           message: "OK",
@@ -326,6 +328,97 @@ describe("MatchingPage", () => {
     );
     await new Promise((r) => setTimeout(r, 50));
     expect(deleteCount).toBe(0);
+  });
+
+  it("AWAITING_CONFIRM 응답을 받으면 MatchConfirmModal 을 표시한다", async () => {
+    server.use(
+      http.get("http://localhost:3000/api/v1/me/matching", () =>
+        HttpResponse.json({
+          data: {
+            status: "AWAITING_CONFIRM",
+            partnerId: 2,
+            roomId: null,
+            confirmDeadline: new Date(Date.now() + 15000).toISOString(),
+          },
+          status: 200,
+          message: "OK",
+        }),
+      ),
+    );
+
+    renderWithQueryClient(<MatchingPage />);
+
+    expect(
+      await screen.findByRole("dialog", { name: "매칭된 상대 확인" }),
+    ).toBeInTheDocument();
+  });
+
+  it("모달의 '수락' 클릭 시 accept 엔드포인트가 호출된다", async () => {
+    const user = userEvent.setup();
+    let acceptCount = 0;
+    server.use(
+      http.get("http://localhost:3000/api/v1/me/matching", () =>
+        HttpResponse.json({
+          data: {
+            status: "AWAITING_CONFIRM",
+            partnerId: 2,
+            roomId: null,
+            confirmDeadline: new Date(Date.now() + 15000).toISOString(),
+          },
+          status: 200,
+          message: "OK",
+        }),
+      ),
+      http.post("http://localhost:3000/api/v1/me/matching/accept", () => {
+        acceptCount++;
+        return HttpResponse.json({
+          data: null,
+          status: 204,
+          message: "NO_CONTENT",
+        });
+      }),
+    );
+
+    renderWithQueryClient(<MatchingPage />);
+
+    await screen.findByRole("dialog", { name: "매칭된 상대 확인" });
+    await user.click(screen.getByRole("button", { name: "수락" }));
+
+    await waitFor(() => expect(acceptCount).toBe(1));
+  });
+
+  it("모달의 '거절' 클릭 시 decline 엔드포인트가 호출된다", async () => {
+    const user = userEvent.setup();
+    let declineCount = 0;
+    server.use(
+      http.get("http://localhost:3000/api/v1/me/matching", () =>
+        HttpResponse.json({
+          data: {
+            status: "AWAITING_CONFIRM",
+            partnerId: 2,
+            roomId: null,
+            confirmDeadline: new Date(Date.now() + 15000).toISOString(),
+          },
+          status: 200,
+          message: "OK",
+        }),
+      ),
+      http.post("http://localhost:3000/api/v1/me/matching/decline", () => {
+        declineCount++;
+        return HttpResponse.json({
+          data: null,
+          status: 204,
+          message: "NO_CONTENT",
+        });
+      }),
+    );
+
+    renderWithQueryClient(<MatchingPage />);
+
+    await screen.findByRole("dialog", { name: "매칭된 상대 확인" });
+    await user.click(screen.getByRole("button", { name: "거절" }));
+
+    await waitFor(() => expect(declineCount).toBe(1));
   });
 
   it("'취소하기' 버튼 클릭 시 /home 으로 navigate 하고 DELETE 가 송신된다", async () => {
