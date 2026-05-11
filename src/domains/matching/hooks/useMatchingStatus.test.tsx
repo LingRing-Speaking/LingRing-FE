@@ -74,6 +74,40 @@ describe("useMatchingStatus", () => {
     expect(callCount).toBe(1);
   });
 
+  it("AWAITING_CONFIRM 응답이면 1초 후 다시 폴링한다", async () => {
+    let callCount = 0;
+    server.use(
+      http.get("http://localhost:3000/api/v1/me/matching", () => {
+        callCount++;
+        return HttpResponse.json({
+          data: {
+            status: "AWAITING_CONFIRM",
+            partnerId: 2,
+            roomId: null,
+            confirmDeadline: new Date(Date.now() + 15000).toISOString(),
+          },
+          status: 200,
+          message: "OK",
+        });
+      }),
+    );
+
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    const { result } = renderHook(() => useMatchingStatus(true), { wrapper });
+
+    await waitFor(() =>
+      expect(result.current.data?.status).toBe("AWAITING_CONFIRM"),
+    );
+    const firstCallCount = callCount;
+
+    // 3초 동안 1초 폴링이라 3회 이상 호출됐어야 한다
+    await vi.advanceTimersByTimeAsync(3500);
+    await waitFor(() =>
+      expect(callCount).toBeGreaterThanOrEqual(firstCallCount + 3),
+    );
+  });
+
   it("WAITING 응답이면 3초 후 다시 폴링한다", async () => {
     let callCount = 0;
     server.use(
