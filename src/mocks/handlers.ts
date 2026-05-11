@@ -202,6 +202,22 @@ export const handlers = [
     });
   }),
 
+  http.post(apiUrl("/me/matching/accept"), () => {
+    return HttpResponse.json({
+      data: null,
+      status: 204,
+      message: "NO_CONTENT",
+    });
+  }),
+
+  http.post(apiUrl("/me/matching/decline"), () => {
+    return HttpResponse.json({
+      data: null,
+      status: 204,
+      message: "NO_CONTENT",
+    });
+  }),
+
   http.post(apiUrl("/reports"), () => {
     return HttpResponse.json({
       data: null,
