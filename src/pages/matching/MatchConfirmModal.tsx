@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { useConfirmCountdown } from "@/domains/matching/hooks/useConfirmCountdown";
 import { useUserProfile } from "@/domains/user/hooks/useUserProfile";
@@ -13,13 +13,17 @@ const LEVEL_LABEL: Record<Level, string> = {
 const TOTAL_MS = 15_000;
 const URGENT_THRESHOLD_MS = 5_000;
 
+const ACCEPT_HINT = "상대 응답을 기다리는 중…";
+const DECLINE_HINT = "매칭 페이지로 돌아갑니다…";
+
+type ActedAction = "accept" | "decline";
+
 type Props = {
   partnerId: number;
   confirmDeadline: string;
   onAccept: () => void;
   onDecline: () => void;
   onTimeout?: () => void;
-  isResponding?: boolean;
 };
 
 export function MatchConfirmModal({
@@ -28,21 +32,36 @@ export function MatchConfirmModal({
   onAccept,
   onDecline,
   onTimeout,
-  isResponding = false,
 }: Props) {
   const profile = useUserProfile(partnerId);
   const { remainingMs, expired } = useConfirmCountdown(confirmDeadline);
   const timeoutFiredRef = useRef(false);
+  const [acted, setActed] = useState<ActedAction | null>(null);
 
   useEffect(() => {
-    if (!expired || timeoutFiredRef.current) return;
+    if (!expired || timeoutFiredRef.current || acted) return;
     timeoutFiredRef.current = true;
     onTimeout?.();
-  }, [expired, onTimeout]);
+  }, [expired, onTimeout, acted]);
+
+  const handleAccept = () => {
+    if (acted) return;
+    setActed("accept");
+    onAccept();
+  };
+
+  const handleDecline = () => {
+    if (acted) return;
+    setActed("decline");
+    onDecline();
+  };
 
   const progressPercent =
     remainingMs === null ? 0 : (remainingMs / TOTAL_MS) * 100;
   const isUrgent = remainingMs !== null && remainingMs <= URGENT_THRESHOLD_MS;
+  const isDisabled = acted !== null;
+  const hintText =
+    acted === "accept" ? ACCEPT_HINT : acted === "decline" ? DECLINE_HINT : "";
 
   return (
     <>
@@ -95,24 +114,54 @@ export function MatchConfirmModal({
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={onDecline}
-              disabled={isResponding}
+              onClick={handleDecline}
+              disabled={isDisabled}
               className="flex-1 rounded-[14px] bg-gray-100 py-3.5 text-[15px] font-bold text-gray-800 transition active:scale-[0.98] disabled:opacity-50"
             >
               거절
             </button>
             <button
               type="button"
-              onClick={onAccept}
-              disabled={isResponding || !profile.data}
-              className="flex-1 rounded-[14px] bg-mint-500 py-3.5 text-[15px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+              onClick={handleAccept}
+              disabled={isDisabled || !profile.data}
+              className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-[14px] bg-mint-500 py-3.5 text-[15px] font-bold text-white transition active:scale-[0.98] ${
+                acted === "accept"
+                  ? "disabled:opacity-100"
+                  : "disabled:opacity-50"
+              }`}
             >
-              수락
+              {acted === "accept" ? (
+                <>
+                  <CheckBadge />
+                  수락함
+                </>
+              ) : (
+                "수락"
+              )}
             </button>
           </div>
+
+          <p
+            data-testid="confirm-hint"
+            aria-live="polite"
+            className="mt-3 min-h-4 text-center text-[12px] font-medium leading-tight tracking-tight text-gray-500"
+          >
+            {hintText}
+          </p>
         </div>
       </div>
     </>
+  );
+}
+
+function CheckBadge() {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white/20 text-[11px] font-extrabold leading-none"
+    >
+      ✓
+    </span>
   );
 }
 
