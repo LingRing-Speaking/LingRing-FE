@@ -11,6 +11,7 @@ import { SplashPage } from "@/pages/splash/SplashPage";
 // 저장한 표현 기능 미출시 — 라우트 자체를 비활성화하여 진입을 원천 차단.
 // 출시 시 import 와 Route 복원.
 // import { UserExpressionsPage } from "@/pages/userExpressions/UserExpressionsPage";
+import { BlockListPage } from "@/pages/blockList/BlockListPage";
 import { CallHistoryPage } from "@/pages/callHistory/CallHistoryPage";
 import { SettingsPage } from "@/pages/settings/SettingsPage";
 import { WithdrawPage } from "@/pages/withdraw/WithdrawPage";
@@ -49,6 +50,7 @@ export default function App() {
               {/* <Route path="/expressions" element={<UserExpressionsPage />} /> — 미출시 */}
               <Route path="/history" element={<CallHistoryPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/settings/blocks" element={<BlockListPage />} />
               <Route path="/settings/withdraw" element={<WithdrawPage />} />
             </Route>
           </Route>
