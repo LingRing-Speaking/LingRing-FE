@@ -264,8 +264,6 @@ export const handlers = [
           id: 1,
           userId: 1,
           blockedUserId: body.blockedUserId ?? 0,
-          nickname: "Sophie",
-          profileImage: null,
           createdAt: "2026-05-17T12:34:56.123456",
         },
         status: 201,
@@ -290,7 +288,6 @@ export const handlers = [
     const total = 8;
     const all = Array.from({ length: total }, (_, i) => ({
       id: i + 1,
-      userId: 1,
       blockedUserId: 1000 + i,
       nickname: FAKE_PARTNER_NAMES[i % FAKE_PARTNER_NAMES.length],
       profileImage: null,

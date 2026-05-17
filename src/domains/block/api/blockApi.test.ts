@@ -4,10 +4,10 @@ import { server } from "@/mocks/server";
 import { createBlock, deleteBlock, fetchBlockedUsers } from "./blockApi";
 
 describe("createBlock", () => {
-  it("BlockedUser 데이터를 반환한다", async () => {
+  it("Block 데이터를 반환한다", async () => {
     const result = await createBlock({ blockedUserId: 42 });
     expect(result.blockedUserId).toBe(42);
-    expect(result.nickname).toBeTruthy();
+    expect(typeof result.userId).toBe("number");
     expect(typeof result.createdAt).toBe("string");
   });
 
@@ -22,8 +22,6 @@ describe("createBlock", () => {
               id: 99,
               userId: 1,
               blockedUserId: 42,
-              nickname: "Sophie",
-              profileImage: null,
               createdAt: "2026-05-17T12:34:56",
             },
             status: 201,

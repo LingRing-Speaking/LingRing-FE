@@ -3,7 +3,7 @@
 - 이슈: [#109](https://github.com/LingRing-Speaking/LingRing-FE/issues/109)
 - 작성일: 2026-05-17
 - 상태: 설계 합의 완료 / 구현 대기
-- 선행 의존성: LingRing-BE `GET /blocks` 응답 스키마 보강 (아래 §10 참조)
+- 선행 의존성: 없음 (BE `GET /blocks` 응답이 `nickname`/`profileImage`를 이미 포함, 2026-05-17 정정)
 
 ## 1. 목적
 
@@ -17,15 +17,15 @@
 
 ## 2. 합의된 결정
 
-| 결정 | 값 | 근거 |
-|---|---|---|
-| 신고와 차단 관계 | **신고 = 신고 + 차단 / 차단 = 차단만** | 기존 신고 흐름 유지하면서 가벼운 차단 액션을 분리 |
-| 통화 중 차단 동작 | **차단 API만 호출, 통화는 유지** | 의도 명확. 현재 통화 영향 없음 (BE 부수효과는 다음 매칭부터 적용) |
-| 이슈 스코프 | **차단 + 차단 목록/해제 화면 포함** | 사용자가 사용 가능한 완성도 우선 |
-| 차단 목록 진입점 | **설정 페이지에 "차단 관리" 신규 섹션** | "도움말", "계정"과 동등한 별도 섹션 |
-| 차단 목록 응답 보강 | **`nickname`, `profileImage` BE에 추가 요청** | UI 의미성 확보 (N+1 호출 회피) |
-| 차단 성공 피드백 | **`ReportModal` 패턴의 2단계 완료 카드** | 명시적 확인, 신고와 일관 |
-| 해제 성공 피드백 | **완료 카드 없이 행 제거가 피드백** | 가벼운 액션, 목록 갱신이 시각 신호 |
+| 결정                | 값                                            | 근거                                                              |
+| ------------------- | --------------------------------------------- | ----------------------------------------------------------------- |
+| 신고와 차단 관계    | **신고 = 신고 + 차단 / 차단 = 차단만**        | 기존 신고 흐름 유지하면서 가벼운 차단 액션을 분리                 |
+| 통화 중 차단 동작   | **차단 API만 호출, 통화는 유지**              | 의도 명확. 현재 통화 영향 없음 (BE 부수효과는 다음 매칭부터 적용) |
+| 이슈 스코프         | **차단 + 차단 목록/해제 화면 포함**           | 사용자가 사용 가능한 완성도 우선                                  |
+| 차단 목록 진입점    | **설정 페이지에 "차단 관리" 신규 섹션**       | "도움말", "계정"과 동등한 별도 섹션                               |
+| 차단 목록 응답 형태 | **`nickname`, `profileImage` 포함** (§10)         | UI 의미성 확보 (N+1 호출 회피)                                    |
+| 차단 성공 피드백    | **`ReportModal` 패턴의 2단계 완료 카드**      | 명시적 확인, 신고와 일관                                          |
+| 해제 성공 피드백    | **완료 카드 없이 행 제거가 피드백**           | 가벼운 액션, 목록 갱신이 시각 신호                                |
 
 ## 3. UI 변경
 
@@ -43,12 +43,14 @@
 `ReportModal`의 backdrop/z-index/Escape 처리를 그대로 답습한다.
 
 **Step 1 — 확인 카드**
+
 - 제목: "이 사용자를 차단할까요?"
 - 본문: "차단하면 서로 매칭에서 만나지 않아요. 설정 > 차단 관리에서 언제든 해제할 수 있어요."
 - 버튼: `[취소] [차단]` (gray-100 / coral-500)
 - 차단 실패 시 카드 안에 코랄 에러 메시지 + 재시도 가능
 
 **Step 2 — 완료 카드** (차단 성공 후 자동 전환)
+
 - 체크 아이콘 (`bg-mint-100` 원형 + `stroke-mint-500`)
 - 제목: "차단했어요"
 - 본문: "설정 > 차단 관리에서 언제든 해제할 수 있어요."
@@ -150,18 +152,28 @@ pages/blockList/
 
 ## 5. 타입 (`domains/block/types.ts`)
 
+POST 응답과 GET items 모양이 다르다 — POST는 차단 레코드(`userId` 포함), GET items는 Projection 기반 카드(`nickname/profileImage` 포함, `userId` 없음). 두 타입을 분리한다.
+
 ```ts
-export type BlockedUser = {
+// POST /blocks 응답 (차단 레코드)
+export type Block = {
   id: number;
   userId: number;
   blockedUserId: number;
-  nickname: string;            // BE 명세 보강 (§10)
-  profileImage: string | null; // BE 명세 보강 (§10)
-  createdAt: string;           // ISO LocalDateTime, KST
+  createdAt: string; // ISO LocalDateTime, KST
+};
+
+// GET /blocks items 항목 (UI 표시용 Projection)
+export type BlockListItem = {
+  id: number;
+  blockedUserId: number;
+  nickname: string;
+  profileImage: string | null;
+  createdAt: string;
 };
 
 export type BlockListResponse = {
-  items: BlockedUser[];
+  items: BlockListItem[];
   hasNext: boolean;
 };
 
@@ -174,12 +186,12 @@ export type BlockCreateInput = {
 
 ```ts
 import { httpDelete, httpGet, httpPost } from "@/lib/http";
-import type { BlockCreateInput, BlockListResponse, BlockedUser } from "../types";
+import type { Block, BlockCreateInput, BlockListResponse } from "../types";
 
 const BLOCKS_PATH = "/blocks";
 
-export const createBlock = (input: BlockCreateInput): Promise<BlockedUser> =>
-  httpPost<BlockedUser>(BLOCKS_PATH, input);
+export const createBlock = (input: BlockCreateInput): Promise<Block> =>
+  httpPost<Block>(BLOCKS_PATH, input);
 
 export const deleteBlock = (blockedUserId: number): Promise<void> =>
   httpDelete(`${BLOCKS_PATH}/${blockedUserId}`);
@@ -197,9 +209,9 @@ export const fetchBlockedUsers = (page: number, size: number): Promise<BlockList
 ```ts
 import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import { createBlock } from "../api/blockApi";
-import type { BlockCreateInput, BlockedUser } from "../types";
+import type { Block, BlockCreateInput } from "../types";
 
-export function useBlockUser(): UseMutationResult<BlockedUser, Error, BlockCreateInput> {
+export function useBlockUser(): UseMutationResult<Block, Error, BlockCreateInput> {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createBlock,
@@ -251,8 +263,8 @@ export function useBlockedUsers(): UseInfiniteQueryResult<
 type Props = {
   partnerId: number | null;
   open: boolean;
-  onClose: () => void;   // 완료 카드 "확인" 탭 시 호출 (양쪽 모달 모두 닫기 위한 콜백)
-  onCancel: () => void;  // Step1 "취소" 탭 시 호출 (이 모달만 닫기)
+  onClose: () => void; // 완료 카드 "확인" 탭 시 호출 (양쪽 모달 모두 닫기 위한 콜백)
+  onCancel: () => void; // Step1 "취소" 탭 시 호출 (이 모달만 닫기)
 };
 ```
 
@@ -267,8 +279,8 @@ type Props = {
 type Props = {
   target: { id: number; nickname: string } | null;
   open: boolean;
-  onClose: () => void;   // 해제 성공 시 호출
-  onCancel: () => void;  // 취소 시 호출
+  onClose: () => void; // 해제 성공 시 호출
+  onCancel: () => void; // 취소 시 호출
 };
 ```
 
@@ -284,16 +296,14 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onReport: () => void;
-  onBlock: () => void;   // 추가
+  onBlock: () => void; // 추가
 };
 ```
 
 ### `BlockListPage` 내부 상태
 
 ```ts
-const [unblockTarget, setUnblockTarget] = useState<
-  { id: number; nickname: string } | null
->(null);
+const [unblockTarget, setUnblockTarget] = useState<{ id: number; nickname: string } | null>(null);
 ```
 
 ## 9. CallPage / CallHistoryPage 통합 패턴
@@ -327,27 +337,15 @@ const [isBlockOpen, setIsBlockOpen] = useState(false);
 
 `isProfileOpen && !isReportOpen && !isBlockOpen` — 자식 모달이 열리면 부모 카드를 숨겨 backdrop이 중첩되지 않게 한다 (기존 `ReportModal` 패턴 그대로).
 
-## 10. BE 의존성 — `GET /blocks` 응답 보강
+## 10. BE 명세 (2026-05-17 정정 반영)
 
-현재 명세 (Notion §14):
-
-```json
-{
-  "items": [
-    { "id": 2, "userId": 1, "blockedUserId": 3, "createdAt": "..." }
-  ],
-  "hasNext": true
-}
-```
-
-요청 변경안:
+`GET /blocks` 응답 (`UserBlocksResponse`):
 
 ```json
 {
   "items": [
     {
       "id": 2,
-      "userId": 1,
       "blockedUserId": 3,
       "nickname": "민트",
       "profileImage": "https://.../abc.jpg",
@@ -358,19 +356,18 @@ const [isBlockOpen, setIsBlockOpen] = useState(false);
 }
 ```
 
-- 추가 필드: `nickname` (`String`, not null), `profileImage` (`String`, nullable)
-- 근거: 차단 목록 UI에서 닉네임/프로필 이미지 표시. FE가 `blockedUserId`별로 `/users/{id}`를 호출하면 N+1 문제 발생.
-- 작업 분담: 이 보강은 LingRing-BE에서 별도 처리. FE 머지 전 BE 합의 + 배포 필요.
+- items 항목은 BE Projection (`UserBlockItemProjection`) 기반. `userId`는 클라이언트가 토큰으로 알 수 있어 응답에서 제외.
+- `POST /blocks` 응답은 별도 — `{ id, userId, blockedUserId, createdAt }` (`UserBlockResponse`).
 
 ## 11. 에러 처리
 
-| 시나리오 | 동작 |
-|---|---|
-| 차단 생성 네트워크 실패 | Step1 카드 내부 코랄 에러 메시지 + 차단 버튼 재활성 |
-| 차단 생성 400 `SELF_BLOCK_NOT_ALLOWED` | 발생 불가능 케이스(자기 프로필 모달 미존재). fallback으로 동일 에러 표시 |
-| 차단 생성 401 | `httpRequest`가 자동 refresh 후 재시도 → 그래도 실패하면 강제 로그아웃 (전역 동작) |
-| 해제 실패 | `UnblockConfirmModal` 카드 내부 에러 + 재시도 |
-| 목록 fetch 실패 | "차단 목록을 불러오지 못했어요" + 다시 시도 버튼 (`CallHistoryPage`와 동일) |
+| 시나리오                               | 동작                                                                               |
+| -------------------------------------- | ---------------------------------------------------------------------------------- |
+| 차단 생성 네트워크 실패                | Step1 카드 내부 코랄 에러 메시지 + 차단 버튼 재활성                                |
+| 차단 생성 400 `SELF_BLOCK_NOT_ALLOWED` | 발생 불가능 케이스(자기 프로필 모달 미존재). fallback으로 동일 에러 표시           |
+| 차단 생성 401                          | `httpRequest`가 자동 refresh 후 재시도 → 그래도 실패하면 강제 로그아웃 (전역 동작) |
+| 해제 실패                              | `UnblockConfirmModal` 카드 내부 에러 + 재시도                                      |
+| 목록 fetch 실패                        | "차단 목록을 불러오지 못했어요" + 다시 시도 버튼 (`CallHistoryPage`와 동일)        |
 
 ## 12. 테스트 전략
 
@@ -397,11 +394,10 @@ CLAUDE.md 기준 80% 이상 커버리지 유지.
 
 ## 14. 마일스톤
 
-1. BE: `GET /blocks` 응답 스키마 보강 (별도 PR, LingRing-BE)
-2. FE: 도메인 `domains/block/` 신설 (API + hook + 타입 + 테스트)
-3. FE: `BlockConfirmModal` 구현 + `PartnerProfileModal` 연동
-4. FE: `CallPage` / `CallHistoryPage` 통합
-5. FE: `BlockListPage` + `UnblockConfirmModal` 구현
-6. FE: `SettingsPage` 섹션 추가 + 라우트 등록
-7. FE: 테스트 정비 + 커버리지 확인
-8. PR 생성 (`Closes #109`)
+1. FE: 도메인 `domains/block/` 신설 (API + hook + 타입 + 테스트)
+2. FE: `BlockConfirmModal` 구현 + `PartnerProfileModal` 연동
+3. FE: `CallPage` / `CallHistoryPage` 통합
+4. FE: `BlockListPage` + `UnblockConfirmModal` 구현
+5. FE: `SettingsPage` 섹션 추가 + 라우트 등록
+6. FE: 테스트 정비 + 커버리지 확인
+7. PR 생성 (`Closes #109`)

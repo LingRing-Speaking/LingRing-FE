@@ -1,10 +1,10 @@
 import { httpDelete, httpGet, httpPost } from "@/lib/http";
-import type { BlockCreateInput, BlockListResponse, BlockedUser } from "../types";
+import type { Block, BlockCreateInput, BlockListResponse } from "../types";
 
 const BLOCKS_PATH = "/blocks";
 
-export const createBlock = (input: BlockCreateInput): Promise<BlockedUser> =>
-  httpPost<BlockedUser>(BLOCKS_PATH, input);
+export const createBlock = (input: BlockCreateInput): Promise<Block> =>
+  httpPost<Block>(BLOCKS_PATH, input);
 
 export const deleteBlock = (blockedUserId: number): Promise<void> =>
   httpDelete(`${BLOCKS_PATH}/${blockedUserId}`);

@@ -22,7 +22,6 @@ describe("BlockListPage", () => {
     mockBlockList([
       {
         id: 1,
-        userId: 1,
         blockedUserId: 7,
         nickname: "Sophie",
         profileImage: null,
@@ -59,7 +58,6 @@ describe("BlockListPage", () => {
             items: [
               {
                 id: 1,
-                userId: 1,
                 blockedUserId: 7,
                 nickname: "Retry",
                 profileImage: null,
@@ -86,7 +84,6 @@ describe("BlockListPage", () => {
     mockBlockList([
       {
         id: 1,
-        userId: 1,
         blockedUserId: 7,
         nickname: "Sophie",
         profileImage: null,
@@ -106,7 +103,6 @@ describe("BlockListPage", () => {
     mockBlockList([
       {
         id: 1,
-        userId: 1,
         blockedUserId: 7,
         nickname: "Sophie",
         profileImage: null,

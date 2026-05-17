@@ -46,7 +46,6 @@ describe("useBlockedUsers", () => {
             items: [
               {
                 id: page + 1,
-                userId: 1,
                 blockedUserId: 1000 + page,
                 nickname: `User${page}`,
                 profileImage: null,

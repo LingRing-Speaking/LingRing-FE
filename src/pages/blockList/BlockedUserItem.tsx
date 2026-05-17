@@ -1,5 +1,5 @@
 import { Avatar } from "@/components/Avatar";
-import type { BlockedUser } from "@/domains/block/types";
+import type { BlockListItem } from "@/domains/block/types";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
   year: "numeric",
@@ -14,7 +14,7 @@ function formatBlockedAt(createdAt: string): string {
 }
 
 type Props = {
-  user: BlockedUser;
+  user: BlockListItem;
   onUnblock: (target: { id: number; nickname: string }) => void;
 };
 

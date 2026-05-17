@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
-import type { BlockedUser } from "@/domains/block/types";
+import type { BlockListItem } from "@/domains/block/types";
 import { BlockedUserItem } from "./BlockedUserItem";
 
 type Props = {
-  items: BlockedUser[];
+  items: BlockListItem[];
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   onLoadMore: () => void;
