@@ -4,7 +4,7 @@
 
 ## 프로젝트 개요
 
-LingRing-FE는 **LingRing**의 프론트엔드입니다. LingRing은 한국어 사용자 대상 영어 회화 연습 앱 — 1:1 실시간 음성 통화 랜덤 매칭, 통화 후 AI 피드백, 게이미피케이션. 백엔드는 별도 저장소 **LingRing-BE**가 담당하며, 이 저장소는 UI · 클라이언트 상태 · WebRTC 피어 셋업 · 네이티브 통합만 다룹니다.
+LingRing-FE는 **LingRing**의 프론트엔드입니다. LingRing은 한국어 사용자 대상 영어 회화 연습 앱 — 1:1 실시간 음성 통화 매칭, 학습 통계, 게이미피케이션. 백엔드는 별도 저장소 **LingRing-BE**가 담당하며, 이 저장소는 UI · 클라이언트 상태 · WebRTC 피어 셋업 · 네이티브 통합만 다룹니다.
 
 ## 기술 스택
 
@@ -46,7 +46,7 @@ WebRTC (`getUserMedia`, `RTCPeerConnection`)는 WebView에서 그대로 동작 �
 
 ## 이 저장소 범위 밖
 
-백엔드 API · WebRTC 시그널링/TURN 인프라 · STT(Whisper)/LLM 추론은 모두 서버 사이드에서 처리합니다.
+백엔드 API · WebRTC 시그널링/TURN 인프라는 서버 사이드에서 처리합니다.
 
 ## 코드 작성 규칙
 

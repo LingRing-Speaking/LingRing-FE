@@ -38,7 +38,7 @@ describe("CallCard", () => {
     expect(screen.queryByText("J")).not.toBeInTheDocument();
   });
 
-  it("AI 분석 기능 미출시 — 분석 관련 버튼이 일절 노출되지 않는다 (analyzed=false)", () => {
+  it("분석 관련 버튼이 일절 노출되지 않는다 (analyzed=false)", () => {
     renderCard({ ...baseCall, analyzed: false });
     expect(screen.queryByRole("button", { name: /분석/ })).not.toBeInTheDocument();
     // 카드는 partner body 1개의 button 만 노출
