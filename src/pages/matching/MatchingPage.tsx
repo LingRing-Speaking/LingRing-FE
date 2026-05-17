@@ -185,7 +185,6 @@ export function MatchingPage() {
             onAccept={handleAccept}
             onDecline={handleDecline}
             onTimeout={handleTimeout}
-            isResponding={accept.isPending || decline.isPending}
           />
         )}
 

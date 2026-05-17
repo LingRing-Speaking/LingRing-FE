@@ -301,6 +301,28 @@
             opacity: 0.5;
             cursor: default;
         }
+        /* 내가 수락한 상태 — disabled여도 또렷하게 유지 */
+        .btn.primary.accepted,
+        .btn.primary.accepted:disabled {
+            opacity: 1;
+            cursor: default;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn .check-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.22);
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 1;
+        }
 
         /* 응답 대기 상태 메시지 */
         .waiting-hint {
@@ -401,14 +423,14 @@
         let acted = false;
 
         function tick() {
-            if (acted) return;
             const remaining = Math.max(0, deadline - Date.now());
             const progress = (remaining / TOTAL_MS) * 100;
             bar.style.width = `${progress}%`;
             bar.classList.toggle('urgent', remaining <= URGENT_THRESHOLD_MS);
 
             if (remaining <= 0) {
-                handleTimeout();
+                // acted 후에도 카운트다운은 끝까지 표시. 0에 도달하면 멈춤.
+                if (!acted) handleTimeout();
                 return;
             }
             requestAnimationFrame(tick);
@@ -424,6 +446,8 @@
         function handleAccept() {
             if (acted) return;
             acted = true;
+            acceptBtn.classList.add('accepted');
+            acceptBtn.innerHTML = '<span class="check-icon" aria-hidden="true">✓</span>수락함';
             lockButtons('상대 응답을 기다리는 중…');
             // 시연용: 2초 뒤 통화 화면 진입 alert
             setTimeout(() => {
