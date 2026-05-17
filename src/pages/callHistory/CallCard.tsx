@@ -22,8 +22,6 @@ export function CallCard({ call, now, onPartnerClick }: Props) {
 
   return (
     <div className="rounded-[18px] bg-white py-2 px-3 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-      {/* AI 분석 기능 미출시 — 분석 버튼 영역 자체를 노출하지 않음.
-          출시 시 분석 버튼을 우측에 추가하고 onClick → navigate(`/calls/${id}/analysis`) 복원. */}
       <button
         type="button"
         onClick={handleBodyClick}

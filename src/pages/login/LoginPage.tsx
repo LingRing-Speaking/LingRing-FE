@@ -58,7 +58,7 @@ export function LoginPage() {
           <p className="max-w-[280px] text-center text-[14px] font-medium leading-snug tracking-[-0.01em] text-gray-600">
             학습 파트너와 대화하고
             <br />
-            AI 피드백으로 바로 복습해요
+            함께 영어 실력을 키워요
           </p>
         </section>
 

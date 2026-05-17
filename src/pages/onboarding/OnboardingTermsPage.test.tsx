@@ -27,7 +27,7 @@ function renderPage() {
 }
 
 describe("OnboardingTermsPage", () => {
-  it("4개 동의 항목이 모두 미체크 상태로 노출되고 시작 버튼은 비활성화", () => {
+  it("3개 동의 항목이 모두 미체크 상태로 노출되고 시작 버튼은 비활성화", () => {
     renderPage();
 
     expect(screen.getByRole("checkbox", { name: "만 14세 이상입니다" })).toHaveAttribute(
@@ -41,14 +41,11 @@ describe("OnboardingTermsPage", () => {
     expect(
       screen.getByRole("checkbox", { name: "개인정보처리방침 동의" }),
     ).toHaveAttribute("aria-checked", "false");
-    expect(
-      screen.getByRole("checkbox", { name: "통화 음성이 AI 분석에 사용되는 것에 동의" }),
-    ).toHaveAttribute("aria-checked", "false");
 
     expect(screen.getByRole("button", { name: "동의하고 시작" })).toBeDisabled();
   });
 
-  it("전체 동의 토글이 4개 모두를 한 번에 체크/해제한다", async () => {
+  it("전체 동의 토글이 3개 모두를 한 번에 체크/해제한다", async () => {
     const user = userEvent.setup();
     renderPage();
     const acceptAll = screen.getByRole("button", { name: /전체 동의/ });
@@ -69,7 +66,7 @@ describe("OnboardingTermsPage", () => {
     expect(screen.getByRole("button", { name: "동의하고 시작" })).toBeDisabled();
   });
 
-  it("4개 모두 체크해야 시작 버튼이 활성화된다", async () => {
+  it("3개 모두 체크해야 시작 버튼이 활성화된다", async () => {
     const user = userEvent.setup();
     renderPage();
     const submit = screen.getByRole("button", { name: "동의하고 시작" });
@@ -81,11 +78,6 @@ describe("OnboardingTermsPage", () => {
     expect(submit).toBeDisabled();
 
     await user.click(screen.getByRole("checkbox", { name: "개인정보처리방침 동의" }));
-    expect(submit).toBeDisabled();
-
-    await user.click(
-      screen.getByRole("checkbox", { name: "통화 음성이 AI 분석에 사용되는 것에 동의" }),
-    );
     expect(submit).toBeEnabled();
   });
 

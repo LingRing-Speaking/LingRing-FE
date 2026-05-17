@@ -28,13 +28,10 @@ export function EndConfirmSheet({ open, onKeep, onEnd }: Props) {
       >
         <h3
           id="end-sheet-title"
-          className="m-0 mb-1 text-center text-[17px] font-bold leading-snug text-gray-900"
+          className="m-0 mb-5 text-center text-[17px] font-bold leading-snug text-gray-900"
         >
           통화를 종료할까요?
         </h3>
-        <p className="m-0 mb-4 text-center text-[13px] font-medium leading-relaxed text-gray-600">
-          종료하면 AI 피드백 리포트가 생성돼요
-        </p>
         <div className="flex gap-2">
           <button
             type="button"

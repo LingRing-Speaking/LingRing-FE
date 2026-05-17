@@ -6,7 +6,7 @@ export interface AgreementInput {
   agreedItems: AgreementItem[];
 }
 
-export type AgreementItem = "terms" | "privacy" | "over14" | "voiceAi";
+export type AgreementItem = "terms" | "privacy" | "over14";
 
 interface AgreementResponse {
   user: User;
