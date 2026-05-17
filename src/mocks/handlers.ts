@@ -6,8 +6,20 @@ const API_PREFIX = "/api/v1";
 const apiUrl = (path: string) => `${env.apiBaseUrl}${API_PREFIX}${path}`;
 
 const FAKE_PARTNER_NAMES = [
-  "Jenson", "Minji", "Sophie", "David", "Emma", "Daniel", "Hannah",
-  "Olivia", "Noah", "Amelia", "Liam", "Yujin", "Sora", "Junho",
+  "Jenson",
+  "Minji",
+  "Sophie",
+  "David",
+  "Emma",
+  "Daniel",
+  "Hannah",
+  "Olivia",
+  "Noah",
+  "Amelia",
+  "Liam",
+  "Yujin",
+  "Sora",
+  "Junho",
 ];
 
 // 0~1300시간(약 54일) 전 사이에서 50개의 통화를 분산 배치.
@@ -20,13 +32,14 @@ function generateFakeCalls(n: number): CallHistoryItem[] {
     const startedAt = new Date(now - hoursAgo * 3600_000).toISOString();
     const durationSec = 60 + ((i * 37) % 540); // 1:00 ~ 9:59
     // 7번째마다 partner=null (탈퇴한 사용자) → "알 수 없음" 시연
-    const partner = i % 7 === 6
-      ? null
-      : {
-          id: 1000 + i,
-          name: FAKE_PARTNER_NAMES[i % FAKE_PARTNER_NAMES.length],
-          profileImage: null,
-        };
+    const partner =
+      i % 7 === 6
+        ? null
+        : {
+            id: 1000 + i,
+            name: FAKE_PARTNER_NAMES[i % FAKE_PARTNER_NAMES.length],
+            profileImage: null,
+          };
     return {
       id: i + 1,
       partner,
@@ -122,8 +135,7 @@ export const handlers = [
           {
             id: 1,
             userId: 1,
-            expression:
-              "I'd appreciate it if you could send the report by Friday.",
+            expression: "I'd appreciate it if you could send the report by Friday.",
             meaning: "금요일까지 보고서를 보내주시면 감사하겠습니다.",
             createdAt: "2026-04-25T12:34:56.123456",
           },
@@ -236,6 +248,54 @@ export const handlers = [
     const page = Number(url.searchParams.get("page") ?? 0);
     const size = Number(url.searchParams.get("size") ?? 20);
     const all = generateFakeCalls(50);
+    const slice = all.slice(page * size, page * size + size);
+    return HttpResponse.json({
+      data: { items: slice, hasNext: (page + 1) * size < all.length },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
+  http.post(apiUrl("/blocks"), async ({ request }) => {
+    const body = (await request.json()) as { blockedUserId?: number };
+    return HttpResponse.json(
+      {
+        data: {
+          id: 1,
+          userId: 1,
+          blockedUserId: body.blockedUserId ?? 0,
+          nickname: "Sophie",
+          profileImage: null,
+          createdAt: "2026-05-17T12:34:56.123456",
+        },
+        status: 201,
+        message: "CREATED",
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.delete(apiUrl("/blocks/:blockedUserId"), () => {
+    return HttpResponse.json({
+      data: null,
+      status: 204,
+      message: "NO_CONTENT",
+    });
+  }),
+
+  http.get(apiUrl("/blocks"), ({ request }) => {
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get("page") ?? 0);
+    const size = Number(url.searchParams.get("size") ?? 20);
+    const total = 8;
+    const all = Array.from({ length: total }, (_, i) => ({
+      id: i + 1,
+      userId: 1,
+      blockedUserId: 1000 + i,
+      nickname: FAKE_PARTNER_NAMES[i % FAKE_PARTNER_NAMES.length],
+      profileImage: null,
+      createdAt: new Date(Date.now() - i * 86_400_000).toISOString(),
+    }));
     const slice = all.slice(page * size, page * size + size);
     return HttpResponse.json({
       data: { items: slice, hasNext: (page + 1) * size < all.length },
