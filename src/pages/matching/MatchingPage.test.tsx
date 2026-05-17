@@ -13,7 +13,7 @@ describe("MatchingPage", () => {
 
     expect(screen.getByText("매칭 중")).toBeInTheDocument();
     expect(
-      screen.getByText("대화할 사람을 찾고 있어요"),
+      screen.getByText("학습 파트너를 찾고 있어요"),
     ).toBeInTheDocument();
   });
 

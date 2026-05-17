@@ -5,11 +5,10 @@ export function CallHero() {
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center pb-[30px]">
-      <p className="m-0 mb-1.5 text-[15px] font-semibold text-gray-700">
-        오늘은 누구와 만나게 될까요?
-      </p>
-      <p className="m-0 mb-6 text-[13px] font-medium text-gray-500">
-        버튼을 눌러 랜덤 매칭을 시작해요
+      <p className="m-0 mb-6 text-center text-[17px] font-bold leading-snug tracking-[-0.01em] text-gray-800">
+        버튼을 눌러 학습 파트너와
+        <br />
+        대화를 시작해봐요
       </p>
 
       <div className="relative flex h-[220px] w-[220px] items-center justify-center">

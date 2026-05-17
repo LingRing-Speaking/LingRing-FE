@@ -56,7 +56,7 @@ export function LoginPage() {
             어색한 영어 회화, 같이 시작해요
           </h1>
           <p className="max-w-[280px] text-center text-[14px] font-medium leading-snug tracking-[-0.01em] text-gray-600">
-            랜덤 매칭으로 대화하고
+            학습 파트너와 대화하고
             <br />
             AI 피드백으로 바로 복습해요
           </p>
