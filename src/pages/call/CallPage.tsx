@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom"
 import { Avatar } from "@/components/Avatar";
 import { PageShell } from "@/components/PageShell";
 import { useUserId } from "@/domains/auth/hooks/useUserId";
+import { BlockConfirmModal } from "@/domains/block/components/BlockConfirmModal";
 import { useCallSession } from "@/domains/call/hooks/useCallSession";
 import { ReportModal } from "@/domains/report/components/ReportModal";
 import { PartnerProfileModal } from "@/domains/user/components/PartnerProfileModal";
@@ -29,6 +30,7 @@ function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: numbe
   const [sheetOpen, setSheetOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isBlockOpen, setIsBlockOpen] = useState(false);
 
   useEffect(() => {
     if (session.status === "ended") navigate("/home", { replace: true });
@@ -36,6 +38,11 @@ function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: numbe
 
   const closeReport = () => {
     setIsReportOpen(false);
+    setIsProfileOpen(false);
+  };
+
+  const closeBlock = () => {
+    setIsBlockOpen(false);
     setIsProfileOpen(false);
   };
 
@@ -73,9 +80,10 @@ function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: numbe
 
         <PartnerProfileModal
           partnerId={partnerId}
-          open={isProfileOpen && !isReportOpen}
+          open={isProfileOpen && !isReportOpen && !isBlockOpen}
           onClose={() => setIsProfileOpen(false)}
           onReport={() => setIsReportOpen(true)}
+          onBlock={() => setIsBlockOpen(true)}
         />
 
         <ReportModal
@@ -83,6 +91,13 @@ function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: numbe
           open={isReportOpen}
           onClose={closeReport}
           onCancel={() => setIsReportOpen(false)}
+        />
+
+        <BlockConfirmModal
+          partnerId={isBlockOpen ? partnerId : null}
+          open={isBlockOpen}
+          onClose={closeBlock}
+          onCancel={() => setIsBlockOpen(false)}
         />
       </main>
     </PageShell>

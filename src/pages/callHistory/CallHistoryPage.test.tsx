@@ -31,9 +31,7 @@ describe("CallHistoryPage", () => {
 
     renderWithQueryClient(<CallHistoryPage />);
 
-    expect(
-      await screen.findByText("아직 통화 기록이 없어요"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("아직 통화 기록이 없어요")).toBeInTheDocument();
   });
 
   it("파트너 카드 클릭 시 프로필 모달이 열리고 닫기 버튼으로 사라진다", async () => {
@@ -83,9 +81,50 @@ describe("CallHistoryPage", () => {
     expect(screen.getByText("38.5°C")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "닫기" }));
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("프로필 모달의 [차단하기] 클릭 → 차단 확인 모달로 전환된다", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get("http://localhost:3000/api/v1/calls", () =>
+        HttpResponse.json({
+          data: {
+            items: [
+              {
+                id: 1,
+                partner: { id: 7, name: "Sophie", profileImage: null },
+                startedAt: new Date().toISOString(),
+                durationSec: 60,
+                analyzed: false,
+              },
+            ],
+            hasNext: false,
+          },
+          status: 200,
+          message: "OK",
+        }),
+      ),
+      http.get("http://localhost:3000/api/v1/users/7", () =>
+        HttpResponse.json({
+          data: {
+            id: 7,
+            nickname: "Sophie",
+            profileImage: null,
+            level: "ADVANCED",
+            mannerTemperature: 38.5,
+          },
+          status: 200,
+          message: "OK",
+        }),
+      ),
     );
+
+    renderWithQueryClient(<CallHistoryPage />);
+    await user.click(await screen.findByRole("button", { name: /Sophie/ }));
+    await user.click(await screen.findByRole("button", { name: "차단하기" }));
+
+    expect(await screen.findByText("이 사용자를 차단할까요?")).toBeInTheDocument();
   });
 
   it("에러 시 다시 시도 버튼 클릭하면 refetch 동작", async () => {

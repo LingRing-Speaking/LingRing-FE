@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { BlockConfirmModal } from "@/domains/block/components/BlockConfirmModal";
 import { useCallHistory } from "@/domains/callHistory/hooks/useCallHistory";
 import { ReportModal } from "@/domains/report/components/ReportModal";
 import { PartnerProfileModal } from "@/domains/user/components/PartnerProfileModal";
@@ -12,12 +13,19 @@ export function CallHistoryPage() {
   const now = useMemo(() => new Date(), []);
   const [openPartnerId, setOpenPartnerId] = useState<number | null>(null);
   const [reportingPartnerId, setReportingPartnerId] = useState<number | null>(null);
+  const [blockingPartnerId, setBlockingPartnerId] = useState<number | null>(null);
 
   const closeReport = () => {
     setReportingPartnerId(null);
     setOpenPartnerId(null);
   };
   const cancelReport = () => setReportingPartnerId(null);
+
+  const closeBlock = () => {
+    setBlockingPartnerId(null);
+    setOpenPartnerId(null);
+  };
+  const cancelBlock = () => setBlockingPartnerId(null);
 
   const status = (() => {
     if (query.isError) return "error";
@@ -69,9 +77,10 @@ export function CallHistoryPage() {
 
         <PartnerProfileModal
           partnerId={openPartnerId}
-          open={openPartnerId != null && reportingPartnerId == null}
+          open={openPartnerId != null && reportingPartnerId == null && blockingPartnerId == null}
           onClose={() => setOpenPartnerId(null)}
           onReport={() => setReportingPartnerId(openPartnerId)}
+          onBlock={() => setBlockingPartnerId(openPartnerId)}
         />
 
         <ReportModal
@@ -79,6 +88,13 @@ export function CallHistoryPage() {
           open={reportingPartnerId != null}
           onClose={closeReport}
           onCancel={cancelReport}
+        />
+
+        <BlockConfirmModal
+          partnerId={blockingPartnerId}
+          open={blockingPartnerId != null}
+          onClose={closeBlock}
+          onCancel={cancelBlock}
         />
 
         <BottomTabBar />
