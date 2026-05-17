@@ -9,11 +9,7 @@ import { createTestQueryClient } from "../../../test/utils/renderWithQueryClient
 import { CallPage } from "./CallPage";
 
 const sessionState = {
-  status: "connecting" as
-    | "connecting"
-    | "connected"
-    | "ended"
-    | "error",
+  status: "connecting" as "connecting" | "connected" | "ended" | "error",
   errorMessage: null as string | null,
   isMuted: false,
   toggleMute: vi.fn(),
@@ -64,9 +60,7 @@ const renderAt = (path: string, state?: { partnerId?: number }) => {
   const queryClient = createTestQueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter
-        initialEntries={[{ pathname: path, state: state ?? null }]}
-      >
+      <MemoryRouter initialEntries={[{ pathname: path, state: state ?? null }]}>
         <Routes>
           <Route path="/call/:roomId" element={<CallPage />} />
           <Route path="/home" element={<div>홈입니다</div>} />
@@ -101,13 +95,9 @@ describe("CallPage", () => {
     renderAt("/call/abc", { partnerId: 2 });
 
     expect(screen.getByText("00:00")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "음소거" }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "음소거" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "스피커" })).toBeEnabled();
-    expect(
-      screen.getByRole("button", { name: "통화 종료" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "통화 종료" })).toBeInTheDocument();
   });
 
   it("스피커 버튼 클릭 시 toggleSpeaker 가 호출된다", async () => {
@@ -186,9 +176,7 @@ describe("CallPage", () => {
     const user = userEvent.setup();
 
     await user.click(screen.getByRole("button", { name: "통화 종료" }));
-    expect(
-      screen.getByRole("dialog", { name: "통화를 종료할까요?" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "통화를 종료할까요?" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "종료하기" }));
 
@@ -199,9 +187,7 @@ describe("CallPage", () => {
     sessionState.status = "ended";
     renderAt("/call/abc", { partnerId: 2 });
 
-    await waitFor(() =>
-      expect(screen.getByText("홈입니다")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("홈입니다")).toBeInTheDocument());
   });
 
   it("status='error' 면 errorMessage 와 '메인으로' 버튼을 보여준다", async () => {
@@ -214,9 +200,7 @@ describe("CallPage", () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "메인으로" }));
 
-    await waitFor(() =>
-      expect(screen.getByText("홈입니다")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("홈입니다")).toBeInTheDocument());
   });
 
   it("profileImage 가 있으면 상대 프로필 이미지를 렌더한다", () => {
@@ -290,9 +274,7 @@ describe("CallPage", () => {
 
       const dialog = await screen.findByRole("dialog");
       expect(dialog).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "신고하기" }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "신고하기" })).toBeInTheDocument();
     });
 
     it("프로필 모달의 [신고하기] 클릭 → 신고 모달로 전환된다", async () => {
@@ -311,9 +293,43 @@ describe("CallPage", () => {
       await user.click(await screen.findByRole("button", { name: "신고하기" }));
 
       // ReportModal 의 사유 라디오 노출 = 신고 모달로 전환된 표지
-      expect(
-        await screen.findByRole("radio", { name: "부적절한 대화" }),
-      ).toBeInTheDocument();
+      expect(await screen.findByRole("radio", { name: "부적절한 대화" })).toBeInTheDocument();
+    });
+
+    it("프로필 모달에 [차단하기] 와 [신고하기] 가 함께 노출된다", async () => {
+      sessionState.status = "connected";
+      profileState.data = {
+        id: 2,
+        nickname: "에이미",
+        profileImage: null,
+        level: "BEGINNER",
+        mannerTemperature: 36.5,
+      };
+      renderAt("/call/abc", { partnerId: 2 });
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: "상대방 정보 보기" }));
+
+      expect(await screen.findByRole("button", { name: "차단하기" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "신고하기" })).toBeInTheDocument();
+    });
+
+    it("프로필 모달의 [차단하기] 클릭 → 차단 확인 모달로 전환된다", async () => {
+      sessionState.status = "connected";
+      profileState.data = {
+        id: 2,
+        nickname: "에이미",
+        profileImage: null,
+        level: "BEGINNER",
+        mannerTemperature: 36.5,
+      };
+      renderAt("/call/abc", { partnerId: 2 });
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: "상대방 정보 보기" }));
+      await user.click(await screen.findByRole("button", { name: "차단하기" }));
+
+      expect(await screen.findByText("이 사용자를 차단할까요?")).toBeInTheDocument();
     });
   });
 });

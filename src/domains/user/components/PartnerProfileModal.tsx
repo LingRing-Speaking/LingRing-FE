@@ -16,9 +16,10 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onReport: () => void;
+  onBlock: () => void;
 };
 
-export function PartnerProfileModal({ partnerId, open, onClose, onReport }: Props) {
+export function PartnerProfileModal({ partnerId, open, onClose, onReport, onBlock }: Props) {
   const profile = useUserProfile(open ? partnerId : null);
 
   useEffect(() => {
@@ -34,11 +35,7 @@ export function PartnerProfileModal({ partnerId, open, onClose, onReport }: Prop
 
   return (
     <>
-      <div
-        aria-hidden="true"
-        onClick={onClose}
-        className="absolute inset-0 z-10 bg-black/45"
-      />
+      <div aria-hidden="true" onClick={onClose} className="absolute inset-0 z-10 bg-black/45" />
       <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-6">
         <div
           role="dialog"
@@ -71,13 +68,22 @@ export function PartnerProfileModal({ partnerId, open, onClose, onReport }: Prop
           {profile.data && <ProfileBody profile={profile.data} />}
 
           {profile.data && (
-            <button
-              type="button"
-              onClick={onReport}
-              className="mt-2 block w-full py-2.5 text-center text-[13px] font-semibold tracking-tight text-coral-600 underline underline-offset-[3px] active:opacity-60"
-            >
-              신고하기
-            </button>
+            <div className="mt-2 flex items-center justify-center gap-10 py-2.5">
+              <button
+                type="button"
+                onClick={onBlock}
+                className="text-[13px] font-semibold tracking-tight text-gray-700 underline underline-offset-[3px] active:opacity-60"
+              >
+                차단하기
+              </button>
+              <button
+                type="button"
+                onClick={onReport}
+                className="text-[13px] font-semibold tracking-tight text-coral-600 underline underline-offset-[3px] active:opacity-60"
+              >
+                신고하기
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -158,9 +164,7 @@ function ProfileSkeleton() {
 function ProfileError({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex flex-col items-center gap-3 py-6">
-      <p className="m-0 text-[14px] font-medium text-gray-700">
-        프로필을 불러오지 못했어요.
-      </p>
+      <p className="m-0 text-[14px] font-medium text-gray-700">프로필을 불러오지 못했어요.</p>
       <button
         type="button"
         onClick={onRetry}
