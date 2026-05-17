@@ -153,12 +153,9 @@ export function MatchingPage() {
             <BreathingOrb />
 
             <div className="mb-4 text-center">
-              <h1 className="m-0 mb-1.5 text-[20px] font-bold leading-snug tracking-[-0.02em] text-gray-900">
-                대화할 사람을 찾고 있어요
+              <h1 className="m-0 text-[20px] font-bold leading-snug tracking-[-0.02em] text-gray-900">
+                학습 파트너를 찾고 있어요
               </h1>
-              <p className="m-0 text-[13px] font-medium leading-relaxed text-gray-600">
-                보통 <strong className="font-bold text-mint-600">30초 이내</strong>에 매칭돼요
-              </p>
             </div>
 
             <IcebreakerRotator
