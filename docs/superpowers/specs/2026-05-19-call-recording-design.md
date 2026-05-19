@@ -450,3 +450,39 @@ npm run typecheck && npm run lint && npm run test:run && npm run coverage
 | 진행 결정 | ADM 강행 (Spike 우선) | 사용자 결정 — "한 번에 될 수도, sunk cost 보존" |
 
 이 결정 로그가 향후 누가 spec을 봐도 "왜 이 길인가"가 재현되도록 남김.
+
+## 12. Spike 결과 (2026-05-19)
+
+### 시나리오 결과
+
+| # | 시나리오 | 결과 | 비고 |
+|---|---|---|---|
+| ① | 통화 진입 outputs (이어피스 default) | ✅ PASS | — |
+| ② | setSpeaker(off) 6회 — **방안 2가 죽었던 지점** | ✅ PASS | audio stuck 없음 |
+| ③ | setSpeaker(on) 6회 | ✅ PASS | — |
+| ④ | BT 헤드셋 연결/해제 자동 라우팅 | ✅ PASS | — |
+| ⑤ | 통화 중 전화 수신 interruption 복귀 | ✅ PASS | — |
+| ⑥ | `AudioSession::beginInterruption` 류 경고 | ✅ PASS | console 깨끗 |
+
+**총: 6/6 통과**
+
+### 게이트 평가
+
+- 6/6 통과 → **Phase 1 본격 진행** ✅
+
+### Spike 중 발견한 핵심 fix 두 가지 (Phase 1 에서 보존)
+
+| Fix | 커밋 | 원인 |
+|---|---|---|
+| `delegate` getter/setter 재진입 deadlock | `e38622a` | `queue.sync` 안에서 `updateEngine()` 호출, `updateEngine()`이 `delegate` getter (또 `queue.sync`) → 재진입 EXC_BREAKPOINT. `queueKey`/`queueValue` 로 큐 컨텍스트 검사 후 reentrancy-safe 처리 |
+| channel count mono(1) 통일 | `3062ad3` | libwebrtc 는 internal mono. HW stereo 시 rtcFormat=2 면 `AVAudioPCMBuffer` buffer/format mismatch 경고. mono 고정 + `SimpleAudioConverter` 가 stereo→mono mixing |
+
+이 둘은 Phase 1 코드 base에 그대로 들어감.
+
+### Spike 브랜치 보존
+
+`spike/call-adm-replacement` 브랜치는 머지하지 않고 보존. Phase 1 작업이 이 브랜치 코드를 base로 production 화하여 별도 PR.
+
+### 다음 단계
+
+Phase 1 plan 작성 (`docs/superpowers/plans/2026-05-19-call-recording-phase1.md`) → 별도 이슈 (`refactor(call): default ADM → AVAudioEngine ADM 교체`) 생성 → 별도 브랜치에서 production 작업.
