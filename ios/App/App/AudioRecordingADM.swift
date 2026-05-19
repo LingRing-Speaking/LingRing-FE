@@ -18,9 +18,22 @@ final class AudioRecordingADM: NSObject {
     fileprivate var audioSourceNode: AVAudioSourceNode?
 
     fileprivate var delegate_: RTCAudioDeviceDelegate?
+    // 같은 큐 컨텍스트 안에서 호출 시 재진입 deadlock 회피 (queue.sync 중첩 호출이
+    // libwebrtc worker thread 에서 EXC_BREAKPOINT 발생). dispatchSync 패턴과 동일.
     fileprivate var delegate: RTCAudioDeviceDelegate? {
-        get { queue.sync { delegate_ } }
-        set { queue.sync { delegate_ = newValue } }
+        get {
+            if DispatchQueue.getSpecific(key: queueKey) == queueValue {
+                return delegate_
+            }
+            return queue.sync { delegate_ }
+        }
+        set {
+            if DispatchQueue.getSpecific(key: queueKey) == queueValue {
+                delegate_ = newValue
+            } else {
+                queue.sync { delegate_ = newValue }
+            }
+        }
     }
 
     fileprivate var shouldPlay = false
