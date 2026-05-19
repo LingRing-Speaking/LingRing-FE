@@ -29,6 +29,35 @@ final class AudioRecordingADM: NSObject {
     fileprivate var outputFormat: AVAudioFormat?
 }
 
+extension AudioRecordingADM {
+    // WebRTCPlugin.configureForCall 의 책임을 ADM 안으로 이전.
+    // 이어피스 default + .voiceChat mode + iOS 17+ .allowBluetoothHFP 정책 보존.
+    func configureAudioSessionForCall() throws {
+        try audioSession.setCategory(
+            .playAndRecord,
+            mode: .voiceChat,
+            options: bluetoothOptions()
+        )
+        try audioSession.setActive(true)
+    }
+
+    func deactivateAudioSession() throws {
+        try audioSession.setActive(false, options: [.notifyOthersOnDeactivation])
+    }
+
+    func setSpeaker(on: Bool) throws {
+        try audioSession.overrideOutputAudioPort(on ? .speaker : .none)
+    }
+
+    private func bluetoothOptions() -> AVAudioSession.CategoryOptions {
+        if #available(iOS 17.0, *) {
+            return [.allowBluetoothHFP]
+        } else {
+            return [.allowBluetooth]
+        }
+    }
+}
+
 extension AudioRecordingADM: RTCAudioDevice {
     // MARK: parameters
     var deviceInputSampleRate: Double { audioSession.sampleRate }
