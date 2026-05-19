@@ -316,25 +316,36 @@ src/mocks/handlers.ts                                # ← presign/complete MSW 
 | `recordingRecovery` | 앱 mount 시 폴더 스캔, 잔여 파일을 uploader에 위임 | `recordingUploader`, `@capacitor/filesystem` |
 | `api/recording` | HTTP — presign·complete endpoint | `httpService` |
 
-### BE API 스키마 (협의 항목)
+### BE API 스키마
 
-Phase 2 진행 전 BE 팀과 협의:
+상세 사양은 별도 문서: `docs/backend/2026-05-20-call-recording-api.md` (BE 팀 전달용).
+
+핵심 사항만 요약:
 
 ```
-POST /calls/<roomId>/recordings:presign
+GET  /matching/status
+  → MatchingStatusResponse 에 callId: Long 신규 필드 (BE 작업)
+     기존 roomId(UUID) 와 별개. call 안에 room 이 담긴 도메인 모델.
+
+POST /calls/:callId/recording/presign
+  callId: Long (Path variable)
   요청: { contentType: "audio/m4a", sizeBytes: number }
-  응답: { uploadUrl: string, storageKey: string, expiresAt: ISO8601 }
+  응답 (envelope): { uploadUrl, storageKey, expiresAt }
 
 PUT <uploadUrl>
-  헤더: Content-Type: audio/m4a
-  본문: 파일 raw bytes
+  Content-Type: audio/m4a
+  body: m4a raw bytes
 
-POST /calls/<roomId>/recordings:complete
+POST /calls/:callId/recording/complete
   요청: { storageKey, durationMs, sizeBytes, codec: "aac", sampleRate: 24000 }
-  응답: { ok: true }  또는 ApiError envelope
+  응답 (envelope): { recordingId }
 ```
 
-CLAUDE.md API 컨벤션(`POST /<resource>/<action>`)과 정합.
+핵심 결정:
+- recording 의 상위 resource = **call** (`/calls/`) — room 이 아님. call 안에 room 이 담긴 도메인 모델
+- callId 타입 = **Long** (UUID 아님). roomId 는 UUID 유지 (signaling 용)
+- recording singular (한 user × 한 call = 1 개) — `recordings/` plural 아님
+- LingRing API 컨벤션 (`POST /me/withdraw` 류) 와 정합한 action style
 
 ### 인코딩 설정
 
