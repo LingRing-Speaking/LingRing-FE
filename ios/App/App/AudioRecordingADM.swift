@@ -130,10 +130,11 @@ extension AudioRecordingADM {
             return
         }
 
-        // libwebrtc 는 16-bit int interleaved PCM 을 받음
+        // libwebrtc 는 16-bit int interleaved mono PCM 을 받음.
+        // HW 가 stereo 여도 SimpleAudioConverter 가 mixing.
         guard let rtcFormat = AVAudioFormat(commonFormat: .pcmFormatInt16,
                                              sampleRate: hwFormat.sampleRate,
-                                             channels: hwFormat.channelCount,
+                                             channels: 1,
                                              interleaved: true) else {
             NSLog("[AudioRecordingADM] failed to create rtcFormat")
             return
@@ -181,9 +182,10 @@ extension AudioRecordingADM {
 
         engine.connect(engine.mainMixerNode, to: engine.outputNode, format: hwFormat)
 
+        // libwebrtc playout 도 mono 로 통일 (input 과 일치).
         guard let rtcFormat = AVAudioFormat(commonFormat: .pcmFormatInt16,
                                              sampleRate: hwFormat.sampleRate,
-                                             channels: hwFormat.channelCount,
+                                             channels: 1,
                                              interleaved: true) else {
             return
         }
@@ -296,11 +298,13 @@ extension AudioRecordingADM: RTCAudioDevice {
     // MARK: parameters
     var deviceInputSampleRate: Double { audioSession.sampleRate }
     var inputIOBufferDuration: TimeInterval { audioSession.ioBufferDuration }
-    var inputNumberOfChannels: Int { min(2, audioSession.inputNumberOfChannels) }
+    // libwebrtc 는 internal 로 mono 처리. HW 가 stereo 여도 mono 로 노출해야
+    // AVAudioBuffer channel count mismatch (buffer=2 vs format=1) 회피.
+    var inputNumberOfChannels: Int { 1 }
     var inputLatency: TimeInterval { audioSession.inputLatency }
     var deviceOutputSampleRate: Double { audioSession.sampleRate }
     var outputIOBufferDuration: TimeInterval { audioSession.ioBufferDuration }
-    var outputNumberOfChannels: Int { min(2, audioSession.outputNumberOfChannels) }
+    var outputNumberOfChannels: Int { 1 }
     var outputLatency: TimeInterval { audioSession.outputLatency }
 
     // MARK: state
