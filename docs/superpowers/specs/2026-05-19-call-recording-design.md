@@ -470,14 +470,22 @@ npm run typecheck && npm run lint && npm run test:run && npm run coverage
 
 - 6/6 통과 → **Phase 1 본격 진행** ✅
 
-### Spike 중 발견한 핵심 fix 두 가지 (Phase 1 에서 보존)
+### Spike 중 발견한 핵심 fix (Phase 1 에서 보존)
 
 | Fix | 커밋 | 원인 |
 |---|---|---|
 | `delegate` getter/setter 재진입 deadlock | `e38622a` | `queue.sync` 안에서 `updateEngine()` 호출, `updateEngine()`이 `delegate` getter (또 `queue.sync`) → 재진입 EXC_BREAKPOINT. `queueKey`/`queueValue` 로 큐 컨텍스트 검사 후 reentrancy-safe 처리 |
 | channel count mono(1) 통일 | `3062ad3` | libwebrtc 는 internal mono. HW stereo 시 rtcFormat=2 면 `AVAudioPCMBuffer` buffer/format mismatch 경고. mono 고정 + `SimpleAudioConverter` 가 stereo→mono mixing |
+| BT 연결 audio speed 깨짐 — AVAudioEngineConfigurationChange observer | `1b77844` | BT 연결 시 HW sample rate 변경되나 AVAudioEngine 자동 적응 안 함 → audio speed 깨짐. observer 등록해 변경 시 engine 재구성 |
+| BT 연결 audio speed 깨짐 — route change 에서 직접 engine 재시작 | `4714e95` | VPIO 환경에서 위 observer 만으로는 안 발화하는 케이스. handleRouteChange 의 `.newDeviceAvailable` / `.oldDeviceUnavailable` 에서 engine 재시작 직접 트리거 |
 
-이 둘은 Phase 1 코드 base에 그대로 들어감.
+### 잔여 미세 이슈 (Phase 1 또는 후속에서 보완)
+
+| 항목 | 현재 상태 | 보완 방향 |
+|---|---|---|
+| BT 연결 시 audio speed | 성공률 높음, 가끔 깨짐 (사용자 보고) | engine 재시작 race·timing 보강. sample rate explicit 비교 후 재시작 여부 판단 |
+
+### Spike 브랜치 보존
 
 ### Spike 브랜치 보존
 
