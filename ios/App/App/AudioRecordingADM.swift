@@ -16,6 +16,7 @@ final class AudioRecordingADM: NSObject {
     fileprivate var audioEngine: AVAudioEngine?
     fileprivate var audioSinkNode: AVAudioSinkNode?
     fileprivate var audioSourceNode: AVAudioSourceNode?
+    fileprivate var audioEngineObserver: NSObjectProtocol?
 
     fileprivate var delegate_: RTCAudioDeviceDelegate?
     // 같은 큐 컨텍스트 안에서 호출 시 재진입 deadlock 회피 (queue.sync 중첩 호출이
@@ -52,6 +53,10 @@ final class AudioRecordingADM: NSObject {
 extension AudioRecordingADM {
     fileprivate func shutdownEngine() {
         guard let audioEngine = audioEngine else { return }
+        if let observer = audioEngineObserver {
+            NotificationCenter.default.removeObserver(observer)
+            audioEngineObserver = nil
+        }
         if audioEngine.isRunning {
             audioEngine.stop()
         }
@@ -66,6 +71,20 @@ extension AudioRecordingADM {
             delegate?.notifyAudioOutputInterrupted()
         }
         self.audioEngine = nil
+    }
+
+    // BT 연결/해제 같은 HW 변경 시 sample rate 가 바뀌어도 AVAudioEngine 의 internal
+    // sample rate 는 자동 따라가지 않음 → audio speed 깨짐 (느리게/빠르게 들림).
+    // AVAudioEngineConfigurationChange notification 받아 engine 을 새 HW 포맷으로 재구성.
+    @objc fileprivate func handleEngineConfigurationChange() {
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            NSLog("[AudioRecordingADM] engine configuration changed — restart")
+            self.shutdownEngine()
+            self.delegate_?.notifyAudioInputParametersChange()
+            self.delegate_?.notifyAudioOutputParametersChange()
+            self.updateEngine()
+        }
     }
 
     // mstyura 패턴: shouldPlay/shouldRecord 플래그 변화 시마다 호출.
@@ -111,6 +130,14 @@ extension AudioRecordingADM {
             } catch {
                 NSLog("[AudioRecordingADM] setVoiceProcessingEnabled failed: \(error)")
             }
+        }
+        // BT 연결 등으로 HW sample rate 가 바뀌면 발화. engine 을 재구성해야 audio speed 정상.
+        audioEngineObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: engine,
+            queue: nil
+        ) { [weak self] _ in
+            self?.handleEngineConfigurationChange()
         }
         return engine
     }
