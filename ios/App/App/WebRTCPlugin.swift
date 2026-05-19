@@ -33,11 +33,18 @@ public class WebRTCPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "endCall", returnType: CAPPluginReturnPromise),
     ]
 
+    // ADM 인스턴스는 factory 와 같은 lifetime (앱 lifecycle).
+    fileprivate static let audioDevice = AudioRecordingADM()
+
     private static let factory: RTCPeerConnectionFactory = {
         RTCInitializeSSL()
         let encoderFactory = RTCDefaultVideoEncoderFactory()
         let decoderFactory = RTCDefaultVideoDecoderFactory()
-        return RTCPeerConnectionFactory(encoderFactory: encoderFactory, decoderFactory: decoderFactory)
+        return RTCPeerConnectionFactory(
+            encoderFactory: encoderFactory,
+            decoderFactory: decoderFactory,
+            audioDevice: audioDevice
+        )
     }()
 
     private struct PeerContext {
@@ -229,20 +236,13 @@ public class WebRTCPlugin: CAPPlugin, CAPBridgedPlugin {
     // - .allowBluetoothHFP → BT 헤드셋 지원
     // - useManualAudio + isAudioEnabled=true 로 우리가 audio engine lifecycle 통제
     @objc func configureForCall(_ call: CAPPluginCall) {
-        let session = RTCAudioSession.sharedInstance()
-        session.lockForConfiguration()
-        defer { session.unlockForConfiguration() }
         do {
-            let config = RTCAudioSessionConfiguration.webRTC()
-            config.category = AVAudioSession.Category.playAndRecord.rawValue
-            config.mode = AVAudioSession.Mode.voiceChat.rawValue
-            if #available(iOS 17.0, *) {
-                config.categoryOptions = [.allowBluetoothHFP]
-            } else {
-                config.categoryOptions = [.allowBluetooth]
-            }
-            try session.setConfiguration(config, active: true)
+            try WebRTCPlugin.audioDevice.configureAudioSessionForCall()
+            // RTCAudioSession 도 동기화 — ADM 외부 코드 (libwebrtc 내부 일부 동작) 에서 참조
+            let session = RTCAudioSession.sharedInstance()
+            session.lockForConfiguration()
             session.isAudioEnabled = true
+            session.unlockForConfiguration()
             call.resolve()
         } catch {
             call.reject(error.localizedDescription)
@@ -251,11 +251,8 @@ public class WebRTCPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func setSpeaker(_ call: CAPPluginCall) {
         let on = call.getBool("on") ?? false
-        let session = RTCAudioSession.sharedInstance()
-        session.lockForConfiguration()
-        defer { session.unlockForConfiguration() }
         do {
-            try session.overrideOutputAudioPort(on ? .speaker : .none)
+            try WebRTCPlugin.audioDevice.setSpeaker(on: on)
             call.resolve()
         } catch {
             call.reject(error.localizedDescription)
@@ -263,12 +260,12 @@ public class WebRTCPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func endCall(_ call: CAPPluginCall) {
-        let session = RTCAudioSession.sharedInstance()
-        session.lockForConfiguration()
-        defer { session.unlockForConfiguration() }
         do {
+            let session = RTCAudioSession.sharedInstance()
+            session.lockForConfiguration()
             session.isAudioEnabled = false
-            try session.setActive(false)
+            session.unlockForConfiguration()
+            try WebRTCPlugin.audioDevice.deactivateAudioSession()
             call.resolve()
         } catch {
             call.reject(error.localizedDescription)
