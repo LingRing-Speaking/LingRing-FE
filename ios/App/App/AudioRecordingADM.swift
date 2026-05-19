@@ -291,7 +291,20 @@ extension AudioRecordingADM {
         switch reason {
         case .override, .unknown:
             return
-        case .newDeviceAvailable, .oldDeviceUnavailable, .categoryChange, .routeConfigurationChange:
+        case .newDeviceAvailable, .oldDeviceUnavailable:
+            // BT 헤드폰 같은 audio device 연결/해제 시 HW sample rate 가 바뀜.
+            // VPIO 환경에서는 AVAudioEngineConfigurationChange 가 안 발화하는 경우 있어
+            // route change 에서 직접 engine 재시작 트리거.
+            queue.async { [weak self] in
+                guard let self = self else { return }
+                NSLog("[AudioRecordingADM] device route changed (\(reason.rawValue)) — restart engine")
+                self.shutdownEngine()
+                self.delegate_?.notifyAudioInputParametersChange()
+                self.delegate_?.notifyAudioOutputParametersChange()
+                self.updateEngine()
+            }
+        case .categoryChange, .routeConfigurationChange:
+            // sample rate 안 바뀌는 미세 변경. engine 재시작 없이 notify 만.
             delegate?.dispatchAsync { [weak self] in
                 self?.delegate?.notifyAudioInputParametersChange()
                 self?.delegate?.notifyAudioOutputParametersChange()
