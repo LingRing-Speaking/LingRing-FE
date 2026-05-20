@@ -316,36 +316,49 @@ src/mocks/handlers.ts                                # ← presign/complete MSW 
 | `recordingRecovery` | 앱 mount 시 폴더 스캔, 잔여 파일을 uploader에 위임 | `recordingUploader`, `@capacitor/filesystem` |
 | `api/recording` | HTTP — presign·complete endpoint | `httpService` |
 
-### BE API 스키마
+### BE API 스키마 (BE 구현 완료 — PR #98)
 
-상세 사양은 별도 문서: `docs/backend/2026-05-20-call-recording-api.md` (BE 팀 전달용).
+**Authoritative source**: BE Notion 페이지 [🎙️ \[Spec\] 통화 녹음 업로드 API](https://www.notion.so/36633d3a895c8187904ad24a28c183be) (id `36633d3a-895c-8187-904a-d24a28c183be`).
 
-핵심 사항만 요약:
+선행: BE PR #96 — `MatchingStatusResponse` 에 `callId: Long` 필드 추가 (이미 머지 가정).
 
 ```
 GET  /matching/status
-  → MatchingStatusResponse 에 callId: Long 신규 필드 (BE 작업)
+  → MatchingStatusResponse 에 callId: Long 신규 필드 (PR #96)
      기존 roomId(UUID) 와 별개. call 안에 room 이 담긴 도메인 모델.
 
-POST /calls/:callId/recording/presign
+[API 1] POST /calls/{callId}/recordings/presigned-url
   callId: Long (Path variable)
-  요청: { contentType: "audio/m4a", sizeBytes: number }
-  응답 (envelope): { uploadUrl, storageKey, expiresAt }
+  요청: { contentType: string, contentLength: number }
+  응답 200: { data: { url, key }, status: 200, message: "OK" }
+    - url: S3 PUT presigned URL (TTL 10 분)
+    - key: 서버 발급 S3 키. 형식 "call-recordings/{callId}/{userId}/{uuid}"
 
-PUT <uploadUrl>
-  Content-Type: audio/m4a
-  body: m4a raw bytes
+[S3 직접 업로드] PUT <url>
+  Content-Type: <contentType>
+  body: 파일 raw bytes
 
-POST /calls/:callId/recording/complete
-  요청: { storageKey, durationMs, sizeBytes, codec: "aac", sampleRate: 24000 }
-  응답 (envelope): { recordingId }
+[API 2] POST /calls/{callId}/recordings
+  요청: { recordingKey: string }   ← API 1 의 key 그대로
+  응답 201: { data: { recordingId: Long, status: "UPLOADED" }, status: 201, message: "CREATED" }
+  멱등: 같은 (callId, userId) 재요청 시 기존 row 그대로 반환 (201 동일)
 ```
 
-핵심 결정:
-- recording 의 상위 resource = **call** (`/calls/`) — room 이 아님. call 안에 room 이 담긴 도메인 모델
-- callId 타입 = **Long** (UUID 아님). roomId 는 UUID 유지 (signaling 용)
-- recording singular (한 user × 한 call = 1 개) — `recordings/` plural 아님
-- LingRing API 컨벤션 (`POST /me/withdraw` 류) 와 정합한 action style
+핵심 결정 (BE):
+- Path 는 `/calls/{callId}/recordings/...` plural — call 안에 양쪽 user 각자 1 개씩 = 2 개 collection
+- callId 타입 = **Long** (Path variable). roomId 는 UUID 유지 (signaling 용)
+- API 2 path 는 action 없이 자원 생성 (`POST /calls/{callId}/recordings`) — RESTful 정통
+- Envelope 형식: `{ data, status, message }` — `status` 는 HTTP code 그대로 (200/201), `message` 는 텍스트 ("OK"/"CREATED")
+- contentType 화이트리스트: `audio/m4a` · `audio/mp4` · `audio/webm`
+- max content length: 50 MB
+- **통화 진행 중 (`endedAt == null`) 에는 API 1 호출 시 400 `CALL_ACTIVE`** — 클라는 통화 종료 후 호출해야 함
+- 권한: JWT 의 userId 가 call 참여자가 아니면 403, key prefix 가 본인 거 아니면 403
+
+에러 코드:
+- 400: `CALL_ACTIVE`, `INVALID_CALL_RECORDING_CONTENT_TYPE`, `CALL_RECORDING_TOO_LARGE`, `CALL_RECORDING_S3_MISSING`
+- 401: `INVALID_TOKEN`
+- 403: `CALL_PARTICIPANT_MISMATCH`, `CALL_RECORDING_KEY_FORBIDDEN`
+- 404: `CALL_NOT_FOUND`
 
 ### 인코딩 설정
 
