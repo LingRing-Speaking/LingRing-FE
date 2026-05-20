@@ -53,7 +53,7 @@ export function MatchingPage() {
     if (!data.roomId || data.partnerId == null) return;
     enteredRef.current = false;
     navigate(`/call/${data.roomId}`, {
-      state: { partnerId: data.partnerId },
+      state: { partnerId: data.partnerId, callId: data.callId },
       replace: true,
     });
   }, [status.data, navigate]);

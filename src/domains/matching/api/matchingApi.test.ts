@@ -39,6 +39,7 @@ describe("fetchMatchingStatus", () => {
       status: "WAITING",
       partnerId: null,
       roomId: null,
+      callId: null,
       confirmDeadline: null,
     });
   });
@@ -51,6 +52,7 @@ describe("fetchMatchingStatus", () => {
             status: "MATCHED",
             partnerId: 42,
             roomId: "11111111-1111-1111-1111-111111111111",
+            callId: 7,
             confirmDeadline: null,
           },
           status: 200,
@@ -64,6 +66,7 @@ describe("fetchMatchingStatus", () => {
       status: "MATCHED",
       partnerId: 42,
       roomId: "11111111-1111-1111-1111-111111111111",
+      callId: 7,
       confirmDeadline: null,
     });
   });

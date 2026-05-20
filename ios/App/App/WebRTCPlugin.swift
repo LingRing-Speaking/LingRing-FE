@@ -36,6 +36,7 @@ public class WebRTCPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "stopFileRecording", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "listPendingRecordings", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "deleteRecordingFile", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "uploadRecordingFile", returnType: CAPPluginReturnPromise),
     ]
 
     // ADM 인스턴스는 factory 와 같은 lifetime (앱 lifecycle).
@@ -331,6 +332,38 @@ public class WebRTCPlugin: CAPPlugin, CAPBridgedPlugin {
         } catch {
             call.reject(error.localizedDescription)
         }
+    }
+
+    // S3 presigned PUT URL 로 file 을 stream 업로드. JS fetch 보다 메모리 효율적 (큰 파일도 chunk stream).
+    @objc func uploadRecordingFile(_ call: CAPPluginCall) {
+        guard let filePath = call.getString("filePath"),
+              let urlString = call.getString("url"),
+              let contentType = call.getString("contentType"),
+              let putURL = URL(string: urlString) else {
+            call.reject("filePath/url/contentType required")
+            return
+        }
+        let fileURL = URL(fileURLWithPath: filePath)
+        var request = URLRequest(url: putURL)
+        request.httpMethod = "PUT"
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+
+        let task = URLSession.shared.uploadTask(with: request, fromFile: fileURL) { _, response, error in
+            if let error = error {
+                call.reject(error.localizedDescription)
+                return
+            }
+            guard let httpResponse = response as? HTTPURLResponse else {
+                call.reject("invalid response")
+                return
+            }
+            if (200..<300).contains(httpResponse.statusCode) {
+                call.resolve(["statusCode": httpResponse.statusCode])
+            } else {
+                call.reject("HTTP \(httpResponse.statusCode)")
+            }
+        }
+        task.resume()
     }
 
     // MARK: - helpers

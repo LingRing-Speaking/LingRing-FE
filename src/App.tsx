@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 import { QueryProvider } from "@/providers/QueryProvider";
+import { recoveryRun } from "@/domains/call/recording/recordingRecovery";
 import { AuthGuard } from "@/domains/auth/AuthGuard";
 import { OnboardingGuard } from "@/domains/onboarding/OnboardingGuard";
 import { LoginPage } from "@/pages/login/LoginPage";
@@ -34,6 +36,11 @@ function OnboardedRoutes() {
 }
 
 export default function App() {
+  useEffect(() => {
+    // 앱 mount 시 1 회 — 이전 통화에서 업로드 못 끝낸 잔여 녹음 파일 재시도.
+    void recoveryRun();
+  }, []);
+
   return (
     <QueryProvider>
       <BrowserRouter>
