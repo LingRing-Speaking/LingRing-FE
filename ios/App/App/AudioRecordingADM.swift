@@ -18,6 +18,11 @@ final class AudioRecordingADM: NSObject {
     fileprivate var audioSourceNode: AVAudioSourceNode?
     fileprivate var audioEngineObserver: NSObjectProtocol?
 
+    // 녹음 파일 (Phase 2). 마이크 PCM 을 libwebrtc 로 deliver 하는 같은 sink block 에서
+    // AVAudioFile 에도 동시에 write. 통화 connected 시점에 start, end 시점에 stop.
+    fileprivate var recordingFile: AVAudioFile?
+    fileprivate var recordingFileURL: URL?
+
     fileprivate var delegate_: RTCAudioDeviceDelegate?
     // 같은 큐 컨텍스트 안에서 호출 시 재진입 deadlock 회피 (queue.sync 중첩 호출이
     // libwebrtc worker thread 에서 EXC_BREAKPOINT 발생). dispatchSync 패턴과 동일.
@@ -181,10 +186,25 @@ extension AudioRecordingADM {
             return context.0.takeUnretainedValue().convert(framesCount: frameCount, from: context.1, to: abl)
         }
 
-        let sinkNode = AVAudioSinkNode { (timestamp, framesCount, inputData) -> OSStatus in
+        let sinkNode = AVAudioSinkNode { [weak self] (timestamp, framesCount, inputData) -> OSStatus in
+            // 1) libwebrtc 로 deliver (통화 SRTP path)
             var flags: AudioUnitRenderActionFlags = []
             var renderContext = (Unmanaged.passUnretained(converter), inputData)
-            return deliverRecordedData(&flags, timestamp, 1, framesCount, nil, &renderContext, customRenderBlock)
+            let result = deliverRecordedData(&flags, timestamp, 1, framesCount, nil, &renderContext, customRenderBlock)
+
+            // 2) 동시에 녹음 파일에 write (Phase 2). 활성 file 있을 때만.
+            if let self = self, let file = self.recordingFile {
+                if let buffer = AVAudioPCMBuffer(pcmFormat: hwFormat, bufferListNoCopy: inputData) {
+                    buffer.frameLength = framesCount
+                    do {
+                        try file.write(from: buffer)
+                    } catch {
+                        NSLog("[AudioRecordingADM] file write failed: \(error)")
+                    }
+                }
+            }
+
+            return result
         }
 
         engine.attach(sinkNode)
@@ -419,5 +439,108 @@ extension AudioRecordingADM: RTCAudioDevice {
         } else {
             queue.sync { block() }
         }
+    }
+}
+
+// MARK: - Phase 2: file recording (JS bridge 용 public API)
+
+extension AudioRecordingADM {
+    struct PendingRecording {
+        let callId: Int64
+        let filePath: String
+        let sizeBytes: Int64
+    }
+
+    enum RecordingResult {
+        struct Stopped {
+            let filePath: String
+            let sizeBytes: Int64
+            let durationMs: Int64
+        }
+    }
+
+    // 녹음 시작. 통화 connected 시점에 JS 가 호출.
+    // - callId: BE 의 call entity id (파일명에 사용 + recovery 시 파싱)
+    // - 같은 callId 의 파일이 이미 있으면 덮어씀 (이전 통화 잔재).
+    func startFileRecording(callId: Int64) throws -> String {
+        let directory = try Self.recordingsDirectory()
+        let fileURL = directory.appendingPathComponent("\(callId).m4a")
+
+        // engine 의 input 포맷 (sink node 가 연결된 포맷) 으로 파일 생성.
+        // engine 미초기화 시 startRecording 후 sink 생성을 기다리는 retry 패턴은 YAGNI —
+        // useCallRecording 이 connected 진입 시점에 호출하므로 engine 이 이미 running.
+        guard let engine = audioEngine, engine.isRunning else {
+            throw NSError(domain: "AudioRecordingADM", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "engine not running"])
+        }
+        let hwFormat = engine.inputNode.outputFormat(forBus: 1)
+        // .m4a 컨테이너 + AAC 인코딩으로 저장하려면 AVAudioFile 의 commonFormat 설정 활용.
+        // settings 미지정 시 기본 PCM 으로 저장됨 — 호환성 위해 AAC settings 명시.
+        let settings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatMPEG4AAC,
+            AVSampleRateKey: hwFormat.sampleRate,
+            AVNumberOfChannelsKey: hwFormat.channelCount,
+            AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue,
+            AVEncoderBitRateKey: 64000,
+        ]
+        let file = try AVAudioFile(forWriting: fileURL, settings: settings)
+
+        queue.sync {
+            self.recordingFile = file
+            self.recordingFileURL = fileURL
+        }
+
+        NSLog("[AudioRecordingADM] file recording started: \(fileURL.lastPathComponent)")
+        return fileURL.path
+    }
+
+    // 녹음 종료. cleanup 시 JS 가 호출. 파일 finalize + 메타 반환.
+    func stopFileRecording() -> RecordingResult.Stopped? {
+        let stopped: (URL, AVAudioFile)? = queue.sync {
+            guard let url = self.recordingFileURL, let file = self.recordingFile else {
+                return nil
+            }
+            self.recordingFile = nil
+            self.recordingFileURL = nil
+            return (url, file)
+        }
+        guard let (url, file) = stopped else { return nil }
+
+        // AVAudioFile 는 자동 finalize. 여기서는 메타 계산만.
+        let attrs = (try? FileManager.default.attributesOfItem(atPath: url.path)) ?? [:]
+        let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
+        let durationMs = Int64(Double(file.length) / file.processingFormat.sampleRate * 1000)
+        NSLog("[AudioRecordingADM] file recording stopped: \(url.lastPathComponent) size=\(size) durationMs=\(durationMs)")
+        return RecordingResult.Stopped(filePath: url.path, sizeBytes: size, durationMs: durationMs)
+    }
+
+    // 앱 시작 시 recovery 가 호출. 잔여 파일 목록 반환.
+    static func listPendingRecordings() throws -> [PendingRecording] {
+        let directory = try recordingsDirectory()
+        let entries = (try? FileManager.default.contentsOfDirectory(at: directory,
+                                                                       includingPropertiesForKeys: [.fileSizeKey])) ?? []
+        var pending: [PendingRecording] = []
+        for url in entries where url.pathExtension == "m4a" {
+            let base = url.deletingPathExtension().lastPathComponent
+            guard let callId = Int64(base) else { continue }
+            let size = ((try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? NSNumber)?.int64Value ?? 0
+            pending.append(PendingRecording(callId: callId, filePath: url.path, sizeBytes: size))
+        }
+        return pending
+    }
+
+    static func deleteRecordingFile(at path: String) throws {
+        try FileManager.default.removeItem(atPath: path)
+    }
+
+    // 임시 폴더: Library/Caches/recordings/.
+    // Caches 는 OS 가 디스크 부족 시 정리 가능. 우리는 업로드 성공 시 즉시 삭제하므로 OK.
+    fileprivate static func recordingsDirectory() throws -> URL {
+        let caches = try FileManager.default.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        let directory = caches.appendingPathComponent("recordings", isDirectory: true)
+        if !FileManager.default.fileExists(atPath: directory.path) {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        }
+        return directory
     }
 }

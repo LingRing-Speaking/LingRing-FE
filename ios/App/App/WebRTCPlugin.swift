@@ -31,6 +31,11 @@ public class WebRTCPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "configureForCall", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setSpeaker", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "endCall", returnType: CAPPluginReturnPromise),
+        // Phase 2: 녹음 파일 관리
+        CAPPluginMethod(name: "startFileRecording", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stopFileRecording", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "listPendingRecordings", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deleteRecordingFile", returnType: CAPPluginReturnPromise),
     ]
 
     // ADM 인스턴스는 factory 와 같은 lifetime (앱 lifecycle).
@@ -266,6 +271,62 @@ public class WebRTCPlugin: CAPPlugin, CAPBridgedPlugin {
             session.isAudioEnabled = false
             session.unlockForConfiguration()
             try WebRTCPlugin.audioDevice.deactivateAudioSession()
+            call.resolve()
+        } catch {
+            call.reject(error.localizedDescription)
+        }
+    }
+
+    // MARK: - 녹음 파일 관리 (Phase 2)
+
+    @objc func startFileRecording(_ call: CAPPluginCall) {
+        guard let callId = call.getString("callId").flatMap(Int64.init) ?? (call.getInt("callId").map { Int64($0) }) else {
+            call.reject("callId is required (Long)")
+            return
+        }
+        do {
+            let path = try WebRTCPlugin.audioDevice.startFileRecording(callId: callId)
+            call.resolve(["filePath": path])
+        } catch {
+            call.reject(error.localizedDescription)
+        }
+    }
+
+    @objc func stopFileRecording(_ call: CAPPluginCall) {
+        guard let result = WebRTCPlugin.audioDevice.stopFileRecording() else {
+            call.resolve([:])
+            return
+        }
+        call.resolve([
+            "filePath": result.filePath,
+            "sizeBytes": result.sizeBytes,
+            "durationMs": result.durationMs,
+        ])
+    }
+
+    @objc func listPendingRecordings(_ call: CAPPluginCall) {
+        do {
+            let items = try AudioRecordingADM.listPendingRecordings()
+            let mapped = items.map { item -> [String: Any] in
+                [
+                    "callId": item.callId,
+                    "filePath": item.filePath,
+                    "sizeBytes": item.sizeBytes,
+                ]
+            }
+            call.resolve(["items": mapped])
+        } catch {
+            call.reject(error.localizedDescription)
+        }
+    }
+
+    @objc func deleteRecordingFile(_ call: CAPPluginCall) {
+        guard let path = call.getString("filePath") else {
+            call.reject("filePath is required")
+            return
+        }
+        do {
+            try AudioRecordingADM.deleteRecordingFile(at: path)
             call.resolve()
         } catch {
             call.reject(error.localizedDescription)
