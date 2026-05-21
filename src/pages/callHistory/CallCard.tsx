@@ -1,5 +1,8 @@
 import { Avatar } from "@/components/Avatar";
+import { useRequestAnalysis } from "@/domains/callHistory/hooks/useRequestAnalysis";
+import { usePollAnalysisStatus } from "@/domains/callHistory/hooks/usePollAnalysisStatus";
 import type { CallHistoryItem } from "@/domains/callHistory/types";
+import { AnalysisButton } from "./AnalysisButton";
 import { formatCallMeta } from "./timeBucket";
 
 const UNKNOWN_PARTNER_NAME = "알 수 없음";
@@ -12,8 +15,11 @@ type Props = {
 
 export function CallCard({ call, now, onPartnerClick }: Props) {
   const meta = formatCallMeta(new Date(call.startedAt), call.durationSec, now);
-  const { partner } = call;
+  const { partner, analysisStatus } = call;
   const isUnknown = partner === null;
+
+  const { mutate: triggerAnalysis } = useRequestAnalysis();
+  usePollAnalysisStatus(call.id, analysisStatus === "IN_PROGRESS");
 
   const handleBodyClick = () => {
     if (!partner) return;
@@ -21,12 +27,12 @@ export function CallCard({ call, now, onPartnerClick }: Props) {
   };
 
   return (
-    <div className="rounded-[18px] bg-white py-2 px-3 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+    <div className="flex items-center gap-2 rounded-[18px] bg-white py-2 pl-3 pr-2 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
       <button
         type="button"
         onClick={handleBodyClick}
         disabled={isUnknown}
-        className="flex w-full items-center gap-3 rounded-xl bg-transparent px-1 py-1.5 text-left active:bg-gray-50 disabled:active:bg-transparent disabled:cursor-default"
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-xl bg-transparent px-1 py-1.5 text-left active:bg-gray-50 disabled:cursor-default disabled:active:bg-transparent"
       >
         {partner ? (
           <Avatar
@@ -57,6 +63,10 @@ export function CallCard({ call, now, onPartnerClick }: Props) {
           </span>
         </div>
       </button>
+      <AnalysisButton
+        status={analysisStatus}
+        onTriggerAnalysis={() => triggerAnalysis(call.id)}
+      />
     </div>
   );
 }
