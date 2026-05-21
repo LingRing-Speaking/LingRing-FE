@@ -4,16 +4,16 @@ import { describe, expect, it, vi } from "vitest";
 import { AnalysisButton } from "./AnalysisButton";
 
 describe("AnalysisButton", () => {
-  describe("status=NONE", () => {
+  describe("status=null (default)", () => {
     it("'분석하기' 텍스트가 보이고 활성 상태다", () => {
-      render(<AnalysisButton status="NONE" onTriggerAnalysis={() => {}} />);
+      render(<AnalysisButton status={null} onTriggerAnalysis={() => {}} />);
       const btn = screen.getByRole("button", { name: "분석하기" });
       expect(btn).toBeEnabled();
     });
 
     it("클릭하면 onTriggerAnalysis 가 호출된다", async () => {
       const onTrigger = vi.fn();
-      render(<AnalysisButton status="NONE" onTriggerAnalysis={onTrigger} />);
+      render(<AnalysisButton status={null} onTriggerAnalysis={onTrigger} />);
       await userEvent.click(screen.getByRole("button", { name: "분석하기" }));
       expect(onTrigger).toHaveBeenCalledOnce();
     });

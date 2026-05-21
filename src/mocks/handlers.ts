@@ -16,8 +16,8 @@ const triggeredAnalysisByCallId = new Map<number, { triggeredAt: number }>();
 
 function effectiveAnalysisStatus(
   callId: number,
-  seedStatus: AnalysisStatus,
-): AnalysisStatus {
+  seedStatus: AnalysisStatus | null,
+): AnalysisStatus | null {
   const entry = triggeredAnalysisByCallId.get(callId);
   if (!entry) return seedStatus;
   const elapsed = Date.now() - entry.triggeredAt;
@@ -59,9 +59,9 @@ function generateFakeCalls(n: number): CallHistoryItem[] {
             name: FAKE_PARTNER_NAMES[i % FAKE_PARTNER_NAMES.length],
             profileImage: null,
           };
-    // 시드 분포: 3건 중 1건은 NONE("분석하기"), 나머지는 COMPLETED("분석 보기").
+    // 시드 분포: 3건 중 1건은 null("분석하기"), 나머지는 COMPLETED("분석 보기").
     // IN_PROGRESS 시연은 사용자가 직접 분석하기를 눌러야만 시작된다.
-    const seedStatus: AnalysisStatus = i % 3 === 0 ? "NONE" : "COMPLETED";
+    const seedStatus: AnalysisStatus | null = i % 3 === 0 ? null : "COMPLETED";
     return {
       id: i + 1,
       partner,
@@ -282,21 +282,26 @@ export const handlers = [
     });
   }),
 
-  http.post(apiUrl("/calls/:callId/analyze"), ({ params }) => {
+  http.post(apiUrl("/calls/:callId/analysis"), ({ params }) => {
     const callId = Number(params.callId);
     if (!triggeredAnalysisByCallId.has(callId)) {
       triggeredAnalysisByCallId.set(callId, { triggeredAt: Date.now() });
     }
-    return HttpResponse.json({
-      data: { analysisStatus: effectiveAnalysisStatus(callId, "NONE") },
-      status: 200,
-      message: "OK",
-    });
+    const feStatus = effectiveAnalysisStatus(callId, null);
+    const beStatus = feStatus === "COMPLETED" ? "COMPLETED" : "PROCESSING";
+    return HttpResponse.json(
+      {
+        data: { status: beStatus },
+        status: 202,
+        message: "ACCEPTED",
+      },
+      { status: 202 },
+    );
   }),
 
   http.get(apiUrl("/calls/:callId/analysis"), ({ params }) => {
     const callId = Number(params.callId);
-    const status = effectiveAnalysisStatus(callId, "NONE");
+    const status = effectiveAnalysisStatus(callId, null);
     return HttpResponse.json({
       // result 는 분석 결과 페이지 작업(별도 이슈)에서 채움. 이번 PR 에서는 status 만 소비.
       data: { analysisStatus: status, result: null },

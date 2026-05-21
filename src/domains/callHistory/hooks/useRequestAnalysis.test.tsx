@@ -25,7 +25,7 @@ const baseItem = {
   partner: { id: 1042, name: "Jenson", profileImage: null },
   startedAt: "2026-05-21T19:00:00+09:00",
   durationSec: 200,
-  analysisStatus: "NONE" as const,
+  analysisStatus: null,
 };
 
 describe("useRequestAnalysis", () => {
@@ -57,7 +57,7 @@ describe("useRequestAnalysis", () => {
 
   it("서버가 에러를 반환하면 캐시가 이전 상태로 롤백된다", async () => {
     server.use(
-      http.post("http://localhost:3000/api/v1/calls/:callId/analyze", () =>
+      http.post("http://localhost:3000/api/v1/calls/:callId/analysis", () =>
         HttpResponse.json(
           { data: null, status: 500, message: "INTERNAL" },
           { status: 500 },
@@ -80,6 +80,6 @@ describe("useRequestAnalysis", () => {
     const cache = queryClient.getQueryData<{
       pages: { items: CallHistoryList["items"] }[];
     }>(["calls"]);
-    expect(cache?.pages[0]?.items[0]?.analysisStatus).toBe("NONE");
+    expect(cache?.pages[0]?.items[0]?.analysisStatus).toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 import type { AnalysisStatus } from "@/domains/callHistory/types";
 
 type Props = {
-  status: AnalysisStatus;
+  status: AnalysisStatus | null;
   onTriggerAnalysis: () => void;
 };
 
