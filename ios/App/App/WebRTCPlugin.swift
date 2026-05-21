@@ -31,13 +31,26 @@ public class WebRTCPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "configureForCall", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setSpeaker", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "endCall", returnType: CAPPluginReturnPromise),
+        // Phase 2: 녹음 파일 관리
+        CAPPluginMethod(name: "startFileRecording", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stopFileRecording", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "listPendingRecordings", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deleteRecordingFile", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "uploadRecordingFile", returnType: CAPPluginReturnPromise),
     ]
+
+    // ADM 인스턴스는 factory 와 같은 lifetime (앱 lifecycle).
+    fileprivate static let audioDevice = AudioRecordingADM()
 
     private static let factory: RTCPeerConnectionFactory = {
         RTCInitializeSSL()
         let encoderFactory = RTCDefaultVideoEncoderFactory()
         let decoderFactory = RTCDefaultVideoDecoderFactory()
-        return RTCPeerConnectionFactory(encoderFactory: encoderFactory, decoderFactory: decoderFactory)
+        return RTCPeerConnectionFactory(
+            encoderFactory: encoderFactory,
+            decoderFactory: decoderFactory,
+            audioDevice: audioDevice
+        )
     }()
 
     private struct PeerContext {
@@ -229,20 +242,13 @@ public class WebRTCPlugin: CAPPlugin, CAPBridgedPlugin {
     // - .allowBluetoothHFP → BT 헤드셋 지원
     // - useManualAudio + isAudioEnabled=true 로 우리가 audio engine lifecycle 통제
     @objc func configureForCall(_ call: CAPPluginCall) {
-        let session = RTCAudioSession.sharedInstance()
-        session.lockForConfiguration()
-        defer { session.unlockForConfiguration() }
         do {
-            let config = RTCAudioSessionConfiguration.webRTC()
-            config.category = AVAudioSession.Category.playAndRecord.rawValue
-            config.mode = AVAudioSession.Mode.voiceChat.rawValue
-            if #available(iOS 17.0, *) {
-                config.categoryOptions = [.allowBluetoothHFP]
-            } else {
-                config.categoryOptions = [.allowBluetooth]
-            }
-            try session.setConfiguration(config, active: true)
+            try WebRTCPlugin.audioDevice.configureAudioSessionForCall()
+            // RTCAudioSession 도 동기화 — ADM 외부 코드 (libwebrtc 내부 일부 동작) 에서 참조
+            let session = RTCAudioSession.sharedInstance()
+            session.lockForConfiguration()
             session.isAudioEnabled = true
+            session.unlockForConfiguration()
             call.resolve()
         } catch {
             call.reject(error.localizedDescription)
@@ -251,11 +257,8 @@ public class WebRTCPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func setSpeaker(_ call: CAPPluginCall) {
         let on = call.getBool("on") ?? false
-        let session = RTCAudioSession.sharedInstance()
-        session.lockForConfiguration()
-        defer { session.unlockForConfiguration() }
         do {
-            try session.overrideOutputAudioPort(on ? .speaker : .none)
+            try WebRTCPlugin.audioDevice.setSpeaker(on: on)
             call.resolve()
         } catch {
             call.reject(error.localizedDescription)
@@ -263,16 +266,104 @@ public class WebRTCPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func endCall(_ call: CAPPluginCall) {
-        let session = RTCAudioSession.sharedInstance()
-        session.lockForConfiguration()
-        defer { session.unlockForConfiguration() }
         do {
+            let session = RTCAudioSession.sharedInstance()
+            session.lockForConfiguration()
             session.isAudioEnabled = false
-            try session.setActive(false)
+            session.unlockForConfiguration()
+            try WebRTCPlugin.audioDevice.deactivateAudioSession()
             call.resolve()
         } catch {
             call.reject(error.localizedDescription)
         }
+    }
+
+    // MARK: - 녹음 파일 관리 (Phase 2)
+
+    @objc func startFileRecording(_ call: CAPPluginCall) {
+        guard let callId = call.getString("callId").flatMap(Int64.init) ?? (call.getInt("callId").map { Int64($0) }) else {
+            call.reject("callId is required (Long)")
+            return
+        }
+        do {
+            let path = try WebRTCPlugin.audioDevice.startFileRecording(callId: callId)
+            call.resolve(["filePath": path])
+        } catch {
+            call.reject(error.localizedDescription)
+        }
+    }
+
+    @objc func stopFileRecording(_ call: CAPPluginCall) {
+        guard let result = WebRTCPlugin.audioDevice.stopFileRecording() else {
+            call.resolve([:])
+            return
+        }
+        call.resolve([
+            "filePath": result.filePath,
+            "sizeBytes": result.sizeBytes,
+            "durationMs": result.durationMs,
+        ])
+    }
+
+    @objc func listPendingRecordings(_ call: CAPPluginCall) {
+        do {
+            let items = try AudioRecordingADM.listPendingRecordings()
+            let mapped = items.map { item -> [String: Any] in
+                [
+                    "callId": item.callId,
+                    "filePath": item.filePath,
+                    "sizeBytes": item.sizeBytes,
+                ]
+            }
+            call.resolve(["items": mapped])
+        } catch {
+            call.reject(error.localizedDescription)
+        }
+    }
+
+    @objc func deleteRecordingFile(_ call: CAPPluginCall) {
+        guard let path = call.getString("filePath") else {
+            call.reject("filePath is required")
+            return
+        }
+        do {
+            try AudioRecordingADM.deleteRecordingFile(at: path)
+            call.resolve()
+        } catch {
+            call.reject(error.localizedDescription)
+        }
+    }
+
+    // S3 presigned PUT URL 로 file 을 stream 업로드. JS fetch 보다 메모리 효율적 (큰 파일도 chunk stream).
+    @objc func uploadRecordingFile(_ call: CAPPluginCall) {
+        guard let filePath = call.getString("filePath"),
+              let urlString = call.getString("url"),
+              let contentType = call.getString("contentType"),
+              let putURL = URL(string: urlString) else {
+            call.reject("filePath/url/contentType required")
+            return
+        }
+        let fileURL = URL(fileURLWithPath: filePath)
+        var request = URLRequest(url: putURL)
+        request.httpMethod = "PUT"
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+
+        let task = URLSession.shared.uploadTask(with: request, fromFile: fileURL) { _, response, error in
+            if let error = error {
+                call.reject(error.localizedDescription)
+                return
+            }
+            guard let httpResponse = response as? HTTPURLResponse else {
+                call.reject("invalid response")
+                return
+            }
+            if (200..<300).contains(httpResponse.statusCode) {
+                call.resolve(["statusCode": httpResponse.statusCode])
+            } else {
+                call.reject("HTTP \(httpResponse.statusCode)")
+            }
+        }
+        task.resume()
     }
 
     // MARK: - helpers

@@ -40,6 +40,23 @@ export interface TrackPayload {
   kind: "audio";
 }
 
+// Phase 2: 녹음 파일 layer
+export interface StartFileRecordingResult {
+  filePath: string;
+}
+
+export interface StopFileRecordingResult {
+  filePath?: string;
+  sizeBytes?: number;
+  durationMs?: number;
+}
+
+export interface PendingRecording {
+  callId: number;
+  filePath: string;
+  sizeBytes: number;
+}
+
 interface WebRTCPlugin {
   createPeerConnection(opts: {
     peerId: string;
@@ -69,6 +86,16 @@ interface WebRTCPlugin {
   configureForCall(): Promise<void>;
   setSpeaker(opts: { on: boolean }): Promise<void>;
   endCall(): Promise<void>;
+  // Phase 2: 녹음 파일 관리
+  startFileRecording(opts: { callId: number }): Promise<StartFileRecordingResult>;
+  stopFileRecording(): Promise<StopFileRecordingResult>;
+  listPendingRecordings(): Promise<{ items: PendingRecording[] }>;
+  deleteRecordingFile(opts: { filePath: string }): Promise<void>;
+  uploadRecordingFile(opts: {
+    filePath: string;
+    url: string;
+    contentType: string;
+  }): Promise<{ statusCode: number }>;
   addListener(
     event: "iceCandidate",
     cb: (data: IceCandidatePayload) => void,

@@ -204,6 +204,7 @@ export const handlers = [
         status: "WAITING",
         partnerId: null,
         roomId: null,
+        callId: null,
         confirmDeadline: null,
       },
       status: 200,
@@ -299,5 +300,31 @@ export const handlers = [
       status: 200,
       message: "OK",
     });
+  }),
+
+  // 통화 녹음 업로드 — BE PR #98
+  http.post(
+    apiUrl("/calls/:callId/recordings/presigned-url"),
+    ({ params }) => {
+      const callId = params.callId;
+      return HttpResponse.json({
+        data: {
+          url: `https://lingring-recordings-mock.s3.amazonaws.com/call-recordings/${callId}/1/uuid?X-Amz-Signature=mock`,
+          key: `call-recordings/${callId}/1/uuid`,
+        },
+        status: 200,
+        message: "OK",
+      });
+    },
+  ),
+  http.post(apiUrl("/calls/:callId/recordings"), () => {
+    return HttpResponse.json(
+      {
+        data: { recordingId: 1, status: "UPLOADED" },
+        status: 201,
+        message: "CREATED",
+      },
+      { status: 201 },
+    );
   }),
 ];
