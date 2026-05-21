@@ -16,10 +16,10 @@
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		A1B2C3D4ABCDEF0123456792 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4ABCDEF0123456791 /* PrivacyInfo.xcprivacy */; };
-		B1C2D3E4F5A6B7C8D9E0F1A2 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6B7C8D9E0F1A3 /* MainViewController.swift */; };
-		C1D2E3F4A5B6C7D8E9F0A1B2 /* WebRTCPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1D2E3F4A5B6C7D8E9F0A1B3 /* WebRTCPlugin.swift */; };
 		A1B2C3D4E5F6A7B8C9D0E1A2 /* AudioRecordingADM.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1A3 /* AudioRecordingADM.swift */; };
 		A1B2C3D4E5F6A7B8C9D0E1A4 /* SimpleAudioConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1A5 /* SimpleAudioConverter.swift */; };
+		B1C2D3E4F5A6B7C8D9E0F1A2 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6B7C8D9E0F1A3 /* MainViewController.swift */; };
+		C1D2E3F4A5B6C7D8E9F0A1B2 /* WebRTCPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1D2E3F4A5B6C7D8E9F0A1B3 /* WebRTCPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,10 +34,10 @@
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		A1B2C3D4ABCDEF0123456791 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		B1C2D3E4F5A6B7C8D9E0F1A3 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
-		C1D2E3F4A5B6C7D8E9F0A1B3 /* WebRTCPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRTCPlugin.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A7B8C9D0E1A3 /* AudioRecordingADM.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecordingADM.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A7B8C9D0E1A5 /* SimpleAudioConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleAudioConverter.swift; sourceTree = "<group>"; };
+		B1C2D3E4F5A6B7C8D9E0F1A3 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
+		C1D2E3F4A5B6C7D8E9F0A1B3 /* WebRTCPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRTCPlugin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -317,7 +317,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = 5KY3J7AAJ6;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -325,7 +325,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.01;
+				MARKETING_VERSION = 1.0.2;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = com.lingring.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -345,7 +345,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = 5KY3J7AAJ6;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -353,7 +353,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.01;
+				MARKETING_VERSION = 1.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lingring.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
