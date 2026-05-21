@@ -348,7 +348,11 @@ public class WebRTCPlugin: CAPPlugin, CAPBridgedPlugin {
         request.httpMethod = "PUT"
         request.setValue(contentType, forHTTPHeaderField: "Content-Type")
 
-        let task = URLSession.shared.uploadTask(with: request, fromFile: fileURL) { _, response, error in
+        // 진단 — 보낸 측 정보 (S3 SignatureDoesNotMatch / AccessDenied 추적용)
+        let fileSize = (try? FileManager.default.attributesOfItem(atPath: filePath)[.size] as? Int) ?? -1
+        NSLog("[uploadRecordingFile] PUT host=\(putURL.host ?? "?") path=\(putURL.path) contentType=\(contentType) fileSize=\(fileSize)")
+
+        let task = URLSession.shared.uploadTask(with: request, fromFile: fileURL) { data, response, error in
             if let error = error {
                 call.reject(error.localizedDescription)
                 return
@@ -360,6 +364,9 @@ public class WebRTCPlugin: CAPPlugin, CAPBridgedPlugin {
             if (200..<300).contains(httpResponse.statusCode) {
                 call.resolve(["statusCode": httpResponse.statusCode])
             } else {
+                // S3 는 4xx/5xx 본문에 XML 로 <Code>...</Code><Message>...</Message> 를 담아준다.
+                let body = data.flatMap { String(data: $0, encoding: .utf8) } ?? "(no body)"
+                NSLog("[uploadRecordingFile] HTTP \(httpResponse.statusCode) responseBody=\(body)")
                 call.reject("HTTP \(httpResponse.statusCode)")
             }
         }

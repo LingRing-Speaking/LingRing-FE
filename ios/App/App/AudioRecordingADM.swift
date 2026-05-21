@@ -467,11 +467,28 @@ extension AudioRecordingADM {
         let fileURL = directory.appendingPathComponent("\(callId).m4a")
 
         // engine 의 input 포맷 (sink node 가 연결된 포맷) 으로 파일 생성.
-        // engine 미초기화 시 startRecording 후 sink 생성을 기다리는 retry 패턴은 YAGNI —
-        // useCallRecording 이 connected 진입 시점에 호출하므로 engine 이 이미 running.
-        guard let engine = audioEngine, engine.isRunning else {
+        //
+        // ⚠️ Race 주의: JS 는 peer state="connected" 시점에 이 함수를 부르지만, libwebrtc 의
+        // RTCAudioDeviceModule 이 startRecording (= updateEngine) 을 호출해 engine.start() 가
+        // 끝나는 시점과 미세하게 어긋날 수 있다. 같은 LAN Wi-Fi 에서는 host candidate 로
+        // P2P 직결되어 audio session 셋업이 connected 보다 빨라 race 가 거의 안 보이지만,
+        // 셀룰러처럼 STUN/TURN 경유 환경에선 connected 가 먼저 도달해 engine 이 아직 안 켜진
+        // 상태에서 이 함수가 호출되는 일이 재현된다. 따라서 짧게 polling 한다.
+        let pollIntervalMs = 50
+        let maxWaitMs = 1000
+        var waitedMs = 0
+        while !(audioEngine?.isRunning ?? false) {
+            if waitedMs >= maxWaitMs {
+                throw NSError(domain: "AudioRecordingADM", code: 1,
+                              userInfo: [NSLocalizedDescriptionKey: "engine not running (timeout after \(maxWaitMs)ms)"])
+            }
+            Thread.sleep(forTimeInterval: Double(pollIntervalMs) / 1000.0)
+            waitedMs += pollIntervalMs
+        }
+        guard let engine = audioEngine else {
+            // polling 통과 후에도 nil 인 케이스 — 이론상 발생 안 함. 방어적 가드.
             throw NSError(domain: "AudioRecordingADM", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: "engine not running"])
+                          userInfo: [NSLocalizedDescriptionKey: "engine became nil after wait"])
         }
         let hwFormat = engine.inputNode.outputFormat(forBus: 1)
         // .m4a 컨테이너 + AAC 인코딩으로 저장하려면 AVAudioFile 의 commonFormat 설정 활용.
@@ -495,21 +512,32 @@ extension AudioRecordingADM {
     }
 
     // 녹음 종료. cleanup 시 JS 가 호출. 파일 finalize + 메타 반환.
+    //
+    // ⚠️ AVAudioFile 의 m4a 컨테이너 finalize (moov atom 작성, AAC encoder flush) 는 deinit
+    // 시점에 일어난다. 따라서 strong reference 가 살아있는 동안 attributesOfItem 으로 size 를
+    // 재면 finalize 이전 값을 받게 되고, 그 값을 BE 의 presigned URL ContentLength 시그니처와
+    // 비교하면 어긋나 S3 가 SignatureDoesNotMatch (HTTP 403) 로 거부한다.
+    //
+    // → file 의 모든 strong reference 가 release 된 *후* size 를 잰다. 구체적으로:
+    //   1) closure scope 안에서 file 을 캡쳐해 duration 만 미리 계산
+    //   2) closure 끝나는 순간 local `file` 변수 release → ARC deinit → finalize 완료
+    //   3) closure return 후 size 를 읽으면 정확한 최종 byte 수
     func stopFileRecording() -> RecordingResult.Stopped? {
-        let stopped: (URL, AVAudioFile)? = queue.sync {
+        let stopped: (URL, Int64)? = queue.sync {
             guard let url = self.recordingFileURL, let file = self.recordingFile else {
                 return nil
             }
+            let durationMs = Int64(Double(file.length) / file.processingFormat.sampleRate * 1000)
             self.recordingFile = nil
             self.recordingFileURL = nil
-            return (url, file)
+            return (url, durationMs)
+            // closure 종료 → local `file` 의 last strong reference 해제 → AVAudioFile deinit
+            // → m4a moov atom 작성 + 파일 close.
         }
-        guard let (url, file) = stopped else { return nil }
+        guard let (url, durationMs) = stopped else { return nil }
 
-        // AVAudioFile 는 자동 finalize. 여기서는 메타 계산만.
         let attrs = (try? FileManager.default.attributesOfItem(atPath: url.path)) ?? [:]
         let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
-        let durationMs = Int64(Double(file.length) / file.processingFormat.sampleRate * 1000)
         NSLog("[AudioRecordingADM] file recording stopped: \(url.lastPathComponent) size=\(size) durationMs=\(durationMs)")
         return RecordingResult.Stopped(filePath: url.path, sizeBytes: size, durationMs: durationMs)
     }
