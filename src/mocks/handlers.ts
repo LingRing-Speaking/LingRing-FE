@@ -1,9 +1,28 @@
 import { http, HttpResponse } from "msw";
 import { env } from "@/config/env";
-import type { CallHistoryItem } from "@/domains/callHistory/types";
+import type {
+  AnalysisStatus,
+  CallHistoryItem,
+} from "@/domains/callHistory/types";
 
 const API_PREFIX = "/api/v1";
 const apiUrl = (path: string) => `${env.apiBaseUrl}${API_PREFIX}${path}`;
+
+// 분석 트리거가 호출된 callId 의 시작 시각을 보관. 시드 데이터에는 분석중 상태가
+// 없고, 사용자가 "분석하기" 버튼을 눌러야 IN_PROGRESS 가 켜진다. 6초가 지나면
+// 자동으로 COMPLETED 로 간주되어 폴링 + 카드 양쪽이 함께 갱신된다.
+const ANALYSIS_DURATION_MS = 6000;
+const triggeredAnalysisByCallId = new Map<number, { triggeredAt: number }>();
+
+function effectiveAnalysisStatus(
+  callId: number,
+  seedStatus: AnalysisStatus,
+): AnalysisStatus {
+  const entry = triggeredAnalysisByCallId.get(callId);
+  if (!entry) return seedStatus;
+  const elapsed = Date.now() - entry.triggeredAt;
+  return elapsed < ANALYSIS_DURATION_MS ? "IN_PROGRESS" : "COMPLETED";
+}
 
 const FAKE_PARTNER_NAMES = [
   "Jenson",
@@ -40,12 +59,15 @@ function generateFakeCalls(n: number): CallHistoryItem[] {
             name: FAKE_PARTNER_NAMES[i % FAKE_PARTNER_NAMES.length],
             profileImage: null,
           };
+    // 시드 분포: 3건 중 1건은 NONE("분석하기"), 나머지는 COMPLETED("분석 보기").
+    // IN_PROGRESS 시연은 사용자가 직접 분석하기를 눌러야만 시작된다.
+    const seedStatus: AnalysisStatus = i % 3 === 0 ? "NONE" : "COMPLETED";
     return {
       id: i + 1,
       partner,
       startedAt,
       durationSec,
-      analyzed: i % 3 !== 0,
+      analysisStatus: seedStatus,
     };
   });
 }
@@ -248,10 +270,36 @@ export const handlers = [
     const url = new URL(request.url);
     const page = Number(url.searchParams.get("page") ?? 0);
     const size = Number(url.searchParams.get("size") ?? 20);
-    const all = generateFakeCalls(50);
+    const all = generateFakeCalls(50).map((c) => ({
+      ...c,
+      analysisStatus: effectiveAnalysisStatus(c.id, c.analysisStatus),
+    }));
     const slice = all.slice(page * size, page * size + size);
     return HttpResponse.json({
       data: { items: slice, hasNext: (page + 1) * size < all.length },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
+  http.post(apiUrl("/calls/:callId/analyze"), ({ params }) => {
+    const callId = Number(params.callId);
+    if (!triggeredAnalysisByCallId.has(callId)) {
+      triggeredAnalysisByCallId.set(callId, { triggeredAt: Date.now() });
+    }
+    return HttpResponse.json({
+      data: { analysisStatus: effectiveAnalysisStatus(callId, "NONE") },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
+  http.get(apiUrl("/calls/:callId/analysis"), ({ params }) => {
+    const callId = Number(params.callId);
+    const status = effectiveAnalysisStatus(callId, "NONE");
+    return HttpResponse.json({
+      // result 는 분석 결과 페이지 작업(별도 이슈)에서 채움. 이번 PR 에서는 status 만 소비.
+      data: { analysisStatus: status, result: null },
       status: 200,
       message: "OK",
     });

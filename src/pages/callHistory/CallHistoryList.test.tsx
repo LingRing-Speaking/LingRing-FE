@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
@@ -16,19 +17,24 @@ function makeCall(
     partner: { id: 1000 + id, name: `P${id}`, profileImage: null },
     startedAt: startedAt.toISOString(),
     durationSec: 60 + id,
-    analyzed: false,
+    analysisStatus: "NONE",
     ...overrides,
   };
 }
 
 function renderWithRouter(ui: React.ReactNode) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   return render(
-    <MemoryRouter initialEntries={["/history"]}>
-      <Routes>
-        <Route path="/history" element={ui} />
-        <Route path="/calls/:callId/analysis" element={<div>analysis</div>} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={["/history"]}>
+        <Routes>
+          <Route path="/history" element={ui} />
+          <Route path="/calls/:callId/analysis" element={<div>analysis</div>} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
