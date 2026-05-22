@@ -6,13 +6,13 @@ export type CallPartner = {
 
 /**
  * 통화 분석 상태.
- * - NONE: 아직 분석 요청 안 함 → 카드에 "분석하기" 노출
  * - IN_PROGRESS: 서버 분석 진행 중 → "분석중" + 비활성
  * - COMPLETED: 분석 완료 → "분석 보기"
  *
- * BE 협의 스펙(`docs/analysis/be-api-spec.md`) 기준으로 FE 가 선반영했다.
+ * 분석을 아직 요청하지 않은 통화는 `analysisStatus` 가 `null` 이며, UI 는
+ * default 로 "분석하기" 버튼을 노출한다.
  */
-export type AnalysisStatus = "NONE" | "IN_PROGRESS" | "COMPLETED";
+export type AnalysisStatus = "IN_PROGRESS" | "COMPLETED";
 
 export type CallHistoryItem = {
   id: number;
@@ -23,7 +23,7 @@ export type CallHistoryItem = {
   partner: CallPartner | null;
   startedAt: string; // ISO 8601 (예: "2026-04-29T19:30:00+09:00")
   durationSec: number;
-  analysisStatus: AnalysisStatus;
+  analysisStatus: AnalysisStatus | null;
 };
 
 export type CallHistoryList = {

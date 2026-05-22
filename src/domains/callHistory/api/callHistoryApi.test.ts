@@ -11,8 +11,10 @@ describe("callHistoryApi", () => {
       partner: { id: expect.any(Number), name: expect.any(String) },
       startedAt: expect.any(String),
       durationSec: expect.any(Number),
-      analysisStatus: expect.stringMatching(/^(NONE|IN_PROGRESS|COMPLETED)$/),
     });
+    expect([null, "IN_PROGRESS", "COMPLETED"]).toContain(
+      result.items[0]?.analysisStatus,
+    );
     expect(typeof result.hasNext).toBe("boolean");
   });
 

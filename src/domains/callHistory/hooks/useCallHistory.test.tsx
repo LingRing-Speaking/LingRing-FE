@@ -51,7 +51,7 @@ describe("useCallHistory", () => {
                 partner: { id: 1000 + page, name: `P${page}`, profileImage: null },
                 startedAt: "2026-04-29T12:00:00+09:00",
                 durationSec: 120,
-                analysisStatus: "NONE",
+                analysisStatus: null,
               },
             ],
             hasNext: page === 0,

@@ -43,7 +43,7 @@ const baseCall: CallHistoryItem = {
   partner: { id: 1042, name: "Jenson", profileImage: null },
   startedAt: new Date(2026, 3, 29, 19, 30, 0).toISOString(),
   durationSec: 323,
-  analysisStatus: "NONE",
+  analysisStatus: null,
 };
 
 describe("CallCard", () => {
@@ -74,8 +74,8 @@ describe("CallCard", () => {
   });
 
   describe("분석 버튼 (analysisStatus)", () => {
-    it("NONE 이면 '분석하기' 버튼이 노출된다", () => {
-      renderCard({ ...baseCall, analysisStatus: "NONE" });
+    it("analysisStatus 가 null 이면 '분석하기' 버튼이 노출된다", () => {
+      renderCard({ ...baseCall, analysisStatus: null });
       expect(
         screen.getByRole("button", { name: "분석하기" }),
       ).toBeInTheDocument();
@@ -97,7 +97,7 @@ describe("CallCard", () => {
     });
 
     it("'분석하기' 클릭 시 ['calls'] 캐시가 즉시 IN_PROGRESS 로 바뀐다 (optimistic)", async () => {
-      const { queryClient } = renderCard({ ...baseCall, analysisStatus: "NONE" });
+      const { queryClient } = renderCard({ ...baseCall, analysisStatus: null });
       await userEvent.click(screen.getByRole("button", { name: "분석하기" }));
 
       await waitFor(() => {
