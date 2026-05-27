@@ -1,56 +1,22 @@
-import {
-  useQuery,
-  useQueryClient,
-  type InfiniteData,
-} from "@tanstack/react-query";
-import {
-  fetchCallAnalysisStatus,
-  type CallAnalysisResponse,
-} from "../api/callHistoryApi";
-import type { CallHistoryList } from "../types";
+import { useQuery } from "@tanstack/react-query";
+import { fetchAnalysisStatus } from "../api/callHistoryApi";
+import type { AnalysisStatus } from "../types";
 
-const POLL_INTERVAL_MS = 5000;
-const CALLS_QUERY_KEY = ["calls"] as const;
-const callAnalysisStatusKey = (callId: number) =>
-  ["callAnalysisStatus", callId] as const;
+const POLL_INTERVAL_MS = 3000;
 
 /**
- * 분석중인 통화의 상태를 일정 주기로 폴링하다 COMPLETED 가 되는 순간
- * `["calls"]` 캐시도 함께 COMPLETED 로 갱신한다(카드 라벨 자동 전환).
- * `enabled=false` 이면 폴링하지 않으므로 IN_PROGRESS 인 카드에서만 켜야 한다.
+ * 결과 화면이 마운트되어 있는 동안 분석 상태를 3 초마다 폴링한다.
+ * COMPLETED 또는 FAILED 가 떨어지면 그 자리에서 멈춘다.
  */
-export function usePollAnalysisStatus(callId: number, enabled: boolean) {
-  const queryClient = useQueryClient();
-
-  return useQuery<CallAnalysisResponse>({
-    queryKey: callAnalysisStatusKey(callId),
-    queryFn: async () => {
-      const data = await fetchCallAnalysisStatus(callId);
-      if (data.analysisStatus === "COMPLETED") {
-        queryClient.setQueryData<InfiniteData<CallHistoryList, number>>(
-          CALLS_QUERY_KEY,
-          (old) => {
-            if (!old) return old;
-            return {
-              ...old,
-              pages: old.pages.map((page) => ({
-                ...page,
-                items: page.items.map((item) =>
-                  item.id === callId
-                    ? { ...item, analysisStatus: "COMPLETED" as const }
-                    : item,
-                ),
-              })),
-            };
-          },
-        );
-      }
-      return data;
-    },
-    enabled,
-    refetchInterval: (query) =>
-      query.state.data?.analysisStatus === "COMPLETED"
+export function usePollAnalysisStatus(analysisId: number) {
+  return useQuery<{ status: AnalysisStatus }>({
+    queryKey: ["analysisStatus", analysisId],
+    queryFn: () => fetchAnalysisStatus(analysisId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === "COMPLETED" || status === "FAILED"
         ? false
-        : POLL_INTERVAL_MS,
+        : POLL_INTERVAL_MS;
+    },
   });
 }

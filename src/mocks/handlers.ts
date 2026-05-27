@@ -1,6 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { env } from "@/config/env";
 import type {
+  AnalysisResult,
   AnalysisStatus,
   CallHistoryItem,
 } from "@/domains/callHistory/types";
@@ -8,20 +9,26 @@ import type {
 const API_PREFIX = "/api/v1";
 const apiUrl = (path: string) => `${env.apiBaseUrl}${API_PREFIX}${path}`;
 
-// 분석 트리거가 호출된 callId 의 시작 시각을 보관. 시드 데이터에는 분석중 상태가
-// 없고, 사용자가 "분석하기" 버튼을 눌러야 IN_PROGRESS 가 켜진다. 6초가 지나면
-// 자동으로 COMPLETED 로 간주되어 폴링 + 카드 양쪽이 함께 갱신된다.
-const ANALYSIS_DURATION_MS = 6000;
-const triggeredAnalysisByCallId = new Map<number, { triggeredAt: number }>();
+// 사용자가 "분석하기" 를 누르면 POST 가 호출되고 그 callId 에 대한 analysisId 가
+// 발급되며, 발급 시각이 기록된다. PROCESSING_DURATION_MS 동안은 PROCESSING 으로
+// 응답되고 그 이후 COMPLETED 로 전환된다. 시드된 (이미 옛날에 끝난) 분석은
+// triggeredAt 이 없으므로 즉시 COMPLETED 로 본다.
+const PROCESSING_DURATION_MS = 6000;
+const analysisIdByCallId = new Map<number, number>();
+const triggeredAtByAnalysisId = new Map<number, number>();
+let nextAnalysisId = 1000;
 
-function effectiveAnalysisStatus(
-  callId: number,
-  seedStatus: AnalysisStatus | null,
-): AnalysisStatus | null {
-  const entry = triggeredAnalysisByCallId.get(callId);
-  if (!entry) return seedStatus;
-  const elapsed = Date.now() - entry.triggeredAt;
-  return elapsed < ANALYSIS_DURATION_MS ? "IN_PROGRESS" : "COMPLETED";
+// 분석 row 가 존재하는 경우의 상태. READY 는 row 자체가 없는 상태라 여기서 다루지 않음.
+function statusForAnalysisId(
+  analysisId: number,
+): "PROCESSING" | "COMPLETED" | "FAILED" {
+  // FAILED 시뮬: 끝자리 9 인 시드 analysisId 는 항상 FAILED 응답
+  if (analysisId % 10 === 9) return "FAILED";
+  const triggeredAt = triggeredAtByAnalysisId.get(analysisId);
+  if (triggeredAt == null) return "COMPLETED";
+  return Date.now() - triggeredAt < PROCESSING_DURATION_MS
+    ? "PROCESSING"
+    : "COMPLETED";
 }
 
 const FAKE_PARTNER_NAMES = [
@@ -46,10 +53,9 @@ const FAKE_PARTNER_NAMES = [
 function generateFakeCalls(n: number): CallHistoryItem[] {
   const now = Date.now();
   return Array.from({ length: n }, (_, i) => {
-    // 비선형 분포: 처음 몇 개는 오늘/이번 주에 몰리고, 뒤로 갈수록 멀어진다.
     const hoursAgo = Math.round((i * i) / 2 + i * 2);
     const startedAt = new Date(now - hoursAgo * 3600_000).toISOString();
-    const durationSec = 60 + ((i * 37) % 540); // 1:00 ~ 9:59
+    const durationSec = 60 + ((i * 37) % 540);
     // 7번째마다 partner=null (탈퇴한 사용자) → "알 수 없음" 시연
     const partner =
       i % 7 === 6
@@ -59,18 +65,64 @@ function generateFakeCalls(n: number): CallHistoryItem[] {
             name: FAKE_PARTNER_NAMES[i % FAKE_PARTNER_NAMES.length],
             profileImage: null,
           };
-    // 시드 분포: 3건 중 1건은 null("분석하기"), 나머지는 COMPLETED("분석 보기").
-    // IN_PROGRESS 시연은 사용자가 직접 분석하기를 눌러야만 시작된다.
-    const seedStatus: AnalysisStatus | null = i % 3 === 0 ? null : "COMPLETED";
+    const callId = i + 1;
+    // 시드 분포:
+    //   i % 3 === 0 → 분석 row 없음 → READY ("분석하기")
+    //   i % 9 === 4 → 끝자리 9 인 analysisId → FAILED 시뮬 ("재분석")
+    //   그 외       → 일반 analysisId → COMPLETED 시뮬 ("분석 완료")
+    let seedAnalysisId: number | null;
+    if (i % 3 === 0) {
+      seedAnalysisId = null;
+    } else if (i % 9 === 4) {
+      seedAnalysisId = 10009 + i;
+    } else {
+      seedAnalysisId = 10000 + i;
+    }
+    if (seedAnalysisId != null) {
+      analysisIdByCallId.set(callId, seedAnalysisId);
+    }
+    // 사용자가 "분석하기" 를 눌러 동적으로 발급된 analysisId 도 함께 반영.
+    const currentAnalysisId = analysisIdByCallId.get(callId) ?? null;
+    const analysisStatus: AnalysisStatus =
+      currentAnalysisId == null ? "READY" : statusForAnalysisId(currentAnalysisId);
     return {
-      id: i + 1,
+      id: callId,
       partner,
       startedAt,
       durationSec,
-      analysisStatus: seedStatus,
+      analysisId: currentAnalysisId,
+      analysisStatus,
     };
   });
 }
+
+const SAMPLE_RESULT_BASE: Omit<AnalysisResult, "callId" | "userId"> = {
+  status: "COMPLETED",
+  modelIdentifier: "gpt-4o-mini",
+  positives: [
+    {
+      sentence: "I really enjoyed talking with you today.",
+      goodPart: "really enjoyed talking with",
+      koMeaning: "오늘 너와 이야기해서 정말 즐거웠어.",
+    },
+  ],
+  mistakes: [
+    {
+      tag: "GRAMMAR",
+      wrong: "I goed to school yesterday.",
+      improved: "I went to school yesterday.",
+      reason: "go 의 과거형은 went 입니다.",
+      koMeaning: "나는 어제 학교에 갔다.",
+    },
+    {
+      tag: "COLLOCATION",
+      wrong: "make a homework",
+      improved: "do my homework",
+      reason: "homework 는 do 와 결합합니다.",
+      koMeaning: "숙제를 하다",
+    },
+  ],
+};
 
 export const handlers = [
   http.get(apiUrl("/me"), () => {
@@ -270,10 +322,7 @@ export const handlers = [
     const url = new URL(request.url);
     const page = Number(url.searchParams.get("page") ?? 0);
     const size = Number(url.searchParams.get("size") ?? 20);
-    const all = generateFakeCalls(50).map((c) => ({
-      ...c,
-      analysisStatus: effectiveAnalysisStatus(c.id, c.analysisStatus),
-    }));
+    const all = generateFakeCalls(50);
     const slice = all.slice(page * size, page * size + size);
     return HttpResponse.json({
       data: { items: slice, hasNext: (page + 1) * size < all.length },
@@ -284,14 +333,20 @@ export const handlers = [
 
   http.post(apiUrl("/calls/:callId/analysis"), ({ params }) => {
     const callId = Number(params.callId);
-    if (!triggeredAnalysisByCallId.has(callId)) {
-      triggeredAnalysisByCallId.set(callId, { triggeredAt: Date.now() });
+    let analysisId = analysisIdByCallId.get(callId);
+    // FAILED 인 기존 분석은 재시도 — 새 analysisId 발급. PROCESSING/COMPLETED 는
+    // 멱등으로 같은 ID 그대로 반환.
+    if (analysisId != null && statusForAnalysisId(analysisId) === "FAILED") {
+      analysisId = undefined;
     }
-    const feStatus = effectiveAnalysisStatus(callId, null);
-    const beStatus = feStatus === "COMPLETED" ? "COMPLETED" : "PROCESSING";
+    if (analysisId == null) {
+      analysisId = nextAnalysisId++;
+      analysisIdByCallId.set(callId, analysisId);
+      triggeredAtByAnalysisId.set(analysisId, Date.now());
+    }
     return HttpResponse.json(
       {
-        data: { status: beStatus },
+        data: { analysisId },
         status: 202,
         message: "ACCEPTED",
       },
@@ -299,12 +354,42 @@ export const handlers = [
     );
   }),
 
-  http.get(apiUrl("/calls/:callId/analysis"), ({ params }) => {
-    const callId = Number(params.callId);
-    const status = effectiveAnalysisStatus(callId, null);
+  http.get(apiUrl("/analyses/:analysisId/status"), ({ params }) => {
+    const analysisId = Number(params.analysisId);
     return HttpResponse.json({
-      // result 는 분석 결과 페이지 작업(별도 이슈)에서 채움. 이번 PR 에서는 status 만 소비.
-      data: { analysisStatus: status, result: null },
+      data: { status: statusForAnalysisId(analysisId) },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
+  http.get(apiUrl("/analyses/:analysisId"), ({ params }) => {
+    const analysisId = Number(params.analysisId);
+    const status = statusForAnalysisId(analysisId);
+    // callId 역추적 — 결과 응답 metadata 용. 매칭 안 되면 0.
+    let callId = 0;
+    for (const [cId, aId] of analysisIdByCallId.entries()) {
+      if (aId === analysisId) {
+        callId = cId;
+        break;
+      }
+    }
+    if (status === "COMPLETED") {
+      return HttpResponse.json({
+        data: { ...SAMPLE_RESULT_BASE, callId, userId: 1 },
+        status: 200,
+        message: "OK",
+      });
+    }
+    return HttpResponse.json({
+      data: {
+        callId,
+        userId: 1,
+        status,
+        modelIdentifier: null,
+        mistakes: [],
+        positives: [],
+      },
       status: 200,
       message: "OK",
     });

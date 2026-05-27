@@ -3,6 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
+import { env } from "@/config/env";
 import { server } from "@/mocks/server";
 import { useRequestAnalysis } from "./useRequestAnalysis";
 import type { CallHistoryList } from "../types";
@@ -20,22 +21,32 @@ function seedCallsCache(queryClient: QueryClient, items: CallHistoryList["items"
   });
 }
 
-const baseItem = {
+const baseItem: CallHistoryList["items"][number] = {
   id: 42,
   partner: { id: 1042, name: "Jenson", profileImage: null },
   startedAt: "2026-05-21T19:00:00+09:00",
   durationSec: 200,
-  analysisStatus: null,
+  analysisId: null,
+  analysisStatus: "READY",
 };
 
 describe("useRequestAnalysis", () => {
-  it("mutate 호출 즉시 ['calls'] 캐시의 해당 카드만 IN_PROGRESS 로 바뀐다 (optimistic)", async () => {
+  it("응답 성공 시 ['calls'] 캐시의 해당 카드만 analysisId + PROCESSING 으로 갱신된다", async () => {
+    server.use(
+      http.post(`${env.apiBaseUrl}/api/v1/calls/:callId/analysis`, () =>
+        HttpResponse.json(
+          { data: { analysisId: 777 }, status: 202, message: "ACCEPTED" },
+          { status: 202 },
+        ),
+      ),
+    );
+
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
     seedCallsCache(queryClient, [
       baseItem,
-      { ...baseItem, id: 43, analysisStatus: "COMPLETED" },
+      { ...baseItem, id: 43, analysisId: 500, analysisStatus: "COMPLETED" },
     ]);
 
     const { result } = renderHook(() => useRequestAnalysis(), {
@@ -49,15 +60,19 @@ describe("useRequestAnalysis", () => {
         pages: { items: CallHistoryList["items"] }[];
       }>(["calls"]);
       const items = cache?.pages[0]?.items ?? [];
-      expect(items.find((i) => i.id === 42)?.analysisStatus).toBe("IN_PROGRESS");
-      // 다른 카드는 영향 없음
-      expect(items.find((i) => i.id === 43)?.analysisStatus).toBe("COMPLETED");
+      const target = items.find((i) => i.id === 42);
+      const other = items.find((i) => i.id === 43);
+      expect(target?.analysisId).toBe(777);
+      expect(target?.analysisStatus).toBe("PROCESSING");
+      // 다른 카드는 손대지 않음.
+      expect(other?.analysisId).toBe(500);
+      expect(other?.analysisStatus).toBe("COMPLETED");
     });
   });
 
-  it("서버가 에러를 반환하면 캐시가 이전 상태로 롤백된다", async () => {
+  it("서버 에러 시 캐시는 그대로 유지된다 (현재 onError 동작은 no-op)", async () => {
     server.use(
-      http.post("http://localhost:3000/api/v1/calls/:callId/analysis", () =>
+      http.post(`${env.apiBaseUrl}/api/v1/calls/:callId/analysis`, () =>
         HttpResponse.json(
           { data: null, status: 500, message: "INTERNAL" },
           { status: 500 },
@@ -80,6 +95,7 @@ describe("useRequestAnalysis", () => {
     const cache = queryClient.getQueryData<{
       pages: { items: CallHistoryList["items"] }[];
     }>(["calls"]);
-    expect(cache?.pages[0]?.items[0]?.analysisStatus).toBeNull();
+    expect(cache?.pages[0]?.items[0]?.analysisId).toBeNull();
+    expect(cache?.pages[0]?.items[0]?.analysisStatus).toBe("READY");
   });
 });

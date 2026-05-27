@@ -15,6 +15,7 @@ import { SplashPage } from "@/pages/splash/SplashPage";
 // import { UserExpressionsPage } from "@/pages/userExpressions/UserExpressionsPage";
 import { BlockListPage } from "@/pages/blockList/BlockListPage";
 import { CallHistoryPage } from "@/pages/callHistory/CallHistoryPage";
+import { AnalysisResultPage } from "@/pages/analysis/AnalysisResultPage";
 import { SettingsPage } from "@/pages/settings/SettingsPage";
 import { WithdrawPage } from "@/pages/withdraw/WithdrawPage";
 import { OnboardingTermsPage } from "@/pages/onboarding/OnboardingTermsPage";
@@ -56,6 +57,7 @@ export default function App() {
               <Route path="/mypage" element={<MyPagePage />} />
               {/* <Route path="/expressions" element={<UserExpressionsPage />} /> — 미출시 */}
               <Route path="/history" element={<CallHistoryPage />} />
+              <Route path="/analyses/:analysisId" element={<AnalysisResultPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/settings/blocks" element={<BlockListPage />} />
               <Route path="/settings/withdraw" element={<WithdrawPage />} />

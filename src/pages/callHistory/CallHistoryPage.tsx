@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { BlockConfirmModal } from "@/domains/block/components/BlockConfirmModal";
 import { useCallHistory } from "@/domains/callHistory/hooks/useCallHistory";
+import { usePollProcessingCalls } from "@/domains/callHistory/hooks/usePollProcessingCalls";
 import { ReportModal } from "@/domains/report/components/ReportModal";
 import { PartnerProfileModal } from "@/domains/user/components/PartnerProfileModal";
 import { BottomTabBar } from "@/components/BottomTabBar";
@@ -35,6 +36,8 @@ export function CallHistoryPage() {
 
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
   const isEmpty = items.length === 0;
+
+  usePollProcessingCalls(items);
 
   return (
     <PageShell>

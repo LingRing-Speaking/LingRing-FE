@@ -1,8 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
 import type { ReactNode } from "react";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
+import { env } from "@/config/env";
+import { server } from "@/mocks/server";
 import type { CallHistoryItem } from "@/domains/callHistory/types";
 import { CallCard } from "./CallCard";
 
@@ -12,18 +16,29 @@ function makeQueryClient() {
   });
 }
 
+function LocationDisplay() {
+  const location = useLocation();
+  return <div data-testid="location-pathname">{location.pathname}</div>;
+}
+
 function renderCard(
   item: CallHistoryItem,
   onPartnerClick: (id: number) => void = () => {},
 ) {
   const queryClient = makeQueryClient();
-  // ['calls'] 캐시를 seed 해두면 optimistic update 의 효과(IN_PROGRESS 전환) 를 검증할 수 있다.
   queryClient.setQueryData(["calls"], {
     pages: [{ items: [item], hasNext: false }],
     pageParams: [0],
   });
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={["/history"]}>
+        <Routes>
+          <Route path="/history" element={children} />
+          <Route path="/analyses/:analysisId" element={<LocationDisplay />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
   );
   return {
     queryClient,
@@ -43,7 +58,8 @@ const baseCall: CallHistoryItem = {
   partner: { id: 1042, name: "Jenson", profileImage: null },
   startedAt: new Date(2026, 3, 29, 19, 30, 0).toISOString(),
   durationSec: 323,
-  analysisStatus: null,
+  analysisId: null,
+  analysisStatus: "READY",
 };
 
 describe("CallCard", () => {
@@ -74,37 +90,106 @@ describe("CallCard", () => {
   });
 
   describe("분석 버튼 (analysisStatus)", () => {
-    it("analysisStatus 가 null 이면 '분석하기' 버튼이 노출된다", () => {
-      renderCard({ ...baseCall, analysisStatus: null });
+    it("READY 면 '분석하기' 버튼이 노출된다", () => {
+      renderCard({ ...baseCall, analysisStatus: "READY", analysisId: null });
       expect(
         screen.getByRole("button", { name: "분석하기" }),
       ).toBeInTheDocument();
     });
 
-    it("IN_PROGRESS 면 '분석중' 버튼 + 스피너가 노출된다", () => {
-      renderCard({ ...baseCall, analysisStatus: "IN_PROGRESS" });
+    it("PROCESSING 이면 '분석중' 버튼(비활성)이 노출된다", () => {
+      renderCard({
+        ...baseCall,
+        analysisStatus: "PROCESSING",
+        analysisId: 100,
+      });
       expect(screen.getByRole("button", { name: "분석중" })).toBeDisabled();
+    });
+
+    it("COMPLETED 면 '분석보기' 버튼이 노출된다", () => {
+      renderCard({
+        ...baseCall,
+        analysisStatus: "COMPLETED",
+        analysisId: 100,
+      });
       expect(
-        screen.getByRole("status", { name: "분석 진행 중" }),
+        screen.getByRole("button", { name: "분석보기" }),
       ).toBeInTheDocument();
     });
 
-    it("COMPLETED 면 '분석 보기' 버튼이 노출된다", () => {
-      renderCard({ ...baseCall, analysisStatus: "COMPLETED" });
+    it("FAILED 면 '재분석' 버튼이 노출된다", () => {
+      renderCard({ ...baseCall, analysisStatus: "FAILED", analysisId: 100 });
       expect(
-        screen.getByRole("button", { name: "분석 보기" }),
+        screen.getByRole("button", { name: "재분석" }),
       ).toBeInTheDocument();
     });
 
-    it("'분석하기' 클릭 시 ['calls'] 캐시가 즉시 IN_PROGRESS 로 바뀐다 (optimistic)", async () => {
-      const { queryClient } = renderCard({ ...baseCall, analysisStatus: null });
+    it("'분석하기' 클릭 시 ['calls'] 캐시가 응답의 analysisId + PROCESSING 으로 갱신되며, 결과 페이지로 이동하지 않는다", async () => {
+      server.use(
+        http.post(`${env.apiBaseUrl}/api/v1/calls/:callId/analysis`, () =>
+          HttpResponse.json(
+            { data: { analysisId: 777 }, status: 202, message: "ACCEPTED" },
+            { status: 202 },
+          ),
+        ),
+      );
+
+      const { queryClient } = renderCard({
+        ...baseCall,
+        analysisStatus: "READY",
+        analysisId: null,
+      });
       await userEvent.click(screen.getByRole("button", { name: "분석하기" }));
 
       await waitFor(() => {
         const cache = queryClient.getQueryData<{
           pages: { items: CallHistoryItem[] }[];
         }>(["calls"]);
-        expect(cache?.pages[0]?.items[0]?.analysisStatus).toBe("IN_PROGRESS");
+        expect(cache?.pages[0]?.items[0]?.analysisId).toBe(777);
+        expect(cache?.pages[0]?.items[0]?.analysisStatus).toBe("PROCESSING");
+      });
+
+      // 분석 흐름은 카드에 머무름 — 결과 페이지로 이동하지 않아야 한다.
+      expect(screen.queryByTestId("location-pathname")).not.toBeInTheDocument();
+    });
+
+    it("'분석보기' 클릭 시 /analyses/{analysisId} 로 이동한다", async () => {
+      renderCard({
+        ...baseCall,
+        analysisStatus: "COMPLETED",
+        analysisId: 100,
+      });
+      await userEvent.click(screen.getByRole("button", { name: "분석보기" }));
+      await waitFor(() => {
+        expect(screen.getByTestId("location-pathname")).toHaveTextContent(
+          "/analyses/100",
+        );
+      });
+    });
+
+    it("'재분석' 클릭 시 분석을 다시 트리거하고 PROCESSING 으로 캐시가 갱신된다", async () => {
+      server.use(
+        http.post(`${env.apiBaseUrl}/api/v1/calls/:callId/analysis`, () =>
+          HttpResponse.json(
+            { data: { analysisId: 888 }, status: 202, message: "ACCEPTED" },
+            { status: 202 },
+          ),
+        ),
+      );
+
+      const { queryClient } = renderCard({
+        ...baseCall,
+        analysisStatus: "FAILED",
+        analysisId: 100,
+      });
+      await userEvent.click(screen.getByRole("button", { name: "재분석" }));
+
+      await waitFor(() => {
+        const cache = queryClient.getQueryData<{
+          pages: { items: CallHistoryItem[] }[];
+        }>(["calls"]);
+        expect(cache?.pages[0]?.items[0]?.analysisId).toBe(888);
+        expect(cache?.pages[0]?.items[0]?.analysisStatus).toBe("PROCESSING");
       });
     });
   });
@@ -116,7 +201,6 @@ describe("CallCard", () => {
       renderCard(unknownCall);
       expect(screen.getByText("알 수 없음")).toBeInTheDocument();
       expect(screen.getByText("?")).toBeInTheDocument();
-      // Avatar 컴포넌트의 alt 가 없어야 함 (Avatar 자체가 렌더되지 않음)
       expect(screen.queryByAltText("상대 프로필 이미지")).not.toBeInTheDocument();
     });
 

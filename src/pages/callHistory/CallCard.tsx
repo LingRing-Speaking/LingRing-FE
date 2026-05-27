@@ -1,6 +1,6 @@
+import { useNavigate } from "react-router-dom";
 import { Avatar } from "@/components/Avatar";
 import { useRequestAnalysis } from "@/domains/callHistory/hooks/useRequestAnalysis";
-import { usePollAnalysisStatus } from "@/domains/callHistory/hooks/usePollAnalysisStatus";
 import type { CallHistoryItem } from "@/domains/callHistory/types";
 import { AnalysisButton } from "./AnalysisButton";
 import { formatCallMeta } from "./timeBucket";
@@ -15,15 +15,26 @@ type Props = {
 
 export function CallCard({ call, now, onPartnerClick }: Props) {
   const meta = formatCallMeta(new Date(call.startedAt), call.durationSec, now);
-  const { partner, analysisStatus } = call;
+  const { partner, analysisId, analysisStatus } = call;
   const isUnknown = partner === null;
 
+  const navigate = useNavigate();
   const { mutate: triggerAnalysis } = useRequestAnalysis();
-  usePollAnalysisStatus(call.id, analysisStatus === "IN_PROGRESS");
 
   const handleBodyClick = () => {
     if (!partner) return;
     onPartnerClick(partner.id);
+  };
+
+  const handleTriggerAnalysis = () => {
+    triggerAnalysis(call.id);
+  };
+
+  const handleViewResult = () => {
+    // analysisStatus === "COMPLETED" 일 때만 onViewResult 가 호출되므로
+    // analysisId 는 항상 number. 안전망으로 null guard.
+    if (analysisId === null) return;
+    navigate(`/analyses/${analysisId}`);
   };
 
   return (
@@ -64,8 +75,9 @@ export function CallCard({ call, now, onPartnerClick }: Props) {
         </div>
       </button>
       <AnalysisButton
-        status={analysisStatus}
-        onTriggerAnalysis={() => triggerAnalysis(call.id)}
+        analysisStatus={analysisStatus}
+        onTriggerAnalysis={handleTriggerAnalysis}
+        onViewResult={handleViewResult}
       />
     </div>
   );

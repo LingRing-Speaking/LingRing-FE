@@ -17,7 +17,8 @@ function makeCall(
     partner: { id: 1000 + id, name: `P${id}`, profileImage: null },
     startedAt: startedAt.toISOString(),
     durationSec: 60 + id,
-    analysisStatus: null,
+    analysisId: null,
+    analysisStatus: "READY",
     ...overrides,
   };
 }
