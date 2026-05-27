@@ -1,3 +1,4 @@
+import { ApiError } from "@/lib/http";
 import { NativeWebRTC, isIosNative } from "@/lib/native/webrtcPlugin";
 import { uploadRecording } from "./recordingUploader";
 
@@ -41,14 +42,16 @@ export async function recoveryRun(): Promise<void> {
       });
     } catch (e) {
       // 401/403 류면 파일 삭제, 그 외는 보존
-      const status = (e as { status?: number } | undefined)?.status;
-      if (status === 401 || status === 403) {
+      const isRecoveryImpossible =
+        e instanceof ApiError && (e.status === 401 || e.status === 403);
+      if (isRecoveryImpossible) {
         try {
           await NativeWebRTC.deleteRecordingFile({ filePath: item.filePath });
         } catch {
         // 삭제 실패 무시 — 다음 startup 재시도
       }
       }
+      const status = e instanceof ApiError ? e.status : undefined;
       console.warn("[recordingRecovery] upload failed", { callId: item.callId, status }, e);
     }
   }
