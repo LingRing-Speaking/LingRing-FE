@@ -257,6 +257,18 @@ describe("createPeerSession (native libwebrtc path)", () => {
     expect(NativeWebRTC.close).toHaveBeenCalledOnce();
   });
 
+  it("close() 후 setMicEnabled 는 무시된다", async () => {
+    const session = createPeerSession(noopCallbacks);
+    await flushMicrotasks();
+
+    session.close();
+    vi.mocked(NativeWebRTC.setMicEnabled).mockClear();
+
+    session.setMicEnabled(false);
+
+    expect(NativeWebRTC.setMicEnabled).not.toHaveBeenCalled();
+  });
+
   it("close() 는 멱등 (두 번 호출해도 안전)", async () => {
     const session = createPeerSession(noopCallbacks);
     await flushMicrotasks();
