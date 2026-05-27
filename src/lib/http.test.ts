@@ -49,10 +49,14 @@ describe("httpGet", () => {
     });
   });
 
-  it("네트워크 실패 시 에러를 throw 한다", async () => {
+  it("네트워크 실패 시 status=0 인 ApiError 를 throw 한다", async () => {
     server.use(http.get("http://localhost:3000/api/v1/boom", () => HttpResponse.error()));
 
-    await expect(httpGet("/boom")).rejects.toThrow();
+    await expect(httpGet("/boom")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 0,
+      message: "Network request failed",
+    });
   });
 
   it("ApiError 는 Error 의 instanceof 이다", () => {
@@ -158,11 +162,15 @@ describe("httpPost", () => {
     });
   });
 
-  it("네트워크 실패 시 에러를 throw 한다", async () => {
+  it("네트워크 실패 시 status=0 인 ApiError 를 throw 한다", async () => {
     server.use(
       http.post("http://localhost:3000/api/v1/boom", () => HttpResponse.error()),
     );
-    await expect(httpPost("/boom")).rejects.toThrow();
+    await expect(httpPost("/boom")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 0,
+      message: "Network request failed",
+    });
   });
 });
 
@@ -200,11 +208,15 @@ describe("httpDelete", () => {
     });
   });
 
-  it("네트워크 실패 시 에러를 throw 한다", async () => {
+  it("네트워크 실패 시 status=0 인 ApiError 를 throw 한다", async () => {
     server.use(
       http.delete("http://localhost:3000/api/v1/boom", () => HttpResponse.error()),
     );
-    await expect(httpDelete("/boom")).rejects.toThrow();
+    await expect(httpDelete("/boom")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 0,
+      message: "Network request failed",
+    });
   });
 });
 

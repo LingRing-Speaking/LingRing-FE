@@ -5,6 +5,7 @@ import { clearTokens, saveTokens } from "@/domains/auth/storage";
 const API_PREFIX = "/api/v1";
 const REFRESH_PATH = "/auth/refresh";
 const UNAUTHORIZED_STATUS = 401;
+const NETWORK_ERROR_STATUS = 0;
 
 const buildUrl = (path: string) => `${env.apiBaseUrl}${API_PREFIX}${path}`;
 
@@ -90,7 +91,12 @@ async function request<T>(
   init?: RequestInit,
   alreadyRetried = false,
 ): Promise<T> {
-  const res = await fetch(buildUrl(path), withAuthHeader(init));
+  let res: Response;
+  try {
+    res = await fetch(buildUrl(path), withAuthHeader(init));
+  } catch {
+    throw new ApiError(NETWORK_ERROR_STATUS, "Network request failed");
+  }
 
   if (res.status === UNAUTHORIZED_STATUS && !alreadyRetried && path !== REFRESH_PATH) {
     const refreshed = await refreshAccessToken();
@@ -158,11 +164,16 @@ export async function httpPutRaw(
   body: Blob,
   contentType: string,
 ): Promise<void> {
-  const res = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: { "Content-Type": contentType },
-    body,
-  });
+  let res: Response;
+  try {
+    res = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": contentType },
+      body,
+    });
+  } catch {
+    throw new ApiError(NETWORK_ERROR_STATUS, "Network request failed");
+  }
   if (!res.ok) {
     throw new ApiError(res.status, `S3 PUT failed: ${res.status}`);
   }
