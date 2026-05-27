@@ -19,10 +19,11 @@ export async function restoreSession(): Promise<SessionRestoreResult> {
 
   try {
     const user = await getMe();
+    const { accessToken, refreshToken } = useAuthStore.getState();
     useAuthStore.getState().setSession({
       user,
-      accessToken: useAuthStore.getState().accessToken!,
-      refreshToken: useAuthStore.getState().refreshToken!,
+      accessToken: accessToken ?? tokens.accessToken,
+      refreshToken: refreshToken ?? tokens.refreshToken,
     });
     return { kind: "restored" };
   } catch (err) {
