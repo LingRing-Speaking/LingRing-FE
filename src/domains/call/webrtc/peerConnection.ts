@@ -68,14 +68,16 @@ function createWebPeerSession(cb: PeerSessionCallbacks): PeerSession {
     async createOffer() {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      return offer.sdp ?? "";
+      if (!offer.sdp) throw new Error("createOffer returned empty SDP");
+      return offer.sdp;
     },
     async acceptOffer(remoteSdp) {
       await pc.setRemoteDescription({ type: "offer", sdp: remoteSdp });
       await flushPendingIce();
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      return answer.sdp ?? "";
+      if (!answer.sdp) throw new Error("createAnswer returned empty SDP");
+      return answer.sdp;
     },
     async acceptAnswer(remoteSdp) {
       await pc.setRemoteDescription({ type: "answer", sdp: remoteSdp });
@@ -212,6 +214,7 @@ function createNativePeerSession(cb: PeerSessionCallbacks): PeerSession {
       });
     },
     setMicEnabled(enabled) {
+      if (closed) return;
       void NativeWebRTC.setMicEnabled({ peerId, enabled });
     },
     close() {
