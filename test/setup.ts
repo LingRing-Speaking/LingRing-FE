@@ -2,6 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import "./utils/webrtcMocks";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { server } from "@/mocks/server";
+import { resetMockState } from "@/mocks/handlers";
 
 class IntersectionObserverMock {
   observe() {}
@@ -38,5 +39,8 @@ if (typeof globalThis.MediaStream === "undefined") {
 }
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+  server.resetHandlers();
+  resetMockState();
+});
 afterAll(() => server.close());
