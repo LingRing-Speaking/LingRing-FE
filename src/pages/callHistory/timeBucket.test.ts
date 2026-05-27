@@ -8,7 +8,8 @@ function makeCall(startedAt: string, id = 1): CallHistoryItem {
     partner: { id: 1000 + id, name: `P${id}`, profileImage: null },
     startedAt,
     durationSec: 60,
-    analysisStatus: null,
+    analysisId: null,
+    analysisStatus: "READY",
   };
 }
 

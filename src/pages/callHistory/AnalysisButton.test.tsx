@@ -4,60 +4,118 @@ import { describe, expect, it, vi } from "vitest";
 import { AnalysisButton } from "./AnalysisButton";
 
 describe("AnalysisButton", () => {
-  describe("status=null (default)", () => {
-    it("'분석하기' 텍스트가 보이고 활성 상태다", () => {
-      render(<AnalysisButton status={null} onTriggerAnalysis={() => {}} />);
-      const btn = screen.getByRole("button", { name: "분석하기" });
-      expect(btn).toBeEnabled();
+  describe("analysisStatus=READY (분석 미요청)", () => {
+    it("'분석하기' 버튼이 활성 상태로 노출된다", () => {
+      render(
+        <AnalysisButton
+          analysisStatus="READY"
+          onTriggerAnalysis={() => {}}
+          onViewResult={() => {}}
+        />,
+      );
+      expect(screen.getByRole("button", { name: "분석하기" })).toBeEnabled();
     });
 
-    it("클릭하면 onTriggerAnalysis 가 호출된다", async () => {
+    it("클릭하면 onTriggerAnalysis 만 호출된다", async () => {
       const onTrigger = vi.fn();
-      render(<AnalysisButton status={null} onTriggerAnalysis={onTrigger} />);
+      const onView = vi.fn();
+      render(
+        <AnalysisButton
+          analysisStatus="READY"
+          onTriggerAnalysis={onTrigger}
+          onViewResult={onView}
+        />,
+      );
       await userEvent.click(screen.getByRole("button", { name: "분석하기" }));
       expect(onTrigger).toHaveBeenCalledOnce();
+      expect(onView).not.toHaveBeenCalled();
     });
   });
 
-  describe("status=IN_PROGRESS", () => {
-    it("'분석중' 텍스트 + disabled + 스피너가 노출된다", () => {
+  describe("analysisStatus=PROCESSING (분석 진행 중)", () => {
+    it("'분석중' 버튼이 비활성으로 노출되고 스피너가 보인다", () => {
       render(
-        <AnalysisButton status="IN_PROGRESS" onTriggerAnalysis={() => {}} />,
+        <AnalysisButton
+          analysisStatus="PROCESSING"
+          onTriggerAnalysis={() => {}}
+          onViewResult={() => {}}
+        />,
       );
-      const btn = screen.getByRole("button", { name: "분석중" });
-      expect(btn).toBeDisabled();
+      expect(screen.getByRole("button", { name: "분석중" })).toBeDisabled();
       expect(
         screen.getByRole("status", { name: "분석 진행 중" }),
       ).toBeInTheDocument();
     });
 
-    it("클릭해도 onTriggerAnalysis 가 호출되지 않는다", async () => {
+    it("disabled 라 클릭해도 어떤 콜백도 호출되지 않는다", async () => {
       const onTrigger = vi.fn();
+      const onView = vi.fn();
       render(
-        <AnalysisButton status="IN_PROGRESS" onTriggerAnalysis={onTrigger} />,
+        <AnalysisButton
+          analysisStatus="PROCESSING"
+          onTriggerAnalysis={onTrigger}
+          onViewResult={onView}
+        />,
       );
       await userEvent.click(screen.getByRole("button", { name: "분석중" }));
+      expect(onTrigger).not.toHaveBeenCalled();
+      expect(onView).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("analysisStatus=COMPLETED (분석보기)", () => {
+    it("'분석보기' 버튼이 활성 상태로 노출된다", () => {
+      render(
+        <AnalysisButton
+          analysisStatus="COMPLETED"
+          onTriggerAnalysis={() => {}}
+          onViewResult={() => {}}
+        />,
+      );
+      expect(screen.getByRole("button", { name: "분석보기" })).toBeEnabled();
+    });
+
+    it("클릭하면 onViewResult 만 호출된다", async () => {
+      const onTrigger = vi.fn();
+      const onView = vi.fn();
+      render(
+        <AnalysisButton
+          analysisStatus="COMPLETED"
+          onTriggerAnalysis={onTrigger}
+          onViewResult={onView}
+        />,
+      );
+      await userEvent.click(screen.getByRole("button", { name: "분석보기" }));
+      expect(onView).toHaveBeenCalledOnce();
       expect(onTrigger).not.toHaveBeenCalled();
     });
   });
 
-  describe("status=COMPLETED", () => {
-    it("'분석 보기' 텍스트가 보이고 활성 상태다", () => {
+  describe("analysisStatus=FAILED (분석 실패)", () => {
+    it("'재분석' 버튼이 활성 상태로 노출된다", () => {
       render(
-        <AnalysisButton status="COMPLETED" onTriggerAnalysis={() => {}} />,
+        <AnalysisButton
+          analysisStatus="FAILED"
+          onTriggerAnalysis={() => {}}
+          onViewResult={() => {}}
+        />,
       );
-      const btn = screen.getByRole("button", { name: "분석 보기" });
-      expect(btn).toBeEnabled();
+      expect(screen.getByRole("button", { name: "재분석" })).toBeEnabled();
     });
 
-    // 다음 이슈에서 결과 페이지 라우팅을 연결할 때 onClick 동작이 추가된다.
-    it("클릭해도 onTriggerAnalysis 가 호출되지 않는다", async () => {
+    it("클릭하면 onTriggerAnalysis 만 호출된다 (재시도)", async () => {
       const onTrigger = vi.fn();
+      const onView = vi.fn();
       render(
-        <AnalysisButton status="COMPLETED" onTriggerAnalysis={onTrigger} />,
+        <AnalysisButton
+          analysisStatus="FAILED"
+          onTriggerAnalysis={onTrigger}
+          onViewResult={onView}
+        />,
       );
-      await userEvent.click(screen.getByRole("button", { name: "분석 보기" }));
-      expect(onTrigger).not.toHaveBeenCalled();
+      await userEvent.click(screen.getByRole("button", { name: "재분석" }));
+      expect(onTrigger).toHaveBeenCalledOnce();
+      expect(onView).not.toHaveBeenCalled();
     });
   });
 });
