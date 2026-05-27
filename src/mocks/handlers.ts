@@ -18,6 +18,13 @@ const analysisIdByCallId = new Map<number, number>();
 const triggeredAtByAnalysisId = new Map<number, number>();
 let nextAnalysisId = 1000;
 
+/** 테스트 간 모듈 레벨 상태를 초기화한다. */
+export function resetMockState() {
+  analysisIdByCallId.clear();
+  triggeredAtByAnalysisId.clear();
+  nextAnalysisId = 1000;
+}
+
 // 분석 row 가 존재하는 경우의 상태. READY 는 row 자체가 없는 상태라 여기서 다루지 않음.
 function statusForAnalysisId(
   analysisId: number,

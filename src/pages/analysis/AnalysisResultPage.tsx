@@ -11,7 +11,7 @@ export function AnalysisResultPage() {
   const analysisId = Number(rawId);
   const isValidId = Number.isInteger(analysisId) && analysisId > 0;
 
-  const pollingQuery = usePollAnalysisStatus(isValidId ? analysisId : 0);
+  const pollingQuery = usePollAnalysisStatus(analysisId, { enabled: isValidId });
   const status = pollingQuery.data?.status;
   const resultQuery = useAnalysisResult(analysisId, status === "COMPLETED");
 
