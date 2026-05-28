@@ -76,6 +76,22 @@ EOF
 
 같은 브랜치로 PR이 이미 열려있으면 덮어쓰지 말고 **업데이트 여부를 사용자에게 확인** (`gh pr edit`로 갱신). 성공 시 반환된 PR URL을 사용자에게 표시.
 
+## 7b. 프로젝트 Status를 In review로 변경
+
+PR 생성 직후, step 2에서 파싱한 이슈 번호로 LingRing 프로젝트(org #1) 아이템을 찾아 Status를 `In review`로 바꾼다. 필드/옵션 ID는 `github-ticket.md` 상단 표 참조 (Status 필드 `PVTSSF_lADOEIj-h84BVqejzhRExG8`, In review 옵션 `df73e18b`).
+
+```bash
+ITEM_ID=$(gh project item-list 1 --owner LingRing-Speaking --format json --limit 200 \
+  | jq -r --arg num "<이슈번호>" '.items[] | select(.content.number == ($num|tonumber)) | .id')
+```
+
+분기:
+
+- **ITEM_ID 있음** → `gh project item-edit --id "$ITEM_ID" --project-id PVT_kwDOEIj-h84BVqej --field-id PVTSSF_lADOEIj-h84BVqejzhRExG8 --single-select-option-id df73e18b`
+- **ITEM_ID 없음** (이슈가 프로젝트에 등록 안 됨) → 스킵하고 결과 보고에 표시. 묻지 않는다 — PR은 이미 생성됐고 추가 액션은 다음 PR/start 단계에서 정리.
+
+이 단계 실패는 **치명적이지 않다** — PR은 이미 만들어졌으니 실패만 한 줄로 알리고 다음 단계(Slack 알림)로 진행.
+
 ## 8. Slack 알림
 
 Slack 알림 로직은 `.claude/scripts/slack-pr-notify.sh`로 분리되어 있다. 스크립트가 `.env`의 `SLACK_USER_TOKEN`·`SLACK_PR_CHANNEL`을 읽어 best-effort로 처리하며, 둘 중 하나라도 없으면 조용히 종료한다.
@@ -94,3 +110,4 @@ Slack 알림 로직은 `.claude/scripts/slack-pr-notify.sh`로 분리되어 있�
 - 라벨이 저장소에 없음 → `--label` 생략해 PR 먼저 생성, 사용자에게 알림
 - Slack 알림 실패 / `jq` 미설치 → PR 생성은 성공했으므로 **커맨드 전체 성공 처리**, 실패는 한 줄만 보고
 - `slack-pr-notify.sh: Permission denied` → `chmod +x .claude/scripts/slack-pr-notify.sh` 후 재시도
+- 프로젝트 아이템 조회/수정 실패 (스코프 부족, ID 만료 등) → PR은 이미 만들어졌으므로 **커맨드 전체 성공 처리**, Status 업데이트 실패만 한 줄로 보고. 스코프 문제면 `gh auth refresh -s project,read:project` 안내

@@ -1,0 +1,162 @@
+---
+description: 진행할 GitHub 티켓을 골라 작업 브랜치를 만들고 프로젝트 Status를 In progress로 전환합니다
+---
+
+# GitHub Ticket 작업 시작
+
+열려 있는 티켓(이슈) 목록에서 하나를 골라, 해당 티켓에 맞는 작업 브랜치를 `origin/<parent>`에서 따서 체크아웃하고, **LingRing 프로젝트 보드의 Status를 `In progress`로 전환**합니다. `/github-ticket`으로 티켓을 만든 뒤 실제로 작업을 시작할 때 이 커맨드를 씁니다.
+
+인자 없이 호출하면 최근 열린 이슈 10개 중에서 선택할 수 있고, `/github-ticket-start <번호>`로 특정 번호를 바로 넘길 수도 있습니다.
+
+## 동작 순서
+
+브랜치 스위칭은 현재 작업 상태에 영향을 주므로, 워킹 트리가 더러우면 먼저 유저에게 알리세요. 브랜치명은 한 번 만들면 바꾸기 번거로우니 **생성 직전에 보여주고 승인받은 뒤** 진행합니다.
+
+### 1. 컨텍스트 수집
+
+병렬로 읽어옵니다.
+
+- `git branch --show-current` — 현재 브랜치 (보고에 사용)
+- `git status --porcelain` — 커밋되지 않은 변경사항 유무
+- `git remote get-url origin` — 저장소 식별
+- `git fetch origin` — 부모 브랜치를 최신 상태로 가져와 거기서 브랜치를 따기 위해
+
+**워킹 트리가 더러우면**(스테이징/언스테이지 변경 존재) 체크아웃 시 충돌이나 변경사항 유실 위험이 있으니 유저에게 알리고 진행 여부를 확인하세요. 대개는 커밋·스태시 먼저 하고 오는 편이 안전합니다.
+
+### 2. 이슈 선택
+
+인자로 번호가 넘어왔으면 그걸 쓰고, 없으면 목록을 보여줍니다.
+
+```bash
+gh issue list --state open --limit 10 --json number,title,labels \
+  --jq '.[] | "\(.number)\t\(.title)\t[\(.labels | map(.name) | join(","))]"'
+```
+
+유저에게는 번호를 기억시킬 필요 없이, 다음처럼 **순번으로** 선택하게 해주세요.
+
+```
+열린 이슈 (최근순):
+  1) #3  feat: JWT 인증 추가            [feat]
+  2) #2  chore: 프로젝트 초기 세팅       [chore]
+  3) #1  fix: 로그인 500 에러 수정       [bug]
+
+어떤 이슈로 작업을 시작할까요? (번호 또는 이슈 번호 입력)
+```
+
+- 열린 이슈가 0개면 **멈추고** 유저에게 알립니다 — 새로 만들 거라면 `/github-ticket`을 제안.
+- 유저가 "1"처럼 순번으로 답하면 해당 이슈 번호로 매핑. "#3"이나 "3"처럼 이슈 번호로 답해도 수용.
+
+### 3. 이슈 정보 파싱
+
+`gh issue view <번호> --json number,title,labels`로 선택된 이슈를 조회하고 아래를 뽑습니다.
+
+- **type** — 제목 접두사에서 파싱. `feat: ...` → `feat`, `fix: ...` → `fix` 식. 제목이 Conventional Commits 형식이 아니거나 알 수 없는 접두사면 **유저에게 type을 직접 묻습니다**. 라벨만 보고 역추론하지 마세요 (`bug` 라벨은 `fix`/`hotfix` 양쪽으로, `refactor` 라벨은 `refactor`/`test` 양쪽으로 매핑되어 애매함).
+- **desc** — 제목에서 접두사와 콜론을 걷어낸 부분을 영문 kebab-case(소문자, `-` 구분)로 30자 내 요약. 한글은 번역하거나 핵심 영단어만 추출 (예: "로그인 500 에러 수정" → `login-500-fix`, "JWT 인증 추가" → `jwt-auth`).
+
+### 4. 부모 브랜치 결정
+
+| type | 부모 브랜치 |
+|---|---|
+| `feat`, `fix`, `chore`, `docs`, `refactor`, `test` | `origin/dev` |
+| `hotfix` | `origin/prod` |
+
+해당 부모 브랜치가 원격에 없으면 멈추고 유저에게 확인하세요.
+
+### 5. 브랜치 이름 생성
+
+규칙: `<type>/#<이슈번호>-<desc>` (예: `feat/#12-jwt-auth`, `fix/#7-login-500-fix`).
+
+- 선행 0 패딩은 하지 **않습니다** — 이슈 번호를 그대로 씁니다 (`1` → `1`, `9` → `9`, `10` → `10`). `chore/#2-init-claude-skill` 컨벤션에 맞춤.
+- 같은 이름의 브랜치가 이미 로컬/원격에 있으면 **덮어쓰지 말고 유저에게 확인**하세요 (`git show-ref --verify --quiet refs/heads/<name>`로 로컬, `git ls-remote --heads origin <name>`로 원격 확인). 처리 방법: 기존 브랜치로 체크아웃만 할지 / 다른 `desc`로 재생성할지 / 기존 브랜치 삭제 후 재생성할지 택일.
+
+### 5b. 프로젝트 아이템 조회
+
+승인 블록에서 "Backlog → In progress" 같은 현재 상태를 보여주려면 먼저 프로젝트 아이템을 찾아야 합니다.
+
+```bash
+gh project item-list 1 --owner LingRing-Speaking --format json --limit 200 \
+  | jq --arg num "<이슈번호>" '.items[] | select(.content.number == ($num|tonumber))'
+```
+
+세 가지 결과 분기:
+
+1. **아이템 존재 + Status가 In progress 아님** → 정상 케이스. 아이템 ID와 현재 Status를 메모해두고 step 7b에서 변경.
+2. **아이템 존재 + Status가 이미 In progress** → 이미 작업 중이던 티켓. step 7b는 스킵.
+3. **아이템 없음** (이 이슈가 프로젝트에 등록 안 됨) → 사용자에게 물어봅니다: "추가 후 In progress" / "그냥 스킵하고 브랜치만" — 둘 중 선택.
+
+### 6. 사용자 승인
+
+아래를 한 블록으로 모아 보여주고 확인을 받으세요.
+
+- 선택된 이슈: `#<번호> <title>`
+- 파싱된 type
+- 부모 브랜치
+- 만들어질 브랜치명
+- 현재 워킹 트리 상태 (더러우면 경고 포함)
+- 프로젝트 Status 전환 계획 (예: `Backlog → In progress`, 혹은 "프로젝트에 없음 — 추가 후 In progress" / "프로젝트에 없음 — 스킵")
+
+"이대로 진행할까요?" 식으로 묻고, 승인 전에는 **브랜치 생성/Status 변경을 하지 않습니다**.
+
+### 7. 브랜치 생성 + 체크아웃
+
+```bash
+git switch --no-track -c "<type>/#<num>-<desc>" "origin/<parent>"
+```
+
+- `git switch -c`는 브랜치 생성과 체크아웃을 한 번에 수행하고, 동일 이름이 이미 있으면 실패합니다 (안전).
+- **`--no-track` 필수, 그리고 `-c`보다 앞에 와야 함** (`-c`가 뒤에 오는 토큰을 브랜치명으로 먹어버려서 순서가 뒤집히면 "only one reference expected"로 실패). 이 플래그가 없으면 git은 기본으로 `origin/<parent>`를 upstream으로 잡아버리고, 이후 무심코 `git push`/`git pull` 하면 부모 브랜치로 푸시를 시도하거나 부모 변경을 끌어오는 사고가 납니다. upstream은 PR 만들 시점에 `/github-pr`이 `git push -u origin <branch>`로 올바르게 설정합니다.
+- 기존 브랜치를 재사용하기로 했다면 `--no-track -c` 대신 `git switch "<name>"`을 씁니다.
+- 원격 푸시는 하지 않습니다 — PR 만들 시점에 `/github-pr`이 자연스럽게 푸시합니다.
+
+### 7b. 프로젝트 Status 업데이트
+
+step 5b에서 정한 분기에 따라 처리합니다. 필드/옵션 ID는 `github-ticket.md` 상단 표 참조 (Status 필드 `PVTSSF_lADOEIj-h84BVqejzhRExG8`, In progress 옵션 `47fc9ee4`).
+
+**(1) 아이템 존재 + Status가 In progress 아님** — 변경합니다.
+
+```bash
+gh project item-edit \
+  --id "<ITEM_ID>" \
+  --project-id PVT_kwDOEIj-h84BVqej \
+  --field-id PVTSSF_lADOEIj-h84BVqejzhRExG8 \
+  --single-select-option-id 47fc9ee4
+```
+
+**(2) 이미 In progress** — 스킵하고 결과 보고에 "이미 In progress 상태였음" 표시.
+
+**(3) 프로젝트에 없음 + 사용자가 "추가" 선택** — add 후 In progress로 변경.
+
+```bash
+ITEM_ID=$(gh project item-add 1 \
+  --owner LingRing-Speaking \
+  --url "<이슈 URL>" \
+  --format json --jq .id)
+
+gh project item-edit --id "$ITEM_ID" \
+  --project-id PVT_kwDOEIj-h84BVqej \
+  --field-id PVTSSF_lADOEIj-h84BVqejzhRExG8 \
+  --single-select-option-id 47fc9ee4
+```
+
+**(4) 프로젝트에 없음 + 사용자가 "스킵" 선택** — 아무것도 하지 않고 결과 보고에 표시.
+
+이 단계 실패는 **치명적이지 않습니다** — 브랜치는 이미 만들어졌으니 사용자에게 실패만 알리고 종료. 수동으로 보드에서 옮기면 됨.
+
+### 8. 결과 보고
+
+- 이전 브랜치 → 현재 브랜치
+- 연결된 이슈 URL (PR 본문에서 `Closes #<번호>`로 쓰일 번호)
+- 프로젝트 Status 결과 (예: `Backlog → In progress` / `이미 In progress` / `프로젝트에 없어 스킵` / `Status 업데이트 실패: <에러>`)
+- 다음 단계 안내: 작업 후 커밋 → `/github-pr`로 PR 생성 한 줄
+
+## 실패 시 대응
+
+- `gh` 미설치 → `brew install gh && gh auth login` 안내
+- 인증 만료 → `gh auth status`로 확인 후 재로그인 안내
+- 열린 이슈 0개 → 유저에게 알리고 `/github-ticket`으로 새 티켓 생성을 제안
+- 이슈 번호가 존재하지 않음 / 이미 닫힘 → 유저에게 알리고 다른 이슈 선택 유도
+- 제목 접두사로 type 파싱 실패 → 유저에게 type을 직접 질문
+- 부모 브랜치가 원격에 없음 → 유저에게 실제 부모 브랜치 확인
+- 동일 이름 브랜치 이미 존재 → 체크아웃만 할지 / 다른 `desc`로 재생성할지 / 삭제 후 재생성할지 택일 요청
+- 워킹 트리가 더러움 → 체크아웃 전에 커밋·스태시 권고, 강제 진행 여부를 유저에게 확인
+- 프로젝트 아이템 조회/수정 실패 (스코프 부족, ID 만료 등) → 브랜치는 이미 만들어졌으므로 **전체 성공 처리**, Status 업데이트 실패만 한 줄로 보고. 스코프 문제면 `gh auth refresh -s project,read:project` 안내
