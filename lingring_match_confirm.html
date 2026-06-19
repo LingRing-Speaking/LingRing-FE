@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <title>LingRing — 매칭 수락/거절</title>
+
+    <link rel="stylesheet" as="style" crossorigin
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+
+    <style>
+        /* =========================================================
+           Design Tokens (lingring_matching.html과 동일)
+           ========================================================= */
+        :root {
+            --mint-50:  #ECFBF7;
+            --mint-100: #D4F5EB;
+            --mint-200: #A7EBD7;
+            --mint-300: #6FDBBC;
+            --mint-400: #3ECFA5;
+            --mint-500: #1FBF92;
+            --mint-600: #10A47A;
+
+            --coral-100: #FFE6DE;
+            --coral-300: #FFB4A0;
+            --coral-500: #FF8364;
+            --coral-600: #F26849;
+
+            --gray-900: #191F28;
+            --gray-800: #333D4B;
+            --gray-700: #4E5968;
+            --gray-600: #6B7684;
+            --gray-500: #8B95A1;
+            --gray-400: #B0B8C1;
+            --gray-300: #D1D6DB;
+            --gray-200: #E5E8EB;
+            --gray-100: #F2F4F6;
+            --gray-50:  #F9FAFB;
+            --white:    #FFFFFF;
+
+            --radius-sm: 10px;
+            --radius-md: 16px;
+            --radius-lg: 20px;
+            --radius-xl: 22px;
+
+            --shadow-card: 0 6px 20px rgba(0, 0, 0, 0.05);
+            --shadow-orb:  0 20px 50px rgba(31, 191, 146, 0.25);
+            --shadow-modal: 0 20px 50px rgba(0, 0, 0, 0.25);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            margin: 0; padding: 0;
+            font-family: 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif;
+            color: var(--gray-900);
+            background: #E7EAEE;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* =========================================================
+           Phone Frame
+           ========================================================= */
+        .viewport {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+        }
+        .phone {
+            width: 375px;
+            height: 812px;
+            background: var(--white);
+            border-radius: 44px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 0 0 10px #1A1D22, 0 30px 60px rgba(0, 0, 0, 0.25);
+        }
+        @media (max-width: 480px) {
+            body { background: var(--white); }
+            .viewport { padding: 0; min-height: 100dvh; }
+            .phone {
+                width: 100%;
+                height: 100dvh;
+                border-radius: 0;
+                box-shadow: none;
+            }
+        }
+
+        /* =========================================================
+           Status bar
+           ========================================================= */
+        .status-bar {
+            height: 44px;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font: 600 15px/1 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif;
+            color: var(--gray-900);
+        }
+        .status-bar .icons { display: flex; gap: 6px; align-items: center; }
+        .status-bar .icons svg { width: 16px; height: 16px; }
+
+        /* =========================================================
+           Screen — 뒤에 깔리는 매칭 페이지 (dim 상태)
+           ========================================================= */
+        .screen {
+            height: calc(100% - 44px);
+            display: flex;
+            flex-direction: column;
+            background:
+                radial-gradient(ellipse at 50% 28%, var(--mint-50) 0%, var(--white) 50%, var(--gray-50) 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0.35;
+            pointer-events: none;
+        }
+        .blob.a { width: 280px; height: 280px; background: var(--mint-200); top: -70px; right: -80px; }
+        .blob.b { width: 220px; height: 220px; background: var(--coral-100); bottom: 160px; left: -80px; opacity: 0.55; }
+
+        /* 매칭 페이지 표면 (모달 뒤에 깔림) */
+        .matching-surface {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 50px;
+        }
+        .surface-title {
+            font: 700 20px/1.4 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif;
+            color: var(--gray-900);
+            letter-spacing: -0.02em;
+            margin: 0 0 6px;
+        }
+        .surface-sub {
+            font: 500 13px/1.5 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif;
+            color: var(--gray-600);
+            margin: 0 0 24px;
+        }
+        .orb-stub {
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            background: linear-gradient(140deg, var(--mint-300) 0%, var(--mint-500) 60%, var(--coral-500) 140%);
+            box-shadow: var(--shadow-orb), inset 0 -8px 24px rgba(0, 0, 0, 0.08), inset 0 8px 20px rgba(255, 255, 255, 0.35);
+            opacity: 0.9;
+        }
+
+        /* =========================================================
+           Match Confirm Modal
+           ========================================================= */
+        .confirm-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            z-index: 10;
+        }
+
+        .confirm-wrap {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 24px;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .confirm-modal {
+            width: 100%;
+            max-width: 320px;
+            background: var(--white);
+            border-radius: var(--radius-xl);
+            padding: 24px 24px 20px;
+            box-shadow: var(--shadow-modal);
+            pointer-events: auto;
+        }
+
+        /* 카운트다운 (매너온도와 액션 사이) — 막대만, 숫자 없음 */
+        .countdown {
+            margin-bottom: 20px;
+        }
+        .countdown-track {
+            height: 4px;
+            border-radius: 999px;
+            background: var(--gray-100);
+            overflow: hidden;
+            position: relative;
+        }
+        .countdown-bar {
+            height: 100%;
+            background: var(--mint-500);
+            border-radius: 999px;
+            transition: width 200ms linear, background 200ms ease;
+            width: 100%;
+        }
+        .countdown-bar.urgent {
+            background: var(--coral-500);
+            animation: countdownPulse 0.8s ease-in-out infinite;
+        }
+        @keyframes countdownPulse {
+            0%, 100% { opacity: 1; }
+            50%      { opacity: 0.55; }
+        }
+
+        /* 프로필 영역 — 사람 중심으로 크게 */
+        .profile {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .avatar {
+            width: 112px;
+            height: 112px;
+            border-radius: 50%;
+            background: linear-gradient(140deg, var(--mint-200), var(--mint-400));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            font: 700 40px/1 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif;
+            box-shadow: 0 10px 28px rgba(31, 191, 146, 0.22);
+            margin-bottom: 4px;
+        }
+        .nickname {
+            font: 700 22px/1.2 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif;
+            color: var(--gray-900);
+            letter-spacing: -0.02em;
+            margin: 4px 0 0;
+        }
+        .level-chip {
+            display: inline-flex;
+            align-items: center;
+            background: var(--mint-100);
+            color: var(--mint-600);
+            border-radius: 999px;
+            padding: 5px 10px;
+            font: 700 12px/1 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif;
+            letter-spacing: -0.01em;
+        }
+
+        /* 매너온도 — 한 줄 텍스트로 축약 */
+        .manner-line {
+            margin: 6px 0 0;
+            font: 500 13px/1 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif;
+            color: var(--gray-500);
+            letter-spacing: -0.01em;
+        }
+        .manner-line .manner-value {
+            color: var(--gray-700);
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        .manner-line .manner-dot {
+            margin: 0 6px;
+            color: var(--gray-300);
+        }
+
+        /* 액션 버튼 — 동등 비중 가로 배치 */
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+        .btn {
+            flex: 1;
+            border: none;
+            cursor: pointer;
+            padding: 14px 0;
+            border-radius: 14px;
+            font: 700 15px/1 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif;
+            letter-spacing: -0.01em;
+            transition: transform 100ms ease, opacity 150ms ease;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn.secondary {
+            background: var(--gray-100);
+            color: var(--gray-800);
+        }
+        .btn.primary {
+            background: var(--mint-500);
+            color: var(--white);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+        /* 내가 수락한 상태 — disabled여도 또렷하게 유지 */
+        .btn.primary.accepted,
+        .btn.primary.accepted:disabled {
+            opacity: 1;
+            cursor: default;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn .check-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.22);
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        /* 응답 대기 상태 메시지 */
+        .waiting-hint {
+            text-align: center;
+            font: 500 12px/1.4 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif;
+            color: var(--gray-500);
+            margin: 12px 0 0;
+            min-height: 16px;
+        }
+
+        .visually-hidden {
+            position: absolute;
+            width: 1px; height: 1px;
+            padding: 0; margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="viewport">
+        <div class="phone">
+            <!-- Status bar -->
+            <div class="status-bar">
+                <span>9:41</span>
+                <div class="icons">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 18h3v3H2zm5-4h3v7H7zm5-4h3v11h-3zm5-4h3v15h-3z"/></svg>
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C7 3 2.7 5 0 8l2 2c2.6-2.5 6.2-4 10-4s7.4 1.5 10 4l2-2C21.3 5 17 3 12 3zm0 6c-3 0-5.8 1.2-7.8 3.2l2 2C7.7 12.8 9.8 12 12 12s4.3.8 5.8 2.2l2-2C17.8 10.2 15 9 12 9zm0 6c-1.2 0-2.3.5-3.2 1.4l3.2 3.2 3.2-3.2C14.3 15.5 13.2 15 12 15z"/></svg>
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 4H7C4.8 4 3 5.8 3 8v8c0 2.2 1.8 4 4 4h10c2.2 0 4-1.8 4-4V8c0-2.2-1.8-4-4-4zm3 12c0 1.7-1.3 3-3 3H7c-1.7 0-3-1.3-3-3V8c0-1.7 1.3-3 3-3h10c1.7 0 3 1.3 3 3v8z"/></svg>
+                </div>
+            </div>
+
+            <main class="screen">
+                <div class="blob a" aria-hidden="true"></div>
+                <div class="blob b" aria-hidden="true"></div>
+
+                <!-- 뒤에 깔리는 매칭 페이지 -->
+                <div class="matching-surface" aria-hidden="true">
+                    <h1 class="surface-title">대화할 사람을 찾고 있어요</h1>
+                    <p class="surface-sub">보통 30초 이내에 매칭돼요</p>
+                    <div class="orb-stub"></div>
+                </div>
+
+                <!-- Backdrop -->
+                <div class="confirm-backdrop" aria-hidden="true"></div>
+
+                <!-- Confirm Modal -->
+                <div class="confirm-wrap">
+                    <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+                        <h2 id="confirmTitle" class="visually-hidden">매칭된 상대 확인</h2>
+
+                        <!-- 프로필 — 사람 중심 -->
+                        <div class="profile">
+                            <div class="avatar">S</div>
+                            <p class="nickname">Sophie</p>
+                            <span class="level-chip">Intermediate</span>
+                            <p class="manner-line">
+                                매너온도 <span class="manner-value">36.5°C</span>
+                                <span class="manner-dot">·</span>친절해요
+                            </p>
+                        </div>
+
+                        <!-- 카운트다운 (매너온도와 액션 사이) — 막대만 -->
+                        <div class="countdown">
+                            <div class="countdown-track" role="progressbar" aria-label="응답 남은 시간">
+                                <div class="countdown-bar" id="countdownBar"></div>
+                            </div>
+                        </div>
+
+                        <!-- 액션 — 「거절」/「수락」 동등 가로 배치 -->
+                        <div class="actions">
+                            <button type="button" class="btn secondary" id="declineBtn">거절</button>
+                            <button type="button" class="btn primary" id="acceptBtn">수락</button>
+                        </div>
+
+                        <p class="waiting-hint" id="waitingHint"></p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // ===================================================
+        // 카운트다운 — confirmDeadline 기준 동작 시뮬레이션
+        // ===================================================
+        const TOTAL_MS = 15000;
+        const URGENT_THRESHOLD_MS = 5000;
+        const deadline = Date.now() + TOTAL_MS;
+
+        const bar = document.getElementById('countdownBar');
+        const acceptBtn = document.getElementById('acceptBtn');
+        const declineBtn = document.getElementById('declineBtn');
+        const hint = document.getElementById('waitingHint');
+
+        let acted = false;
+
+        function tick() {
+            const remaining = Math.max(0, deadline - Date.now());
+            const progress = (remaining / TOTAL_MS) * 100;
+            bar.style.width = `${progress}%`;
+            bar.classList.toggle('urgent', remaining <= URGENT_THRESHOLD_MS);
+
+            if (remaining <= 0) {
+                // acted 후에도 카운트다운은 끝까지 표시. 0에 도달하면 멈춤.
+                if (!acted) handleTimeout();
+                return;
+            }
+            requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+
+        function lockButtons(message) {
+            acceptBtn.disabled = true;
+            declineBtn.disabled = true;
+            hint.textContent = message;
+        }
+
+        function handleAccept() {
+            if (acted) return;
+            acted = true;
+            acceptBtn.classList.add('accepted');
+            acceptBtn.innerHTML = '<span class="check-icon" aria-hidden="true">✓</span>수락함';
+            lockButtons('상대 응답을 기다리는 중…');
+            // 시연용: 2초 뒤 통화 화면 진입 alert
+            setTimeout(() => {
+                alert('양쪽 수락 완료 → /call/:roomId 로 이동');
+            }, 2000);
+        }
+
+        function handleDecline() {
+            if (acted) return;
+            acted = true;
+            lockButtons('매칭 페이지로 돌아갑니다…');
+            setTimeout(() => {
+                alert('거절 처리 (해당 페어 10분 cooldown)');
+            }, 600);
+        }
+
+        function handleTimeout() {
+            if (acted) return;
+            acted = true;
+            lockButtons('응답 시간이 초과되어 매칭이 취소됐어요');
+            setTimeout(() => {
+                alert('타임아웃 → 자동 거절 처리');
+            }, 600);
+        }
+
+        acceptBtn.addEventListener('click', handleAccept);
+        declineBtn.addEventListener('click', handleDecline);
+    </script>
+</body>
+</html>

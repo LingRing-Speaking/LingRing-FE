@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">LingRing</string>
+    <string name="title_activity_main">LingRing</string>
+    <string name="package_name">com.lingring.app</string>
+    <string name="custom_url_scheme">com.lingring.app</string>
+    <!-- 카카오 콘솔에서 발급받은 NATIVE_APP_KEY로 채움 -->
+    <string name="kakao_app_key">71d9c43427f1b2f02c9c7f19b3f8bfe7</string>
+    <string name="kakao_scheme">kakao71d9c43427f1b2f02c9c7f19b3f8bfe7</string>
+</resources>

@@ -1,0 +1,149 @@
+diff --git a/node_modules/capacitor-kakao-login-plugin/.swiftpm/xcode/xcuserdata/spqje.xcuserdatad/xcschemes/xcschememanagement.plist b/node_modules/capacitor-kakao-login-plugin/.swiftpm/xcode/xcuserdata/spqje.xcuserdatad/xcschemes/xcschememanagement.plist
+new file mode 100644
+index 0000000..285265e
+--- /dev/null
++++ b/node_modules/capacitor-kakao-login-plugin/.swiftpm/xcode/xcuserdata/spqje.xcuserdatad/xcschemes/xcschememanagement.plist
+@@ -0,0 +1,14 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
++<plist version="1.0">
++<dict>
++	<key>SchemeUserState</key>
++	<dict>
++		<key>CapacitorKakaoLoginPlugin.xcscheme_^#shared#^_</key>
++		<dict>
++			<key>orderHint</key>
++			<integer>3</integer>
++		</dict>
++	</dict>
++</dict>
++</plist>
+diff --git a/node_modules/capacitor-kakao-login-plugin/Package.swift b/node_modules/capacitor-kakao-login-plugin/Package.swift
+new file mode 100644
+index 0000000..779f696
+--- /dev/null
++++ b/node_modules/capacitor-kakao-login-plugin/Package.swift
+@@ -0,0 +1,35 @@
++// swift-tools-version: 5.9
++// node_modules 내에 추가한 SPM manifest — Capacitor 8 SPM 통합용.
++// 이 플러그인은 podspec만 제공하므로 npm install 시 본 파일이 사라진다.
++// 영구화는 patch-package 또는 fork로 별도 처리 (#31 후속 이슈).
++import PackageDescription
++
++let package = Package(
++    name: "CapacitorKakaoLoginPlugin",
++    platforms: [.iOS(.v13)],
++    products: [
++        .library(
++            name: "CapacitorKakaoLoginPlugin",
++            targets: ["CapacitorKakaoLoginPlugin"])
++    ],
++    dependencies: [
++        .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", exact: "8.3.1"),
++        .package(url: "https://github.com/kakao/kakao-ios-sdk", from: "2.22.0")
++    ],
++    targets: [
++        .target(
++            name: "CapacitorKakaoLoginPlugin",
++            dependencies: [
++                .product(name: "Capacitor", package: "capacitor-swift-pm"),
++                .product(name: "Cordova", package: "capacitor-swift-pm"),
++                .product(name: "KakaoSDKCommon", package: "kakao-ios-sdk"),
++                .product(name: "KakaoSDKAuth", package: "kakao-ios-sdk"),
++                .product(name: "KakaoSDKUser", package: "kakao-ios-sdk"),
++                .product(name: "KakaoSDKTalk", package: "kakao-ios-sdk"),
++                .product(name: "KakaoSDKShare", package: "kakao-ios-sdk"),
++                .product(name: "KakaoSDKTemplate", package: "kakao-ios-sdk"),
++            ],
++            path: "ios/Plugin"
++        )
++    ]
++)
+diff --git a/node_modules/capacitor-kakao-login-plugin/ios/Plugin/KakaoLoginPlugin.h b/node_modules/capacitor-kakao-login-plugin/ios/Plugin/KakaoLoginPlugin.h
+deleted file mode 100644
+index f2bd9e0..0000000
+--- a/node_modules/capacitor-kakao-login-plugin/ios/Plugin/KakaoLoginPlugin.h
++++ /dev/null
+@@ -1,10 +0,0 @@
+-#import <UIKit/UIKit.h>
+-
+-//! Project version number for Plugin.
+-FOUNDATION_EXPORT double PluginVersionNumber;
+-
+-//! Project version string for Plugin.
+-FOUNDATION_EXPORT const unsigned char PluginVersionString[];
+-
+-// In this header, you should import all the public headers of your framework using statements like #import <Plugin/PublicHeader.h>
+-
+diff --git a/node_modules/capacitor-kakao-login-plugin/ios/Plugin/KakaoLoginPlugin.m b/node_modules/capacitor-kakao-login-plugin/ios/Plugin/KakaoLoginPlugin.m
+deleted file mode 100644
+index 44511fc..0000000
+--- a/node_modules/capacitor-kakao-login-plugin/ios/Plugin/KakaoLoginPlugin.m
++++ /dev/null
+@@ -1,13 +0,0 @@
+-#import <Foundation/Foundation.h>
+-#import <Capacitor/Capacitor.h>
+-
+-// Define the plugin using the CAP_PLUGIN Macro, and
+-// each method the plugin supports using the CAP_PLUGIN_METHOD macro.
+-CAP_PLUGIN(KakaoLoginPlugin, "KakaoLoginPlugin",
+-           CAP_PLUGIN_METHOD(goLogin, CAPPluginReturnPromise);
+-           CAP_PLUGIN_METHOD(goLogout, CAPPluginReturnPromise);
+-           CAP_PLUGIN_METHOD(getUserInfo, CAPPluginReturnPromise);
+-           CAP_PLUGIN_METHOD(sendLinkFeed, CAPPluginReturnPromise);
+-           CAP_PLUGIN_METHOD(talkInChannel, CAPPluginReturnPromise);
+-           CAP_PLUGIN_METHOD(initForWeb, CAPPluginReturnPromise);
+-)
+diff --git a/node_modules/capacitor-kakao-login-plugin/ios/Plugin/KakaoLoginPlugin.swift b/node_modules/capacitor-kakao-login-plugin/ios/Plugin/KakaoLoginPlugin.swift
+index b5aa785..538a95d 100644
+--- a/node_modules/capacitor-kakao-login-plugin/ios/Plugin/KakaoLoginPlugin.swift
++++ b/node_modules/capacitor-kakao-login-plugin/ios/Plugin/KakaoLoginPlugin.swift
+@@ -24,8 +24,47 @@ extension Encodable {
+ }
+ 
+ @objc(KakaoLoginPlugin)
+-public class KakaoLoginPlugin: CAPPlugin {
++public class KakaoLoginPlugin: CAPPlugin, CAPBridgedPlugin {
++    // Capacitor 8 SPM 등록 — ObjC .m 파일이 SPM에서 컴파일되지 않아 CAP_PLUGIN 매크로가 안 돌아감.
++    // 그래서 Swift 측에서 CAPBridgedPlugin 프로토콜로 직접 메서드 노출.
++    public let identifier = "KakaoLoginPlugin"
++    public let jsName = "KakaoLoginPlugin"
++    public let pluginMethods: [CAPPluginMethod] = [
++        CAPPluginMethod(name: "goLogin", returnType: CAPPluginReturnPromise),
++        CAPPluginMethod(name: "goLogout", returnType: CAPPluginReturnPromise),
++        CAPPluginMethod(name: "getUserInfo", returnType: CAPPluginReturnPromise),
++        CAPPluginMethod(name: "sendLinkFeed", returnType: CAPPluginReturnPromise),
++        CAPPluginMethod(name: "talkInChannel", returnType: CAPPluginReturnPromise),
++        CAPPluginMethod(name: "initForWeb", returnType: CAPPluginReturnPromise),
++    ]
++
+     private var safariViewController: SFSafariViewController?
++
++    // node_modules 패치 — Capacitor 8 SPM 통합용 자동 init + URL handler.
++    // App 타깃이 KakaoSDK 모듈을 직접 import하지 않도록 책임을 플러그인 안으로 옮김.
++    public override func load() {
++        if let appKey = Bundle.main.object(forInfoDictionaryKey: "KAKAO_NATIVE_APP_KEY") as? String,
++           !appKey.isEmpty {
++            KakaoSDK.initSDK(appKey: appKey)
++        }
++        NotificationCenter.default.addObserver(
++            self,
++            selector: #selector(handleKakaoUrlOpen(_:)),
++            name: Notification.Name(CAPNotifications.URLOpen.name()),
++            object: nil
++        )
++    }
++
++    @objc private func handleKakaoUrlOpen(_ notification: Notification) {
++        guard let object = notification.object as? [String: Any],
++              let url = object["url"] as? URL else { return }
++        // AuthController.handleOpenUrl 가 @MainActor 격리이므로 main 으로 hop.
++        Task { @MainActor in
++            if AuthApi.isKakaoTalkLoginUrl(url) {
++                _ = AuthController.handleOpenUrl(url: url)
++            }
++        }
++    }
+     func parseOAuthToken(oauthToken: OAuthToken) -> [String: Any] {
+         var oauthTokenInfos: [String: Any] = [
+             "success": true,
