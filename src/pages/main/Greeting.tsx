@@ -11,7 +11,7 @@ export function Greeting({ name }: Props) {
         님 👋
       </h1>
       <p className="m-0 text-[15px] font-medium leading-[1.5] text-gray-600">
-        오늘도 영어 한 걸음 더 가볼까요? (OTA ✅)
+        오늘도 영어 한 걸음 더 가볼까요?
       </p>
     </div>
   );

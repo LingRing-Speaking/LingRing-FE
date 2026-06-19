@@ -9,7 +9,7 @@ describe("Greeting", () => {
     expect(screen.getByText("Lee")).toBeInTheDocument();
     expect(screen.getByText(/안녕하세요/)).toBeInTheDocument();
     expect(
-      screen.getByText("오늘도 영어 한 걸음 더 가볼까요? (OTA ✅)"),
+      screen.getByText("오늘도 영어 한 걸음 더 가볼까요?"),
     ).toBeInTheDocument();
   });
 });
