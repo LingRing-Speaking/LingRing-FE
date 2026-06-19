@@ -10,6 +10,13 @@ export async function initializeOtaUpdater(): Promise<void> {
   // 자동 롤백한다. 네트워크 요청·무거운 초기화 전에 가장 먼저 호출되어야 한다.
   await CapacitorUpdater.notifyAppReady();
 
+  await registerDiagnosticListeners();
+
+  // 업데이트 확인·다운로드는 앱 렌더를 막지 않도록 백그라운드로 진행한다.
+  void checkForUpdate();
+}
+
+async function registerDiagnosticListeners(): Promise<void> {
   await CapacitorUpdater.addListener("updateAvailable", (event) => {
     console.log(`${LOG_PREFIX} updateAvailable`, event);
   });
@@ -25,4 +32,44 @@ export async function initializeOtaUpdater(): Promise<void> {
   await CapacitorUpdater.addListener("appReloaded", () => {
     console.log(`${LOG_PREFIX} appReloaded`);
   });
+}
+
+interface OtaManifest {
+  version: string;
+  url: string;
+  checksum?: string;
+}
+
+// 정적 호스팅(S3+CloudFront)에 올라간 manifest.json 을 직접 GET 해서 최신 버전을
+// 판별한다. Capgo 의 auto-update(getLatest)는 updateUrl 로 POST 하므로 정적
+// 오브젝트로는 응답할 수 없어 manual 모드로 직접 구현한다.
+export async function checkForUpdate(): Promise<void> {
+  const updateUrl = import.meta.env.VITE_OTA_UPDATE_URL;
+  if (!updateUrl) {
+    console.warn(`${LOG_PREFIX} VITE_OTA_UPDATE_URL 미설정 — 업데이트 확인 건너뜀`);
+    return;
+  }
+
+  try {
+    const response = await fetch(updateUrl, { cache: "no-store" });
+    if (!response.ok) {
+      console.error(`${LOG_PREFIX} manifest 응답 오류`, response.status);
+      return;
+    }
+
+    const manifest = (await response.json()) as OtaManifest;
+    const { bundle } = await CapacitorUpdater.current();
+    if (manifest.version === bundle.version) return; // 이미 최신
+
+    const downloaded = await CapacitorUpdater.download({
+      version: manifest.version,
+      url: manifest.url,
+      checksum: manifest.checksum,
+    });
+
+    // next 는 현재 세션을 끊지 않고 다음 백그라운드/재실행 때 새 번들을 적용한다.
+    await CapacitorUpdater.next(downloaded);
+  } catch (error) {
+    console.error(`${LOG_PREFIX} 업데이트 확인 실패`, error);
+  }
 }
