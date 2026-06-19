@@ -1,4 +1,4 @@
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { CapacitorUpdater } from "@capgo/capacitor-updater";
 
 const LOG_PREFIX = "[ota]";
@@ -51,13 +51,18 @@ export async function checkForUpdate(): Promise<void> {
   }
 
   try {
-    const response = await fetch(updateUrl, { cache: "no-store" });
-    if (!response.ok) {
+    // WebView 의 fetch 는 capacitor://localhost 출처라 cross-origin 으로 CORS 에
+    // 막힌다. CapacitorHttp 는 네이티브 HTTP 로 나가 CORS 제약을 받지 않는다.
+    const response = await CapacitorHttp.get({
+      url: updateUrl,
+      headers: { "Cache-Control": "no-cache" },
+    });
+    if (response.status < 200 || response.status >= 300) {
       console.error(`${LOG_PREFIX} manifest 응답 오류`, response.status);
       return;
     }
 
-    const manifest = (await response.json()) as OtaManifest;
+    const manifest = response.data as OtaManifest;
     const { bundle } = await CapacitorUpdater.current();
     if (manifest.version === bundle.version) return; // 이미 최신
 

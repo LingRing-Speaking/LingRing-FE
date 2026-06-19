@@ -4,6 +4,7 @@ const {
   mockNotifyAppReady,
   mockAddListener,
   mockIsNativePlatform,
+  mockHttpGet,
   mockCurrent,
   mockDownload,
   mockNext,
@@ -11,6 +12,7 @@ const {
   mockNotifyAppReady: vi.fn().mockResolvedValue({}),
   mockAddListener: vi.fn().mockResolvedValue({ remove: vi.fn() }),
   mockIsNativePlatform: vi.fn(),
+  mockHttpGet: vi.fn(),
   mockCurrent: vi.fn(),
   mockDownload: vi.fn(),
   mockNext: vi.fn().mockResolvedValue({}),
@@ -19,6 +21,9 @@ const {
 vi.mock("@capacitor/core", () => ({
   Capacitor: {
     isNativePlatform: () => mockIsNativePlatform(),
+  },
+  CapacitorHttp: {
+    get: mockHttpGet,
   },
 }));
 
@@ -73,7 +78,7 @@ describe("initializeOtaUpdater", () => {
 });
 
 describe("checkForUpdate", () => {
-  const MANIFEST_URL = "http://localhost:8888/manifest.json";
+  const MANIFEST_URL = "https://ota.lingring.site/manifest.json";
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -83,29 +88,28 @@ describe("checkForUpdate", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
-    vi.unstubAllGlobals();
   });
 
   it("manifest 버전이 현재와 다르면 download 후 next 로 적용을 예약한다", async () => {
     const downloaded = { id: "bundle-1", version: "0.0.2" };
     mockDownload.mockResolvedValue(downloaded);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          version: "0.0.2",
-          url: "http://localhost:8888/app-0.0.2.zip",
-          checksum: "abc123",
-        }),
-      }),
-    );
+    mockHttpGet.mockResolvedValue({
+      status: 200,
+      data: {
+        version: "0.0.2",
+        url: "https://ota.lingring.site/app-0.0.2.zip",
+        checksum: "abc123",
+      },
+    });
 
     await checkForUpdate();
 
+    expect(mockHttpGet).toHaveBeenCalledWith(
+      expect.objectContaining({ url: MANIFEST_URL }),
+    );
     expect(mockDownload).toHaveBeenCalledWith({
       version: "0.0.2",
-      url: "http://localhost:8888/app-0.0.2.zip",
+      url: "https://ota.lingring.site/app-0.0.2.zip",
       checksum: "abc123",
     });
     expect(mockNext).toHaveBeenCalledWith(downloaded);
@@ -113,17 +117,14 @@ describe("checkForUpdate", () => {
 
   it("manifest 버전이 현재와 같으면 download 하지 않는다", async () => {
     mockCurrent.mockResolvedValue({ bundle: { version: "0.0.2" } });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          version: "0.0.2",
-          url: "http://localhost:8888/app-0.0.2.zip",
-          checksum: "abc123",
-        }),
-      }),
-    );
+    mockHttpGet.mockResolvedValue({
+      status: 200,
+      data: {
+        version: "0.0.2",
+        url: "https://ota.lingring.site/app-0.0.2.zip",
+        checksum: "abc123",
+      },
+    });
 
     await checkForUpdate();
 
@@ -133,29 +134,21 @@ describe("checkForUpdate", () => {
 
   it("VITE_OTA_UPDATE_URL 이 없으면 네트워크 요청을 하지 않는다", async () => {
     vi.stubEnv("VITE_OTA_UPDATE_URL", "");
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
 
     await checkForUpdate();
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mockHttpGet).not.toHaveBeenCalled();
   });
 
-  it("manifest fetch 가 실패해도 예외를 던지지 않는다", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new Error("network down")),
-    );
+  it("manifest 요청이 실패해도 예외를 던지지 않는다", async () => {
+    mockHttpGet.mockRejectedValue(new Error("network down"));
 
     await expect(checkForUpdate()).resolves.toBeUndefined();
     expect(mockDownload).not.toHaveBeenCalled();
   });
 
-  it("manifest 응답이 ok 가 아니면 download 하지 않는다", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: false, status: 404 }),
-    );
+  it("manifest 응답이 2xx 가 아니면 download 하지 않는다", async () => {
+    mockHttpGet.mockResolvedValue({ status: 404, data: "" });
 
     await checkForUpdate();
 
