@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { SplashPage } from "./SplashPage";
 
@@ -90,14 +90,47 @@ describe("SplashPage", () => {
     expect(screen.getByText("로그인 화면")).toBeInTheDocument();
   });
 
-  it("네트워크 오류여도 /login 으로 navigate 한다 (사용자 회복 가능 경로 보장)", async () => {
+  it("네트워크 오류면 /login 대신 연결 오류 화면을 보여준다 (세션 보존)", async () => {
     mockRestore.mockResolvedValue({ kind: "network_error" });
 
     renderSplash();
 
     await vi.advanceTimersByTimeAsync(SPLASH_MIN_MS + FADE_OUT_MS);
 
-    expect(screen.getByText("로그인 화면")).toBeInTheDocument();
+    expect(screen.getByText("연결이 불안정해요")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "다시 시도" })).toBeInTheDocument();
+    expect(screen.queryByText("로그인 화면")).not.toBeInTheDocument();
+  });
+
+  it("연결 오류 화면에서 다시 시도가 성공하면 재로그인 없이 /home 으로 간다", async () => {
+    mockRestore.mockResolvedValueOnce({ kind: "network_error" });
+
+    renderSplash();
+    await vi.advanceTimersByTimeAsync(SPLASH_MIN_MS + FADE_OUT_MS);
+    expect(screen.getByText("연결이 불안정해요")).toBeInTheDocument();
+
+    mockRestore.mockResolvedValueOnce({ kind: "restored" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(screen.getByText("홈 화면")).toBeInTheDocument();
+  });
+
+  it("다시 시도도 네트워크 오류면 연결 오류 화면에 머무른다", async () => {
+    mockRestore.mockResolvedValue({ kind: "network_error" });
+
+    renderSplash();
+    await vi.advanceTimersByTimeAsync(SPLASH_MIN_MS + FADE_OUT_MS);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(screen.getByText("연결이 불안정해요")).toBeInTheDocument();
+    expect(screen.queryByText("홈 화면")).not.toBeInTheDocument();
   });
 
   it("최소 노출 시간 전에는 navigate 하지 않는다 (브랜드 모먼트 보장)", async () => {
