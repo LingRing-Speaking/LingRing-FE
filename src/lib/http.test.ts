@@ -407,4 +407,51 @@ describe("401 인터셉터 + refresh 자동 재시도", () => {
     expect(useAuthStore.getState().accessToken).toBe("new-access");
     expect(useAuthStore.getState().refreshToken).toBe("new-refresh");
   });
+
+  it("refresh 호출이 네트워크 에러면 토큰을 보존하고 로그아웃하지 않는다", async () => {
+    server.use(
+      http.get("http://localhost:3000/api/v1/protected", () =>
+        HttpResponse.json(
+          { data: null, status: 401, message: "EXPIRED" },
+          { status: 401 },
+        ),
+      ),
+      http.post("http://localhost:3000/api/v1/auth/refresh", () =>
+        HttpResponse.error(),
+      ),
+    );
+
+    await expect(httpGet("/protected")).rejects.toMatchObject({ status: 0 });
+
+    const state = useAuthStore.getState();
+    expect(state.accessToken).toBe("expired-access");
+    expect(state.refreshToken).toBe("valid-refresh");
+    expect(state.isAuthenticated).toBe(true);
+    expect(storage.clearTokens).not.toHaveBeenCalled();
+  });
+
+  it("refresh 호출이 5xx 면 토큰을 보존하고 로그아웃하지 않는다", async () => {
+    server.use(
+      http.get("http://localhost:3000/api/v1/protected", () =>
+        HttpResponse.json(
+          { data: null, status: 401, message: "EXPIRED" },
+          { status: 401 },
+        ),
+      ),
+      http.post("http://localhost:3000/api/v1/auth/refresh", () =>
+        HttpResponse.json(
+          { data: null, status: 503, message: "SERVICE_UNAVAILABLE" },
+          { status: 503 },
+        ),
+      ),
+    );
+
+    await expect(httpGet("/protected")).rejects.toMatchObject({ status: 0 });
+
+    const state = useAuthStore.getState();
+    expect(state.accessToken).toBe("expired-access");
+    expect(state.refreshToken).toBe("valid-refresh");
+    expect(state.isAuthenticated).toBe(true);
+    expect(storage.clearTokens).not.toHaveBeenCalled();
+  });
 });
