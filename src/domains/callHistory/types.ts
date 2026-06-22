@@ -72,3 +72,24 @@ export type AnalysisResult = {
   mistakes: MistakeItem[];
   positives: PositiveItem[];
 };
+
+/**
+ * 통화 스크립트(STT) 한 발화. 화자는 원시 userId 로만 내려오므로, 화면에서는
+ * 본인의 인증된 userId 와 비교해 나/상대를 가른다. `endSec` 은 계약 충실성을 위해
+ * 받기만 하고 현재 UI 에서는 사용하지 않는다.
+ */
+export type TranscriptSegment = {
+  userId: number;
+  startSec: number;
+  endSec: number;
+  text: string;
+};
+
+/**
+ * `GET /calls/{callId}/transcript` 응답. 통화당 1개이며 두 참여자가 공유한다.
+ * `segments` 는 서버가 `startSec` 오름차순으로 정렬해 내려준다.
+ */
+export type CallTranscript = {
+  callId: number;
+  segments: TranscriptSegment[];
+};

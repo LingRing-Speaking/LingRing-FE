@@ -3,6 +3,7 @@ import {
   fetchAnalysisResult,
   fetchAnalysisStatus,
   fetchCallHistory,
+  fetchCallTranscript,
   requestAnalysis,
 } from "./callHistoryApi";
 
@@ -54,5 +55,19 @@ describe("callHistoryApi", () => {
     expect(Array.isArray(result.mistakes)).toBe(true);
     expect(Array.isArray(result.positives)).toBe(true);
     expect(["PROCESSING", "COMPLETED", "FAILED"]).toContain(result.status);
+  });
+
+  it("fetchCallTranscript 는 /calls/{callId}/transcript 의 callId, segments 를 반환한다", async () => {
+    const result = await fetchCallTranscript(42);
+
+    expect(result.callId).toBe(42);
+    expect(Array.isArray(result.segments)).toBe(true);
+    expect(result.segments.length).toBeGreaterThan(0);
+    expect(result.segments[0]).toMatchObject({
+      userId: expect.any(Number),
+      startSec: expect.any(Number),
+      endSec: expect.any(Number),
+      text: expect.any(String),
+    });
   });
 });

@@ -3,6 +3,7 @@ import type {
   AnalysisResult,
   AnalysisStatus,
   CallHistoryList,
+  CallTranscript,
 } from "../types";
 
 export const fetchCallHistory = (page: number, size: number) =>
@@ -28,3 +29,12 @@ export const fetchAnalysisStatus = (analysisId: number) =>
  */
 export const fetchAnalysisResult = (analysisId: number) =>
   httpGet<AnalysisResult>(`/analyses/${analysisId}`);
+
+/**
+ * 통화 스크립트 조회. 분석 완료 후 결과 화면에서 "전체 대화 보기" 를 펼칠 때 1회
+ * 호출한다. transcript 는 생성되면 변하지 않으므로 폴링하지 않는다. 통화 참여자가
+ * 아니거나(403)·통화/transcript 가 없거나(404)·아직 준비 안 됨(409) 인 경우
+ * http 레이어가 ApiError(status) 로 던진다.
+ */
+export const fetchCallTranscript = (callId: number) =>
+  httpGet<CallTranscript>(`/calls/${callId}/transcript`);
