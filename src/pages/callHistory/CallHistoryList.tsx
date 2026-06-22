@@ -40,12 +40,9 @@ export function CallHistoryList({
 
   return (
     <div className="scrollbar-none flex-1 overflow-y-auto px-5 pb-24 pt-1">
-      <h1 className="m-0 mt-2.5 text-[22px] font-extrabold leading-[1.3] tracking-[-0.02em] text-gray-900">
+      <h1 className="m-0 mb-5 mt-2.5 text-[22px] font-extrabold leading-[1.3] tracking-[-0.02em] text-gray-900">
         통화 기록
       </h1>
-      <p className="mb-5 mt-3 text-[14px] font-medium leading-snug tracking-tight text-gray-400">
-        ⓘ 1분 이상 통화부터 기록돼요
-      </p>
       {groups.map((group, index) => (
         <section key={`${group.bucket}-${group.label}`}>
           <h2
