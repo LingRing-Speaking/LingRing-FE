@@ -3,11 +3,32 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { env } from "@/config/env";
 import { server } from "@/mocks/server";
+import { useAuthStore } from "@/domains/auth/store";
 import type { AnalysisResult } from "@/domains/callHistory/types";
 import { AnalysisResultPage } from "./AnalysisResultPage";
+
+// 결과 화면은 AuthGuard 뒤라 항상 인증 사용자가 있다. CompletedView 가 화자 판별을
+// 위해 useUserId 를 호출하므로 파일 전체 동안 본인(id 1)을 세팅해둔다.
+beforeAll(() => {
+  useAuthStore.setState({
+    user: { id: 1, nickname: "me", profileImage: null },
+    accessToken: "a",
+    refreshToken: "r",
+    isAuthenticated: true,
+  });
+});
+
+afterAll(() => {
+  useAuthStore.setState({
+    user: null,
+    accessToken: null,
+    refreshToken: null,
+    isAuthenticated: false,
+  });
+});
 
 function renderAt(analysisId: number) {
   const queryClient = new QueryClient({
@@ -120,6 +141,31 @@ describe("AnalysisResultPage", () => {
     expect(screen.getByText(/That sounds amazing/)).toBeInTheDocument();
     expect(screen.getByText(/I goed to school yesterday/)).toBeInTheDocument();
     expect(screen.getByText(/I went to school yesterday/)).toBeInTheDocument();
+  });
+
+  it("COMPLETED 면 '전체 대화 보기' 토글이 노출된다", async () => {
+    server.use(
+      http.get(`${env.apiBaseUrl}/api/v1/analyses/104/status`, () =>
+        HttpResponse.json({
+          data: { status: "COMPLETED" },
+          status: 200,
+          message: "OK",
+        }),
+      ),
+      http.get(`${env.apiBaseUrl}/api/v1/analyses/104`, () =>
+        HttpResponse.json({
+          data: completedResult,
+          status: 200,
+          message: "OK",
+        }),
+      ),
+    );
+
+    renderAt(104);
+
+    expect(
+      await screen.findByRole("button", { name: "전체 대화 보기" }),
+    ).toBeInTheDocument();
   });
 
   it("COMPLETED 인데 mistakes/positives 가 모두 빈 배열이면 빈 상태 안내가 보인다", async () => {

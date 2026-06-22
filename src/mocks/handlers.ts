@@ -338,6 +338,34 @@ export const handlers = [
     });
   }),
 
+  http.get(apiUrl("/calls/:callId/transcript"), ({ params }) => {
+    const callId = Number(params.callId);
+    // 현재 사용자(/me)는 id 1, 상대는 id 2 로 시뮬. startSec 오름차순.
+    return HttpResponse.json({
+      data: {
+        callId,
+        segments: [
+          { userId: 2, startSec: 0.0, endSec: 2.4, text: "Hey! How was your weekend?" },
+          {
+            userId: 1,
+            startSec: 2.8,
+            endSec: 6.1,
+            text: "It was good. I went to Busan with friends.",
+          },
+          { userId: 2, startSec: 6.5, endSec: 9.0, text: "Oh nice! What did you do there?" },
+          {
+            userId: 1,
+            startSec: 9.4,
+            endSec: 14.2,
+            text: "We went to the beach and ate seafood. It was amazing.",
+          },
+        ],
+      },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
   http.post(apiUrl("/calls/:callId/analysis"), ({ params }) => {
     const callId = Number(params.callId);
     let analysisId = analysisIdByCallId.get(callId);

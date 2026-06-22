@@ -3,6 +3,7 @@ import { PageShell } from "@/components/PageShell";
 import { usePollAnalysisStatus } from "@/domains/callHistory/hooks/usePollAnalysisStatus";
 import { useAnalysisResult } from "@/domains/callHistory/hooks/useAnalysisResult";
 import type { AnalysisResult } from "@/domains/callHistory/types";
+import { TranscriptSection } from "./TranscriptSection";
 
 export function AnalysisResultPage() {
   const { analysisId: rawId } = useParams<{ analysisId: string }>();
@@ -130,6 +131,7 @@ function CompletedView({ result }: { result: AnalysisResult }) {
           <MistakesSection items={mistakes} />
         </div>
       )}
+      <TranscriptSection callId={result.callId} />
     </div>
   );
 }
