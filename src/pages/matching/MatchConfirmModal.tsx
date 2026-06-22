@@ -56,8 +56,10 @@ export function MatchConfirmModal({
     onDecline();
   };
 
-  const progressPercent =
-    remainingMs === null ? 0 : (remainingMs / TOTAL_MS) * 100;
+  // 0~1 로 정규화한 잔여 비율. 막대는 width 대신 transform: scaleX 로 채워
+  // iOS WKWebView 합성 레이어 고스트(아래 progressbar 주석 참고)를 피한다.
+  const remainingRatio =
+    remainingMs === null ? 0 : Math.max(0, Math.min(1, remainingMs / TOTAL_MS));
   const isUrgent = remainingMs !== null && remainingMs <= URGENT_THRESHOLD_MS;
   const isDisabled = acted !== null;
   const hintText =
@@ -98,16 +100,27 @@ export function MatchConfirmModal({
           <div
             role="progressbar"
             aria-label="응답 남은 시간"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(remainingRatio * 100)}
             className="mb-5 h-1 overflow-hidden rounded-full bg-gray-100"
           >
+            {/*
+              막대를 width 트랜지션으로 줄이면, 남은 시간 ≤5초에 animate-confirm-pulse
+              가 시작되는 순간 iOS WKWebView 가 막대를 GPU 합성 레이어로 승격시키면서
+              승격 직전 민트 페인트를 고스트로 남긴다(민트는 그 지점에 얼어붙고 코랄만
+              펄스+감소). transform: scaleX + 항상 켜진 will-change-transform/translateZ
+              로 막대를 처음부터 안정된 합성 레이어에 두면 펄스 시작 시 재승격이 없어
+              고스트가 사라진다.
+            */}
             <div
               data-testid="confirm-countdown-bar"
-              className={`h-full rounded-full transition-[width] duration-200 ${
+              className={`h-full w-full origin-left transition-transform duration-200 will-change-transform ${
                 isUrgent
                   ? "animate-confirm-pulse bg-coral-500"
                   : "bg-mint-500"
               }`}
-              style={{ width: `${progressPercent}%` }}
+              style={{ transform: `scaleX(${remainingRatio}) translateZ(0)` }}
             />
           </div>
 
