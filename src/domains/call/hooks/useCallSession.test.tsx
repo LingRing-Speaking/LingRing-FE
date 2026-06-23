@@ -580,4 +580,62 @@ describe("useCallSession", () => {
 
     expect(playMock).not.toHaveBeenCalled();
   });
+
+  describe("endReason (종료 사유)", () => {
+    it("초기 endReason 은 null 이다", () => {
+      const { result } = renderHook(() => useCallSession(baseOpts));
+      expect(result.current.endReason).toBeNull();
+    });
+
+    it("end() 기본 호출 → endReason='self'", async () => {
+      const { result } = renderHook(() => useCallSession(baseOpts));
+      await waitFor(() => expect(sendMock).toHaveBeenCalledWith({ type: "JOIN" }));
+
+      await act(async () => {
+        result.current.end();
+      });
+
+      expect(result.current.endReason).toBe("self");
+    });
+
+    it("end('timeout') → endReason='timeout' 이고 HANGUP 을 송신한다", async () => {
+      const { result } = renderHook(() => useCallSession(baseOpts));
+      await waitFor(() => expect(sendMock).toHaveBeenCalledWith({ type: "JOIN" }));
+
+      await act(async () => {
+        result.current.end("timeout");
+      });
+
+      expect(result.current.endReason).toBe("timeout");
+      expect(sendMock).toHaveBeenCalledWith({ type: "HANGUP" });
+      expect(result.current.status).toBe("ended");
+    });
+
+    it("HANGUP 수신 → endReason='peer'", async () => {
+      const { result } = renderHook(() => useCallSession(baseOpts));
+      await waitFor(() => expect(sendMock).toHaveBeenCalledWith({ type: "JOIN" }));
+
+      await act(async () => {
+        dispatchMessage({
+          type: "HANGUP",
+          fromUserId: 2,
+          toUserId: 1,
+          payload: null,
+        });
+      });
+
+      expect(result.current.endReason).toBe("peer");
+    });
+
+    it("WS 비정상 close → endReason='dropped'", async () => {
+      const { result } = renderHook(() => useCallSession(baseOpts));
+      await waitFor(() => expect(sendMock).toHaveBeenCalled());
+
+      await act(async () => {
+        closeHandlers.forEach((h) => h(new CloseEvent("close", { code: 1006 })));
+      });
+
+      expect(result.current.endReason).toBe("dropped");
+    });
+  });
 });

@@ -5,12 +5,14 @@ import { createRef } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/domains/auth/store";
+import type { EndReason } from "@/domains/call/hooks/useCallSession";
 import { createTestQueryClient } from "../../../test/utils/renderWithQueryClient";
 import { CallPage } from "./CallPage";
 
 const sessionState = {
   status: "connecting" as "connecting" | "connected" | "ended" | "error",
   errorMessage: null as string | null,
+  endReason: null as EndReason | null,
   isMuted: false,
   toggleMute: vi.fn(),
   isSpeakerOn: false,
@@ -40,6 +42,7 @@ vi.mock("@/domains/user/hooks/useUserProfile", () => ({
 beforeEach(() => {
   sessionState.status = "connecting";
   sessionState.errorMessage = null;
+  sessionState.endReason = null;
   sessionState.isMuted = false;
   sessionState.toggleMute = vi.fn();
   sessionState.isSpeakerOn = false;
@@ -64,6 +67,8 @@ const renderAt = (path: string, state?: { partnerId?: number }) => {
         <Routes>
           <Route path="/call/:roomId" element={<CallPage />} />
           <Route path="/home" element={<div>홈입니다</div>} />
+          <Route path="/history" element={<div>기록 페이지</div>} />
+          <Route path="/matching" element={<div>매칭 페이지</div>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -94,7 +99,8 @@ describe("CallPage", () => {
     sessionState.status = "connected";
     renderAt("/call/abc", { partnerId: 2 });
 
-    expect(screen.getByText("00:00")).toBeInTheDocument();
+    // 카운트다운 — 연결 직후 남은 시간은 상한(20분)
+    expect(screen.getByText("20:00")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "음소거" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "스피커" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "통화 종료" })).toBeInTheDocument();
@@ -183,11 +189,47 @@ describe("CallPage", () => {
     expect(sessionState.end).toHaveBeenCalledOnce();
   });
 
-  it("status='ended' 면 / 로 redirect 한다", async () => {
+  it("status='ended' 면 종료 후 2갈래 선택 화면을 보여준다", () => {
     sessionState.status = "ended";
+    sessionState.endReason = "timeout";
     renderAt("/call/abc", { partnerId: 2 });
 
-    await waitFor(() => expect(screen.getByText("홈입니다")).toBeInTheDocument());
+    expect(
+      screen.getByRole("button", { name: "통화 내용 분석하기" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "한 번 더 대화하기" }),
+    ).toBeInTheDocument();
+  });
+
+  it("timeout 종료면 '수고했어요' 카피를 보여준다", () => {
+    sessionState.status = "ended";
+    sessionState.endReason = "timeout";
+    renderAt("/call/abc", { partnerId: 2 });
+
+    expect(screen.getByText(/수고했어요/)).toBeInTheDocument();
+  });
+
+  it("종료 화면에서 '통화 내용 분석하기' → /history 로 이동한다", async () => {
+    sessionState.status = "ended";
+    sessionState.endReason = "timeout";
+    renderAt("/call/abc", { partnerId: 2 });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "통화 내용 분석하기" }));
+
+    expect(screen.getByText("기록 페이지")).toBeInTheDocument();
+  });
+
+  it("종료 화면에서 '한 번 더 대화하기' → /matching 으로 이동한다", async () => {
+    sessionState.status = "ended";
+    sessionState.endReason = "timeout";
+    renderAt("/call/abc", { partnerId: 2 });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "한 번 더 대화하기" }));
+
+    expect(screen.getByText("매칭 페이지")).toBeInTheDocument();
   });
 
   it("status='error' 면 errorMessage 와 '메인으로' 버튼을 보여준다", async () => {

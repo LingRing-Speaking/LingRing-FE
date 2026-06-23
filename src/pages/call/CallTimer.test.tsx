@@ -1,75 +1,53 @@
-import { act, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { CallTimer } from "./CallTimer";
 
-describe("CallTimer", () => {
-  afterEach(() => vi.useRealTimers());
+const MIN = 60 * 1000;
 
-  it("초기 렌더는 00:00 이다", () => {
-    render(<CallTimer active={false} />);
+describe("CallTimer", () => {
+  it("남은 시간을 MM:SS 로 표시한다", () => {
+    render(<CallTimer remainingMs={20 * MIN} phase="calm" />);
+    expect(screen.getByText("20:00")).toBeInTheDocument();
+  });
+
+  it("초 단위는 올림으로 표시한다 (0.5초 남아도 00:01)", () => {
+    render(<CallTimer remainingMs={500} phase="closing" />);
+    expect(screen.getByText("00:01")).toBeInTheDocument();
+  });
+
+  it("0ms 면 00:00 이다", () => {
+    render(<CallTimer remainingMs={0} phase="closing" />);
     expect(screen.getByText("00:00")).toBeInTheDocument();
   });
 
-  it("active=true 면 1초마다 카운트가 올라간다", async () => {
-    vi.useFakeTimers();
-    render(<CallTimer active={true} />);
+  it("phase 를 data-phase 로 노출한다", () => {
+    const { rerender } = render(<CallTimer remainingMs={MIN} phase="calm" />);
+    expect(screen.getByLabelText("남은 통화 시간")).toHaveAttribute(
+      "data-phase",
+      "calm",
+    );
 
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(screen.getByText(/00.*01/)).toBeInTheDocument();
+    rerender(<CallTimer remainingMs={MIN} phase="warn" />);
+    expect(screen.getByLabelText("남은 통화 시간")).toHaveAttribute(
+      "data-phase",
+      "warn",
+    );
 
-    await vi.advanceTimersByTimeAsync(59000);
-    expect(screen.getByText(/01.*00/)).toBeInTheDocument();
+    rerender(<CallTimer remainingMs={MIN} phase="closing" />);
+    expect(screen.getByLabelText("남은 통화 시간")).toHaveAttribute(
+      "data-phase",
+      "closing",
+    );
   });
 
-  it("active=false 면 카운트가 멈춘다", async () => {
-    vi.useFakeTimers();
-    const { rerender } = render(<CallTimer active={true} />);
+  it("calm 은 회색, warn/closing 은 코랄로 표시한다", () => {
+    const { rerender } = render(<CallTimer remainingMs={MIN} phase="calm" />);
+    expect(screen.getByLabelText("남은 통화 시간").className).toMatch(/text-gray-900/);
 
-    await vi.advanceTimersByTimeAsync(3000);
-    expect(screen.getByText(/00.*03/)).toBeInTheDocument();
+    rerender(<CallTimer remainingMs={MIN} phase="warn" />);
+    expect(screen.getByLabelText("남은 통화 시간").className).toMatch(/text-coral-600/);
 
-    rerender(<CallTimer active={false} />);
-    await vi.advanceTimersByTimeAsync(5000);
-
-    expect(screen.getByText(/00.*03/)).toBeInTheDocument();
-  });
-
-  it("백그라운드로 timer가 throttled 되어도 wallclock 기준으로 누적 시간이 보정된다", async () => {
-    vi.useFakeTimers();
-    const start = new Date("2026-05-04T00:00:00Z");
-    vi.setSystemTime(start);
-
-    render(<CallTimer active={true} />);
-
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(screen.getByText("00:01")).toBeInTheDocument();
-
-    // 백그라운드 시뮬: 시계만 5초 점프 (timer fire는 throttled되어 일어나지 않은 상황)
-    vi.setSystemTime(new Date(start.getTime() + 1000 + 5000));
-
-    // 다음 tick에서 wallclock 기준 누적 시간이 반영되어야 함 (1 + 5 + 1 = 7초)
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(screen.getByText("00:07")).toBeInTheDocument();
-  });
-
-  it("visibilitychange 로 visible 복귀 시 즉시 시간이 갱신된다", async () => {
-    vi.useFakeTimers();
-    const start = new Date("2026-05-04T00:00:00Z");
-    vi.setSystemTime(start);
-
-    render(<CallTimer active={true} />);
-
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(screen.getByText("00:01")).toBeInTheDocument();
-
-    // 백그라운드 시뮬: 시계만 5초 점프
-    vi.setSystemTime(new Date(start.getTime() + 1000 + 5000));
-
-    // 다음 tick 기다리지 않고 visibilitychange 발화 → 즉시 6초 반영
-    await act(async () => {
-      document.dispatchEvent(new Event("visibilitychange"));
-    });
-
-    expect(screen.getByText("00:06")).toBeInTheDocument();
+    rerender(<CallTimer remainingMs={MIN} phase="closing" />);
+    expect(screen.getByLabelText("남은 통화 시간").className).toMatch(/text-coral-600/);
   });
 });
