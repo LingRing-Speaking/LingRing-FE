@@ -194,6 +194,48 @@ describe("CallCard", () => {
     });
   });
 
+  describe("1분 미만 통화 분석 제한", () => {
+    it("durationSec < 60 이고 READY 면 '분석하기' 버튼을 노출하지 않는다", () => {
+      renderCard({
+        ...baseCall,
+        durationSec: 42,
+        analysisStatus: "READY",
+        analysisId: null,
+      });
+      expect(screen.queryByRole("button", { name: "분석하기" })).not.toBeInTheDocument();
+    });
+
+    it("durationSec 가 정확히 60 이면 '분석하기' 버튼을 노출한다 (경계)", () => {
+      renderCard({
+        ...baseCall,
+        durationSec: 60,
+        analysisStatus: "READY",
+        analysisId: null,
+      });
+      expect(screen.getByRole("button", { name: "분석하기" })).toBeInTheDocument();
+    });
+
+    it("durationSec < 60 이고 FAILED 여도 '재분석' 버튼을 노출하지 않는다", () => {
+      renderCard({
+        ...baseCall,
+        durationSec: 42,
+        analysisStatus: "FAILED",
+        analysisId: 100,
+      });
+      expect(screen.queryByRole("button", { name: "재분석" })).not.toBeInTheDocument();
+    });
+
+    it("durationSec < 60 이라도 COMPLETED 면 '분석보기' 는 노출한다 (기존 결과 조회 보존)", () => {
+      renderCard({
+        ...baseCall,
+        durationSec: 42,
+        analysisStatus: "COMPLETED",
+        analysisId: 100,
+      });
+      expect(screen.getByRole("button", { name: "분석보기" })).toBeInTheDocument();
+    });
+  });
+
   describe("partner=null (상대가 탈퇴한 통화)", () => {
     const unknownCall: CallHistoryItem = { ...baseCall, partner: null };
 
