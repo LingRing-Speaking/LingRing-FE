@@ -7,6 +7,9 @@ import { formatCallMeta } from "./timeBucket";
 
 const UNKNOWN_PARTNER_NAME = "알 수 없음";
 
+// 1분(60초) 이상 통화만 분석을 요청할 수 있다. (서버에서도 동일하게 검증)
+const ANALYSIS_MIN_DURATION_SEC = 60;
+
 type Props = {
   call: CallHistoryItem;
   now: Date;
@@ -36,6 +39,13 @@ export function CallCard({ call, now, onPartnerClick }: Props) {
     if (analysisId === null) return;
     navigate(`/analyses/${analysisId}`);
   };
+
+  // 1분 미만 통화는 분석을 요청할 수 없다. 다만 이미 분석이 있거나 진행 중인 통화는
+  // (COMPLETED·PROCESSING) 결과를 볼 수 있어야 하므로, 요청 상태(READY·FAILED)일
+  // 때만 버튼을 숨긴다. 분석 가능 조건 안내는 목록 상단에 한 번만 노출한다.
+  const isTooShortToAnalyze = call.durationSec < ANALYSIS_MIN_DURATION_SEC;
+  const isAnalysisRequest = analysisStatus === "READY" || analysisStatus === "FAILED";
+  const hideAnalysisButton = isTooShortToAnalyze && isAnalysisRequest;
 
   return (
     <div className="flex items-center gap-2 rounded-[18px] bg-white py-2 pl-3 pr-2 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
@@ -74,11 +84,13 @@ export function CallCard({ call, now, onPartnerClick }: Props) {
           </span>
         </div>
       </button>
-      <AnalysisButton
-        analysisStatus={analysisStatus}
-        onTriggerAnalysis={handleTriggerAnalysis}
-        onViewResult={handleViewResult}
-      />
+      {!hideAnalysisButton && (
+        <AnalysisButton
+          analysisStatus={analysisStatus}
+          onTriggerAnalysis={handleTriggerAnalysis}
+          onViewResult={handleViewResult}
+        />
+      )}
     </div>
   );
 }

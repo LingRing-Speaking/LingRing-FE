@@ -68,6 +68,25 @@ describe("CallHistoryList", () => {
     expect(screen.getByText("P3")).toBeInTheDocument();
   });
 
+  it("분석 가능 조건 안내 문구를 한 번 노출한다", () => {
+    const items = [
+      makeCall(1, new Date(2026, 3, 29, 19, 0)),
+      makeCall(2, new Date(2026, 3, 28, 12, 0)),
+    ];
+    renderWithRouter(
+      <CallHistoryList
+        items={items}
+        now={NOW}
+        hasNextPage={false}
+        isFetchingNextPage={false}
+        onLoadMore={() => {}}
+        onPartnerClick={() => {}}
+      />,
+    );
+
+    expect(screen.getAllByText("1분 이상 통화부터 분석할 수 있어요")).toHaveLength(1);
+  });
+
   it("sentinel 이 뷰포트에 들어오면 onLoadMore 를 호출한다 (hasNextPage=true)", () => {
     const onLoadMore = vi.fn();
     let observerCb: IntersectionObserverCallback | undefined;
