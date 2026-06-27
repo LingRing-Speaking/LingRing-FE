@@ -3,7 +3,7 @@ import { renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CallHistoryItem } from "../types";
-import { usePollProcessingCalls } from "./usePollProcessingCalls";
+import { usePollTransientCalls } from "./usePollTransientCalls";
 
 function makeItem(
   id: number,
@@ -14,7 +14,8 @@ function makeItem(
     partner: { id: 1000 + id, name: `P${id}`, profileImage: null },
     startedAt: "2026-05-21T19:00:00+09:00",
     durationSec: 120,
-    analysisId: status === "READY" ? null : 100 + id,
+    analysisId:
+      status === "READY" || status === "WAITING_RECORDINGS" ? null : 100 + id,
     analysisStatus: status,
   };
 }
@@ -25,7 +26,7 @@ function buildWrapper(queryClient: QueryClient) {
   );
 }
 
-describe("usePollProcessingCalls", () => {
+describe("usePollTransientCalls", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -39,7 +40,7 @@ describe("usePollProcessingCalls", () => {
 
     renderHook(
       () =>
-        usePollProcessingCalls([
+        usePollTransientCalls([
           makeItem(1, "READY"),
           makeItem(2, "COMPLETED"),
           makeItem(3, "FAILED"),
@@ -57,7 +58,7 @@ describe("usePollProcessingCalls", () => {
 
     renderHook(
       () =>
-        usePollProcessingCalls([
+        usePollTransientCalls([
           makeItem(1, "PROCESSING"),
           makeItem(2, "COMPLETED"),
         ]),
@@ -72,13 +73,31 @@ describe("usePollProcessingCalls", () => {
     expect(invalidateSpy).toHaveBeenCalledTimes(2);
   });
 
+  it("WAITING_RECORDINGS(녹음 업로드 중) 카드가 있으면 일정 주기로 ['calls'] 가 invalidate 된다", () => {
+    const queryClient = new QueryClient();
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    renderHook(
+      () =>
+        usePollTransientCalls([
+          makeItem(1, "WAITING_RECORDINGS"),
+          makeItem(2, "READY"),
+        ]),
+      { wrapper: buildWrapper(queryClient) },
+    );
+
+    vi.advanceTimersByTime(3000);
+    expect(invalidateSpy).toHaveBeenCalledTimes(1);
+    expect(invalidateSpy).toHaveBeenLastCalledWith({ queryKey: ["calls"] });
+  });
+
   it("PROCESSING 이 모두 종료 상태로 바뀌면 다음 주기부터 invalidate 가 멈춘다", () => {
     const queryClient = new QueryClient();
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     const { rerender } = renderHook(
       ({ items }: { items: CallHistoryItem[] }) =>
-        usePollProcessingCalls(items),
+        usePollTransientCalls(items),
       {
         wrapper: buildWrapper(queryClient),
         initialProps: { items: [makeItem(1, "PROCESSING")] },

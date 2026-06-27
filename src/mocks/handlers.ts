@@ -18,10 +18,27 @@ const analysisIdByCallId = new Map<number, number>();
 const triggeredAtByAnalysisId = new Map<number, number>();
 let nextAnalysisId = 1000;
 
+// 녹음 업로드 중(WAITING_RECORDINGS) 시뮬레이션. 지정된 통화는 첫 조회 시각을
+// 기록해 그로부터 RECORDING_UPLOAD_DURATION_MS 동안 WAITING_RECORDINGS 로 응답하고,
+// 이후 READY 로 전환된다. 목록 폴링이 이 전환을 따라가 "대기중"→"분석하기" 가 된다.
+const RECORDING_UPLOAD_DURATION_MS = 9000;
+const RECORDING_UPLOAD_DEMO_CALL_ID = 4;
+const recordingUploadStartedAtByCallId = new Map<number, number>();
+
+function isRecordingStillUploading(callId: number): boolean {
+  let startedAt = recordingUploadStartedAtByCallId.get(callId);
+  if (startedAt == null) {
+    startedAt = Date.now();
+    recordingUploadStartedAtByCallId.set(callId, startedAt);
+  }
+  return Date.now() - startedAt < RECORDING_UPLOAD_DURATION_MS;
+}
+
 /** 테스트 간 모듈 레벨 상태를 초기화한다. */
 export function resetMockState() {
   analysisIdByCallId.clear();
   triggeredAtByAnalysisId.clear();
+  recordingUploadStartedAtByCallId.clear();
   nextAnalysisId = 1000;
 }
 
@@ -90,8 +107,19 @@ function generateFakeCalls(n: number): CallHistoryItem[] {
     }
     // 사용자가 "분석하기" 를 눌러 동적으로 발급된 analysisId 도 함께 반영.
     const currentAnalysisId = analysisIdByCallId.get(callId) ?? null;
-    const analysisStatus: AnalysisStatus =
-      currentAnalysisId == null ? "READY" : statusForAnalysisId(currentAnalysisId);
+    // 분석 row 가 있으면 그 상태를, 없으면 녹음 업로드 중(WAITING_RECORDINGS) →
+    // 업로드 완료(READY) 순으로 본다.
+    let analysisStatus: AnalysisStatus;
+    if (currentAnalysisId != null) {
+      analysisStatus = statusForAnalysisId(currentAnalysisId);
+    } else if (
+      callId === RECORDING_UPLOAD_DEMO_CALL_ID &&
+      isRecordingStillUploading(callId)
+    ) {
+      analysisStatus = "WAITING_RECORDINGS";
+    } else {
+      analysisStatus = "READY";
+    }
     return {
       id: callId,
       partner,

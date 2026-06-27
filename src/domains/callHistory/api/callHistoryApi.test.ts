@@ -21,9 +21,13 @@ describe("callHistoryApi", () => {
     const first = result.items[0];
     const id = first?.analysisId;
     expect(id === null || typeof id === "number").toBe(true);
-    expect(["READY", "PROCESSING", "COMPLETED", "FAILED"]).toContain(
-      first?.analysisStatus,
-    );
+    expect([
+      "WAITING_RECORDINGS",
+      "READY",
+      "PROCESSING",
+      "COMPLETED",
+      "FAILED",
+    ]).toContain(first?.analysisStatus);
     expect(typeof result.hasNext).toBe("boolean");
   });
 

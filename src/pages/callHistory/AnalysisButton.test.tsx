@@ -4,6 +4,35 @@ import { describe, expect, it, vi } from "vitest";
 import { AnalysisButton } from "./AnalysisButton";
 
 describe("AnalysisButton", () => {
+  describe("analysisStatus=WAITING_RECORDINGS (녹음 업로드 중)", () => {
+    it("'대기중' 버튼이 비활성으로 노출되고 스피너는 없다", () => {
+      render(
+        <AnalysisButton
+          analysisStatus="WAITING_RECORDINGS"
+          onTriggerAnalysis={() => {}}
+          onViewResult={() => {}}
+        />,
+      );
+      expect(screen.getByRole("button", { name: "대기중" })).toBeDisabled();
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+
+    it("disabled 라 클릭해도 어떤 콜백도 호출되지 않는다", async () => {
+      const onTrigger = vi.fn();
+      const onView = vi.fn();
+      render(
+        <AnalysisButton
+          analysisStatus="WAITING_RECORDINGS"
+          onTriggerAnalysis={onTrigger}
+          onViewResult={onView}
+        />,
+      );
+      await userEvent.click(screen.getByRole("button", { name: "대기중" }));
+      expect(onTrigger).not.toHaveBeenCalled();
+      expect(onView).not.toHaveBeenCalled();
+    });
+  });
+
   describe("analysisStatus=READY (분석 미요청)", () => {
     it("'분석하기' 버튼이 활성 상태로 노출된다", () => {
       render(
