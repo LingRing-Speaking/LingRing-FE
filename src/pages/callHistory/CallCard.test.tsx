@@ -90,6 +90,15 @@ describe("CallCard", () => {
   });
 
   describe("분석 버튼 (analysisStatus)", () => {
+    it("WAITING_RECORDINGS 면 '대기중' 버튼(비활성)이 노출된다", () => {
+      renderCard({
+        ...baseCall,
+        analysisStatus: "WAITING_RECORDINGS",
+        analysisId: null,
+      });
+      expect(screen.getByRole("button", { name: "대기중" })).toBeDisabled();
+    });
+
     it("READY 면 '분석하기' 버튼이 노출된다", () => {
       renderCard({ ...baseCall, analysisStatus: "READY", analysisId: null });
       expect(
@@ -223,6 +232,28 @@ describe("CallCard", () => {
         analysisId: 100,
       });
       expect(screen.queryByRole("button", { name: "재분석" })).not.toBeInTheDocument();
+    });
+
+    it("durationSec < 60 이고 WAITING_RECORDINGS 여도 '대기중' 버튼을 노출하지 않는다", () => {
+      renderCard({
+        ...baseCall,
+        durationSec: 42,
+        analysisStatus: "WAITING_RECORDINGS",
+        analysisId: null,
+      });
+      expect(
+        screen.queryByRole("button", { name: "대기중" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("durationSec < 60 이라도 PROCESSING 이면 '분석중' 은 노출한다 (진행 중 보존)", () => {
+      renderCard({
+        ...baseCall,
+        durationSec: 42,
+        analysisStatus: "PROCESSING",
+        analysisId: 100,
+      });
+      expect(screen.getByRole("button", { name: "분석중" })).toBeInTheDocument();
     });
 
     it("durationSec < 60 이라도 COMPLETED 면 '분석보기' 는 노출한다 (기존 결과 조회 보존)", () => {

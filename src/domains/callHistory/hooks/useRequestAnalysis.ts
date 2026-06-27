@@ -12,7 +12,7 @@ const CALLS_QUERY_KEY = ["calls"] as const;
  * 통화 분석을 트리거하고 본인 analysisId 를 받는다. 응답이 떨어지면 `["calls"]`
  * 캐시의 해당 카드를 analysisId + PROCESSING 으로 즉시 갱신해, 사용자가 카드에
  * 머무른 채로 "분석중" 라벨을 바로 보게 한다. 이후 실제 완료 여부는 목록
- * 폴링(usePollProcessingCalls)이 따라가며 갱신한다.
+ * 폴링(usePollTransientCalls)이 따라가며 갱신한다.
  */
 export function useRequestAnalysis() {
   const queryClient = useQueryClient();

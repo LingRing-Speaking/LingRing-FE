@@ -40,12 +40,14 @@ export function CallCard({ call, now, onPartnerClick }: Props) {
     navigate(`/analyses/${analysisId}`);
   };
 
-  // 1분 미만 통화는 분석을 요청할 수 없다. 다만 이미 분석이 있거나 진행 중인 통화는
-  // (COMPLETED·PROCESSING) 결과를 볼 수 있어야 하므로, 요청 상태(READY·FAILED)일
-  // 때만 버튼을 숨긴다. 분석 가능 조건 안내는 목록 상단에 한 번만 노출한다.
+  // 1분 미만 통화는 분석을 새로 시작할 수 없다. 다만 이미 분석이 진행 중이거나
+  // 완료된 통화(PROCESSING·COMPLETED)는 결과를 볼 수 있어야 하므로 버튼을 유지하고,
+  // 그 외(WAITING_RECORDINGS·READY·FAILED)는 분석 시작/대기 계열이라 숨긴다.
+  // 분석 가능 조건 안내는 목록 상단에 한 번만 노출한다.
   const isTooShortToAnalyze = call.durationSec < ANALYSIS_MIN_DURATION_SEC;
-  const isAnalysisRequest = analysisStatus === "READY" || analysisStatus === "FAILED";
-  const hideAnalysisButton = isTooShortToAnalyze && isAnalysisRequest;
+  const hasOngoingOrCompletedAnalysis =
+    analysisStatus === "PROCESSING" || analysisStatus === "COMPLETED";
+  const hideAnalysisButton = isTooShortToAnalyze && !hasOngoingOrCompletedAnalysis;
 
   return (
     <div className="flex items-center gap-2 rounded-[18px] bg-white py-2 pl-3 pr-2 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">

@@ -5,18 +5,24 @@ export type CallPartner = {
 };
 
 /**
- * 통화 분석 상태. 카드 버튼은 이 값 하나로 4상태 분기한다.
- * - READY: 본인이 아직 요청 안 함 → "분석하기"
+ * 통화 분석 상태. 카드 버튼은 이 값 하나로 분기한다.
+ * - WAITING_RECORDINGS: 녹음 업로드 중(두 화자 중 아직 덜 올라옴) → "대기중" (비활성)
+ * - READY: 녹음 완료·분석 미요청 → "분석하기"
  * - PROCESSING: 서버 분석 진행 중 → "분석중" (비활성)
- * - COMPLETED: 분석 완료 → "분석 완료" (결과 페이지 진입)
+ * - COMPLETED: 분석 완료 → "분석보기" (결과 페이지 진입)
  * - FAILED: 분석 실패 → "재분석"
  */
-export type AnalysisStatus = "READY" | "PROCESSING" | "COMPLETED" | "FAILED";
+export type AnalysisStatus =
+  | "WAITING_RECORDINGS"
+  | "READY"
+  | "PROCESSING"
+  | "COMPLETED"
+  | "FAILED";
 
 /**
  * 통화 카드 항목.
- * - `analysisStatus === "READY"` 일 때만 `analysisId` 가 null.
- * - 그 외 상태(PROCESSING/COMPLETED/FAILED)에서는 `analysisId` 가 number.
+ * - 분석 row 가 생기기 전(WAITING_RECORDINGS/READY)에는 `analysisId` 가 null.
+ * - 분석을 요청한 뒤(PROCESSING/COMPLETED/FAILED)에는 `analysisId` 가 number.
  */
 export type CallHistoryItem = {
   id: number;
