@@ -2,8 +2,17 @@
 include ':capacitor-android'
 project(':capacitor-android').projectDir = new File('../node_modules/@capacitor/android/capacitor')
 
+include ':capacitor-community-apple-sign-in'
+project(':capacitor-community-apple-sign-in').projectDir = new File('../node_modules/@capacitor-community/apple-sign-in/android')
+
 include ':capacitor-preferences'
 project(':capacitor-preferences').projectDir = new File('../node_modules/@capacitor/preferences/android')
+
+include ':capacitor-splash-screen'
+project(':capacitor-splash-screen').projectDir = new File('../node_modules/@capacitor/splash-screen/android')
+
+include ':capgo-capacitor-updater'
+project(':capgo-capacitor-updater').projectDir = new File('../node_modules/@capgo/capacitor-updater/android')
 
 include ':capacitor-kakao-login-plugin'
 project(':capacitor-kakao-login-plugin').projectDir = new File('../node_modules/capacitor-kakao-login-plugin/android')

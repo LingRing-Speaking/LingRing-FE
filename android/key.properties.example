@@ -1,0 +1,13 @@
+# Android release 서명 설정 템플릿.
+# 이 파일을 복사해 android/key.properties 를 만들면 release 빌드가 이 키로 서명된다.
+# 실제 android/key.properties 와 keystore(*.jks/*.keystore) 는 .gitignore 로 커밋 제외된다.
+# 키 발급/보관 정책과 Play App Signing 은 #169 에서 확정한다.
+#
+# keystore 생성 예시:
+#   keytool -genkey -v -keystore android/app/upload.keystore \
+#     -alias upload -keyalg RSA -keysize 2048 -validity 10000
+
+storeFile=app/upload.keystore
+storePassword=CHANGE_ME
+keyAlias=upload
+keyPassword=CHANGE_ME

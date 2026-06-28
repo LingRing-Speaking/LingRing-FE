@@ -1,5 +1,29 @@
 apply plugin: 'com.android.application'
 
+// versionCode 는 git 커밋 수로 단조 증가시킨다 (OTA 번들 버전 규칙과 동일 — scripts/build-ota-bundle.mjs).
+// git 이 없는 환경(소스 tarball 등)에서는 1 로 폴백한다.
+def computeVersionCode = {
+    try {
+        def stdout = new ByteArrayOutputStream()
+        exec {
+            commandLine 'git', 'rev-list', '--count', 'HEAD'
+            standardOutput = stdout
+        }
+        return stdout.toString().trim().toInteger()
+    } catch (Exception ignored) {
+        return 1
+    }
+}
+
+// release 서명 키는 비밀이라 저장소에 커밋하지 않는다 (.gitignore: android/key.properties, *.keystore).
+// key.properties 가 있으면 release 서명, 없으면 debug 서명으로 폴백해 키 없이도 빌드가 된다.
+// 실제 키 발급/보관·Play App Signing 은 #169 에서 다룬다.
+def keystorePropsFile = rootProject.file("key.properties")
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystoreProps.load(new FileInputStream(keystorePropsFile))
+}
+
 android {
     namespace = "com.lingring.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +31,8 @@ android {
         applicationId "com.lingring.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode computeVersionCode()
+        versionName "1.2.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +40,19 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (keystorePropsFile.exists()) {
+                storeFile rootProject.file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
+            signingConfig keystorePropsFile.exists() ? signingConfigs.release : signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
