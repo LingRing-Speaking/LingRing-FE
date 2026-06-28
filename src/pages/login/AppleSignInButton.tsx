@@ -1,15 +1,14 @@
-import { Capacitor } from "@capacitor/core";
+import { isAppleSignInSupported } from "@/domains/auth/apple";
 import { useAppleSignIn } from "@/domains/auth/hooks/useAppleSignIn";
 
 const APPLE_BG = "#000000";
 const APPLE_LABEL = "#FFFFFF";
-const IOS_PLATFORM = "ios";
 
 export function AppleSignInButton() {
   const { signIn, isLoading, failure } = useAppleSignIn();
 
-  const isIOSNative = Capacitor.isNativePlatform() && Capacitor.getPlatform() === IOS_PLATFORM;
-  if (!isIOSNative) return null;
+  // Android·웹에서는 애플 로그인을 제공하지 않으므로 버튼 자체를 렌더하지 않는다.
+  if (!isAppleSignInSupported()) return null;
 
   return (
     <>
