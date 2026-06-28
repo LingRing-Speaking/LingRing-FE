@@ -28,7 +28,9 @@ export class AppleIdentityTokenMissingError extends Error {
   }
 }
 
-function isAppleSignInSupported(): boolean {
+// 애플 로그인은 iOS 네이티브 앱에서만 지원한다. Android·웹에서는 이 값이 false 가 되어
+// 로그인 버튼이 숨겨지고(loginWithApple 도 호출 전 차단), 단일 진실 원천으로 쓰인다.
+export function isAppleSignInSupported(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === IOS_PLATFORM;
 }
 
