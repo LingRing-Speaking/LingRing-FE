@@ -1,0 +1,133 @@
+import { Capacitor } from "@capacitor/core";
+import { NativeWebRTC, isIosNative } from "@/lib/native/webrtcPlugin";
+import { uploadRecording, uploadRecordingBlob } from "./recordingUploader";
+
+// 통화 녹음의 플랫폼 추상화. 녹음 대상은 양 플랫폼 모두 "학습자 본인의 마이크 음성".
+// - iOS: native ADM 이 통화 음성을 .m4a 파일로 녹음 (WebRTCPlugin).
+// - Android(web 경로): 로컬 마이크 MediaStream 을 MediaRecorder 로 webm/opus 녹음.
+//
+// start() 는 통화 connected 시점, finalize() 는 통화 종료 시점에 호출된다.
+// finalize() 는 hook unmount 후에도 끝까지 실행되도록 fire-and-forget 으로 호출된다.
+export interface CallRecorder {
+  start(callId: number): Promise<void>;
+  finalize(callId: number): Promise<void>;
+}
+
+// MediaRecorder 가 지원하는 첫 mimeType 선택. BE 화이트리스트(webm)와 호환되는 순서.
+const PREFERRED_MIME_TYPES = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+// 통화 중 주기적으로 chunk 를 받아 메모리에 축적 (마지막 flush 유실 구간 최소화).
+const TIMESLICE_MS = 1000;
+// finalize 시 onstop(최종 dataavailable 이후) 대기 안전망.
+const FLUSH_TIMEOUT_MS = 2000;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function pickMimeType(): string | undefined {
+  if (typeof MediaRecorder === "undefined") return undefined;
+  return PREFERRED_MIME_TYPES.find((t) => MediaRecorder.isTypeSupported(t));
+}
+
+function createIosCallRecorder(): CallRecorder {
+  return {
+    async start(callId) {
+      await NativeWebRTC.startFileRecording({ callId });
+    },
+    async finalize(callId) {
+      let stopped;
+      try {
+        stopped = await NativeWebRTC.stopFileRecording();
+      } catch (e) {
+        console.warn("[callRecorder] stopFileRecording failed", e);
+        return;
+      }
+      if (!stopped?.filePath || !stopped.sizeBytes) return;
+
+      try {
+        await uploadRecording({
+          callId,
+          filePath: stopped.filePath,
+          sizeBytes: stopped.sizeBytes,
+        });
+      } catch (e) {
+        // 실패 시 파일 보존 — 다음 앱 시작 시 recoveryRun 이 재시도.
+        console.warn("[callRecorder] upload failed, will retry next startup", e);
+      }
+    },
+  };
+}
+
+function createWebCallRecorder(getStream: () => MediaStream | null): CallRecorder {
+  let recorder: MediaRecorder | null = null;
+  let stoppedPromise: Promise<void> | null = null;
+  const chunks: Blob[] = [];
+
+  return {
+    async start() {
+      const stream = getStream();
+      if (!stream) {
+        console.warn("[callRecorder] 로컬 스트림이 없어 녹음을 생략합니다");
+        return;
+      }
+      const mimeType = pickMimeType();
+      if (!mimeType) {
+        console.warn("[callRecorder] MediaRecorder 미지원 — 녹음을 생략합니다");
+        return;
+      }
+
+      const rec = new MediaRecorder(stream, { mimeType });
+      rec.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      };
+      // onstop 은 최종 dataavailable 이후 발생 → 이 시점에 chunks 가 완전.
+      // 통화 종료로 트랙이 먼저 끝나 자동 stop 되는 경우도 동일하게 resolve 된다.
+      stoppedPromise = new Promise<void>((resolve) => {
+        rec.onstop = () => resolve();
+      });
+      rec.start(TIMESLICE_MS);
+      recorder = rec;
+    },
+
+    async finalize(callId) {
+      const rec = recorder;
+      const stopped = stoppedPromise;
+      recorder = null;
+      stoppedPromise = null;
+      if (!rec) return;
+
+      const mimeType = rec.mimeType || "audio/webm";
+      if (rec.state !== "inactive") {
+        try {
+          rec.stop();
+        } catch {
+          // 이미 정지된 경우 등 — 아래 대기에서 처리
+        }
+      }
+      if (stopped) {
+        await Promise.race([stopped, delay(FLUSH_TIMEOUT_MS)]);
+      }
+
+      if (chunks.length === 0) return;
+      const blob = new Blob(chunks, { type: mimeType });
+      chunks.length = 0;
+      if (blob.size === 0) return;
+
+      try {
+        await uploadRecordingBlob({ callId, blob });
+      } catch (e) {
+        // v1: Android 는 디스크 보존/복구가 없어 업로드 실패 시 해당 녹음은 유실된다.
+        console.warn("[callRecorder] blob upload failed (Android v1 미복구)", e);
+      }
+    },
+  };
+}
+
+// 플랫폼에 맞는 recorder 를 만든다. 녹음 미지원 환경(웹 dev 등)은 null 을 반환해 녹음을 끈다.
+export function createCallRecorder(getStream: () => MediaStream | null): CallRecorder | null {
+  if (isIosNative()) return createIosCallRecorder();
+  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
+    return createWebCallRecorder(getStream);
+  }
+  return null;
+}

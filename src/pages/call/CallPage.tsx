@@ -4,10 +4,7 @@ import { Avatar } from "@/components/Avatar";
 import { PageShell } from "@/components/PageShell";
 import { useUserId } from "@/domains/auth/hooks/useUserId";
 import { BlockConfirmModal } from "@/domains/block/components/BlockConfirmModal";
-import {
-  useCallCountdown,
-  type CountdownPhase,
-} from "@/domains/call/hooks/useCallCountdown";
+import { useCallCountdown, type CountdownPhase } from "@/domains/call/hooks/useCallCountdown";
 import { useCallSession } from "@/domains/call/hooks/useCallSession";
 import { useCallRecording } from "@/domains/call/recording/useCallRecording";
 import { ReportModal } from "@/domains/report/components/ReportModal";
@@ -52,7 +49,11 @@ function CallPageInner({
     active: session.status === "connected",
     onTimeUp: () => session.end("timeout"),
   });
-  useCallRecording({ callId, status: session.status });
+  useCallRecording({
+    callId,
+    status: session.status,
+    getLocalStream: session.getLocalStream,
+  });
   const profile = useUserProfile(partnerId);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);

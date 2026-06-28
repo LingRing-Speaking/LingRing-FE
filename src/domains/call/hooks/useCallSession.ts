@@ -5,10 +5,7 @@ import {
   endCallAudioRoute,
   setSpeakerphone,
 } from "@/lib/native/audioRoute";
-import type {
-  ServerMessage,
-  IceCandidatePayload,
-} from "../signaling/types";
+import type { ServerMessage, IceCandidatePayload } from "../signaling/types";
 import { createSignalingClient, type SignalingClient } from "../signaling/wsClient";
 import { createPeerSession, type PeerSession } from "../webrtc/peerConnection";
 
@@ -42,11 +39,11 @@ export type UseCallSessionResult = {
   toggleSpeaker: () => void;
   end: (reason?: EndReason) => void;
   remoteAudioRef: React.RefObject<HTMLAudioElement>;
+  // 녹음(Android web 경로)이 로컬 마이크 스트림을 가져갈 수 있도록 노출.
+  getLocalStream: () => MediaStream | null;
 };
 
-export function useCallSession(
-  opts: UseCallSessionOptions,
-): UseCallSessionResult {
+export function useCallSession(opts: UseCallSessionOptions): UseCallSessionResult {
   const [status, setStatus] = useState<CallStatus>("connecting");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [endReason, setEndReason] = useState<EndReason | null>(null);
@@ -231,5 +228,6 @@ export function useCallSession(
       finishEnded(reason);
     },
     remoteAudioRef,
+    getLocalStream: () => peerRef.current?.getLocalStream() ?? null,
   };
 }
