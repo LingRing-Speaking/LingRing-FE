@@ -21,6 +21,9 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // 카카오 SDK(v2-talk/v2-share/v2-friend)는 전용 Maven 저장소에 호스팅된다.
+        // capacitor-kakao-login-plugin 의 네이티브 의존성 해석에 필요.
+        maven { url 'https://devrepo.kakao.com/nexus/content/groups/public/' }
     }
 }
 
