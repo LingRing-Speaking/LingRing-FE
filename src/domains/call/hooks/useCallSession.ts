@@ -5,14 +5,20 @@ import {
   endCallAudioRoute,
   setSpeakerphone,
 } from "@/lib/native/audioRoute";
-import type {
-  ServerMessage,
-  IceCandidatePayload,
-} from "../signaling/types";
+import type { ServerMessage, IceCandidatePayload } from "../signaling/types";
 import { createSignalingClient, type SignalingClient } from "../signaling/wsClient";
 import { createPeerSession, type PeerSession } from "../webrtc/peerConnection";
 
 export type CallStatus = "connecting" | "connected" | "ended" | "error";
+
+/**
+ * 통화가 끝난 이유. 종료 화면 헤드라인 분기에 쓰인다.
+ * - self: 내가 종료 버튼으로 끊음
+ * - peer: 상대가 HANGUP 을 보냄
+ * - dropped: HANGUP 없이 연결이 끊김
+ * - timeout: 20분 상한 도달로 자동 종료
+ */
+export type EndReason = "self" | "peer" | "dropped" | "timeout";
 
 const PERMISSION_DENIED_MESSAGE = "마이크 권한이 필요해요";
 const CONNECTION_FAILED_MESSAGE = "통화 연결에 실패했어요";
@@ -26,19 +32,21 @@ export type UseCallSessionOptions = {
 export type UseCallSessionResult = {
   status: CallStatus;
   errorMessage: string | null;
+  endReason: EndReason | null;
   isMuted: boolean;
   toggleMute: () => void;
   isSpeakerOn: boolean;
   toggleSpeaker: () => void;
-  end: () => void;
+  end: (reason?: EndReason) => void;
   remoteAudioRef: React.RefObject<HTMLAudioElement>;
+  // 녹음(Android web 경로)이 로컬 마이크 스트림을 가져갈 수 있도록 노출.
+  getLocalStream: () => MediaStream | null;
 };
 
-export function useCallSession(
-  opts: UseCallSessionOptions,
-): UseCallSessionResult {
+export function useCallSession(opts: UseCallSessionOptions): UseCallSessionResult {
   const [status, setStatus] = useState<CallStatus>("connecting");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [endReason, setEndReason] = useState<EndReason | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   // 첫 진입은 이어피스 default — RTCAudioSession 의 mode .voiceChat 자연 default 와 일치.
   // 정책 근거: memory project_call_audio_routing. 방안 3 (#84) 의 native libwebrtc 도입으로
@@ -67,8 +75,9 @@ export function useCallSession(
     setStatus("error");
   };
 
-  const finishEnded = () => {
+  const finishEnded = (reason: EndReason) => {
     cleanup();
+    setEndReason(reason);
     setStatus("ended");
   };
 
@@ -136,7 +145,7 @@ export function useCallSession(
             break;
           }
           case "HANGUP": {
-            finishEnded();
+            finishEnded("peer");
             break;
           }
           case "ERROR": {
@@ -158,7 +167,7 @@ export function useCallSession(
       // StrictMode dev: 이전 effect가 close한 ws의 onclose가 비동기로 도착할 때 활성 ws를 끊지 않도록
       if (wsRef.current !== ws) return;
       if (cleanedUpRef.current) return; // 우리가 직접 닫은 경우 무시
-      finishEnded();
+      finishEnded("dropped");
     });
 
     // 백그라운드에서 일부 환경(특히 모바일 WebView)이 audio 재생을 일시 정지할 수 있어
@@ -198,6 +207,7 @@ export function useCallSession(
   return {
     status,
     errorMessage,
+    endReason,
     isMuted,
     toggleMute: () => {
       const next = !isMuted;
@@ -212,11 +222,12 @@ export function useCallSession(
       });
       setIsSpeakerOn(next);
     },
-    end: () => {
+    end: (reason: EndReason = "self") => {
       if (cleanedUpRef.current) return;
       wsRef.current?.send({ type: "HANGUP" });
-      finishEnded();
+      finishEnded(reason);
     },
     remoteAudioRef,
+    getLocalStream: () => peerRef.current?.getLocalStream() ?? null,
   };
 }

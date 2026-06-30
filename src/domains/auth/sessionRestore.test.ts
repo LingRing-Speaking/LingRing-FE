@@ -136,4 +136,27 @@ describe("restoreSession", () => {
     expect(result).toEqual({ kind: "network_error" });
     expect(storage.clearTokens).not.toHaveBeenCalled();
   });
+
+  it("access 만 만료되고 refresh 가 네트워크 에러면 토큰을 보존하고 network_error 를 반환한다", async () => {
+    vi.spyOn(storage, "loadTokens").mockResolvedValue({
+      accessToken: "expired-access",
+      refreshToken: "valid-refresh",
+    });
+    server.use(
+      http.get("http://localhost:3000/api/v1/me", () =>
+        HttpResponse.json(
+          { data: null, status: 401, message: "EXPIRED" },
+          { status: 401 },
+        ),
+      ),
+      http.post("http://localhost:3000/api/v1/auth/refresh", () =>
+        HttpResponse.error(),
+      ),
+    );
+
+    const result = await restoreSession();
+
+    expect(result).toEqual({ kind: "network_error" });
+    expect(storage.clearTokens).not.toHaveBeenCalled();
+  });
 });

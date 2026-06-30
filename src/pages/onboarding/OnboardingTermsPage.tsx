@@ -19,6 +19,7 @@ const AGREEMENTS: AgreementOption[] = [
   { key: "over14", label: "만 14세 이상입니다" },
   { key: "terms", label: "이용약관 동의", externalUrl: LEGAL_TERMS_URL },
   { key: "privacy", label: "개인정보처리방침 동의", externalUrl: LEGAL_PRIVACY_POLICY_URL },
+  { key: "voice_ai", label: "통화 녹음·AI 분석 동의", externalUrl: LEGAL_PRIVACY_POLICY_URL },
 ];
 
 const GENERIC_ERROR_MESSAGE = "잠시 후 다시 시도해주세요.";
@@ -30,6 +31,7 @@ export function OnboardingTermsPage() {
     over14: false,
     terms: false,
     privacy: false,
+    voice_ai: false,
   });
 
   const allChecked = useMemo(
@@ -43,7 +45,7 @@ export function OnboardingTermsPage() {
 
   const toggleAll = () => {
     const next = !allChecked;
-    setChecked({ over14: next, terms: next, privacy: next });
+    setChecked({ over14: next, terms: next, privacy: next, voice_ai: next });
   };
 
   const handleSubmit = () => {

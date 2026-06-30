@@ -2,9 +2,7 @@ import type { PluginListenerHandle } from "@capacitor/core";
 import { isIosNative, NativeWebRTC } from "@/lib/native/webrtcPlugin";
 import type { IceCandidatePayload } from "../signaling/types";
 
-const ICE_SERVERS: RTCIceServer[] = [
-  { urls: "stun:stun.l.google.com:19302" },
-];
+const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
 export type PeerSession = {
   start: () => Promise<void>;
@@ -14,6 +12,9 @@ export type PeerSession = {
   addRemoteIce: (c: IceCandidatePayload) => Promise<void>;
   setMicEnabled: (enabled: boolean) => void;
   close: () => void;
+  // 로컬 마이크 스트림. web 경로(Android)는 이 스트림을 MediaRecorder 로 녹음한다.
+  // iOS native 경로는 녹음을 native ADM 이 담당하므로 null.
+  getLocalStream: () => MediaStream | null;
 };
 
 export type PeerSessionCallbacks = {
@@ -68,14 +69,16 @@ function createWebPeerSession(cb: PeerSessionCallbacks): PeerSession {
     async createOffer() {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      return offer.sdp ?? "";
+      if (!offer.sdp) throw new Error("createOffer returned empty SDP");
+      return offer.sdp;
     },
     async acceptOffer(remoteSdp) {
       await pc.setRemoteDescription({ type: "offer", sdp: remoteSdp });
       await flushPendingIce();
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      return answer.sdp ?? "";
+      if (!answer.sdp) throw new Error("createAnswer returned empty SDP");
+      return answer.sdp;
     },
     async acceptAnswer(remoteSdp) {
       await pc.setRemoteDescription({ type: "answer", sdp: remoteSdp });
@@ -103,6 +106,7 @@ function createWebPeerSession(cb: PeerSessionCallbacks): PeerSession {
       }
       pc.close();
     },
+    getLocalStream: () => localStream,
   };
 }
 
@@ -133,13 +137,10 @@ function createNativePeerSession(cb: PeerSessionCallbacks): PeerSession {
     });
     listenerHandles.push(iceHandle);
 
-    const stateHandle = await NativeWebRTC.addListener(
-      "connectionStateChange",
-      (data) => {
-        if (data.peerId !== peerId) return;
-        cb.onConnectionStateChange(data.state as RTCPeerConnectionState);
-      },
-    );
+    const stateHandle = await NativeWebRTC.addListener("connectionStateChange", (data) => {
+      if (data.peerId !== peerId) return;
+      cb.onConnectionStateChange(data.state as RTCPeerConnectionState);
+    });
     listenerHandles.push(stateHandle);
 
     const trackHandle = await NativeWebRTC.addListener("track", (data) => {
@@ -212,6 +213,7 @@ function createNativePeerSession(cb: PeerSessionCallbacks): PeerSession {
       });
     },
     setMicEnabled(enabled) {
+      if (closed) return;
       void NativeWebRTC.setMicEnabled({ peerId, enabled });
     },
     close() {
@@ -225,6 +227,8 @@ function createNativePeerSession(cb: PeerSessionCallbacks): PeerSession {
         await NativeWebRTC.close({ peerId }).catch(() => {});
       })();
     },
+    // iOS native 경로는 native ADM 이 녹음하므로 JS 측 스트림이 없다.
+    getLocalStream: () => null,
   };
 }
 

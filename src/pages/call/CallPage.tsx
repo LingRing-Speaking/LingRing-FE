@@ -1,40 +1,64 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Avatar } from "@/components/Avatar";
 import { PageShell } from "@/components/PageShell";
 import { useUserId } from "@/domains/auth/hooks/useUserId";
 import { BlockConfirmModal } from "@/domains/block/components/BlockConfirmModal";
+import { useCallCountdown, type CountdownPhase } from "@/domains/call/hooks/useCallCountdown";
 import { useCallSession } from "@/domains/call/hooks/useCallSession";
+import { useCallRecording } from "@/domains/call/recording/useCallRecording";
 import { ReportModal } from "@/domains/report/components/ReportModal";
 import { PartnerProfileModal } from "@/domains/user/components/PartnerProfileModal";
 import { useUserProfile } from "@/domains/user/hooks/useUserProfile";
 import { CallTimer } from "./CallTimer";
+import { CountdownWarningToast } from "./CountdownWarningToast";
 import { EndConfirmSheet } from "./EndConfirmSheet";
+import { PostCallChoice } from "./PostCallChoice";
+import { RecordingIndicator } from "./RecordingIndicator";
 
 export function CallPage() {
   const { roomId } = useParams<{ roomId: string }>();
-  const partnerId = (useLocation().state as { partnerId?: number } | null)?.partnerId;
+  const state = useLocation().state as {
+    partnerId?: number;
+    callId?: number | null;
+  } | null;
+  const partnerId = state?.partnerId;
+  const callId = state?.callId ?? null;
 
   if (!roomId || partnerId == null) {
     return <Navigate to="/home" replace />;
   }
 
-  return <CallPageInner roomId={roomId} partnerId={partnerId} />;
+  return <CallPageInner roomId={roomId} partnerId={partnerId} callId={callId} />;
 }
 
-function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: number }) {
+function CallPageInner({
+  roomId,
+  partnerId,
+  callId,
+}: {
+  roomId: string;
+  partnerId: number;
+  callId: number | null;
+}) {
   const userId = useUserId();
   const navigate = useNavigate();
   const session = useCallSession({ userId, roomId, partnerId });
+  // 20분 상한 카운트다운 — 0 도달 시 자동 종료 (사유 timeout).
+  const countdown = useCallCountdown({
+    active: session.status === "connected",
+    onTimeUp: () => session.end("timeout"),
+  });
+  useCallRecording({
+    callId,
+    status: session.status,
+    getLocalStream: session.getLocalStream,
+  });
   const profile = useUserProfile(partnerId);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isBlockOpen, setIsBlockOpen] = useState(false);
-
-  useEffect(() => {
-    if (session.status === "ended") navigate("/home", { replace: true });
-  }, [session.status, navigate]);
 
   const closeReport = () => {
     setIsReportOpen(false);
@@ -54,9 +78,17 @@ function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: numbe
 
         {session.status === "error" ? (
           <ErrorView message={session.errorMessage} onHome={() => navigate("/home")} />
+        ) : session.status === "ended" ? (
+          <PostCallChoice
+            reason={session.endReason ?? "self"}
+            onAnalyze={() => navigate("/history")}
+            onTalkAgain={() => navigate("/matching")}
+          />
         ) : (
           <CallView
             status={session.status}
+            remainingMs={countdown.remainingMs}
+            phase={countdown.phase}
             isMuted={session.isMuted}
             onMute={session.toggleMute}
             isSpeakerOn={session.isSpeakerOn}
@@ -66,6 +98,7 @@ function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: numbe
             nickname={profile.data?.nickname ?? null}
             profileImage={profile.data?.profileImage ?? null}
             onPartnerInfoOpen={() => setIsProfileOpen(true)}
+            isRecording={callId != null && session.status === "connected"}
           />
         )}
 
@@ -106,6 +139,8 @@ function CallPageInner({ roomId, partnerId }: { roomId: string; partnerId: numbe
 
 function CallView({
   status,
+  remainingMs,
+  phase,
   isMuted,
   onMute,
   isSpeakerOn,
@@ -115,8 +150,11 @@ function CallView({
   nickname,
   profileImage,
   onPartnerInfoOpen,
+  isRecording,
 }: {
-  status: "connecting" | "connected" | "ended";
+  status: "connecting" | "connected";
+  remainingMs: number;
+  phase: CountdownPhase;
   isMuted: boolean;
   onMute: () => void;
   isSpeakerOn: boolean;
@@ -126,12 +164,15 @@ function CallView({
   nickname: string | null;
   profileImage: string | null;
   onPartnerInfoOpen: () => void;
+  isRecording: boolean;
 }) {
   return (
     <>
       <div className="relative z-[2] flex flex-col items-center gap-2 px-5 pt-4">
-        <CallTimer active={status === "connected"} />
+        <RecordingIndicator visible={isRecording} />
+        <CallTimer remainingMs={remainingMs} phase={phase} />
       </div>
+      <CountdownWarningToast phase={phase} />
 
       <section className="relative z-[1] flex flex-1 flex-col items-center justify-center px-6">
         <button

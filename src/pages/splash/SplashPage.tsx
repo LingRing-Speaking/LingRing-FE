@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { PageShell } from "@/components/PageShell";
 import { restoreSession } from "@/domains/auth/sessionRestore";
+import { ConnectionErrorView } from "./ConnectionErrorView";
 
 const SPLASH_MIN_MS = 1500;
 const FADE_OUT_MS = 280;
@@ -12,6 +13,16 @@ const LOGO_BREATHE_DELAY_MS = 700;
 export function SplashPage() {
   const navigate = useNavigate();
   const [leaving, setLeaving] = useState(false);
+  const [connectionError, setConnectionError] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
@@ -32,6 +43,12 @@ export function SplashPage() {
       fadeTimers.push(
         window.setTimeout(() => {
           if (cancelled) return;
+          // 네트워크 일시 장애: 토큰은 보존돼 있으므로 /login(재로그인) 대신
+          // 재시도 화면을 띄워 보존된 refresh 토큰으로 무인증 복원할 기회를 준다.
+          if (result.kind === "network_error") {
+            setConnectionError(true);
+            return;
+          }
           navigate(result.kind === "restored" ? "/home" : "/login", { replace: true });
         }, FADE_OUT_MS),
       );
@@ -42,6 +59,21 @@ export function SplashPage() {
       fadeTimers.forEach((id) => window.clearTimeout(id));
     };
   }, [navigate]);
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    const result = await restoreSession();
+    if (!mountedRef.current) return;
+    if (result.kind === "network_error") {
+      setRetrying(false);
+      return;
+    }
+    navigate(result.kind === "restored" ? "/home" : "/login", { replace: true });
+  };
+
+  if (connectionError) {
+    return <ConnectionErrorView onRetry={handleRetry} retrying={retrying} />;
+  }
 
   return (
     <PageShell>

@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
@@ -16,19 +17,25 @@ function makeCall(
     partner: { id: 1000 + id, name: `P${id}`, profileImage: null },
     startedAt: startedAt.toISOString(),
     durationSec: 60 + id,
-    analyzed: false,
+    analysisId: null,
+    analysisStatus: "READY",
     ...overrides,
   };
 }
 
 function renderWithRouter(ui: React.ReactNode) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   return render(
-    <MemoryRouter initialEntries={["/history"]}>
-      <Routes>
-        <Route path="/history" element={ui} />
-        <Route path="/calls/:callId/analysis" element={<div>analysis</div>} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={["/history"]}>
+        <Routes>
+          <Route path="/history" element={ui} />
+          <Route path="/calls/:callId/analysis" element={<div>analysis</div>} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -43,10 +50,12 @@ describe("CallHistoryList", () => {
       <CallHistoryList
         items={items}
         now={NOW}
+        quota={undefined}
         hasNextPage={false}
         isFetchingNextPage={false}
         onLoadMore={() => {}}
         onPartnerClick={() => {}}
+        onAnalyze={() => {}}
       />,
     );
 
@@ -59,6 +68,47 @@ describe("CallHistoryList", () => {
     expect(screen.getByText("P1")).toBeInTheDocument();
     expect(screen.getByText("P2")).toBeInTheDocument();
     expect(screen.getByText("P3")).toBeInTheDocument();
+  });
+
+  it("분석 가능 조건 안내 문구를 한 번 노출한다", () => {
+    const items = [
+      makeCall(1, new Date(2026, 3, 29, 19, 0)),
+      makeCall(2, new Date(2026, 3, 28, 12, 0)),
+    ];
+    renderWithRouter(
+      <CallHistoryList
+        items={items}
+        now={NOW}
+        quota={undefined}
+        hasNextPage={false}
+        isFetchingNextPage={false}
+        onLoadMore={() => {}}
+        onPartnerClick={() => {}}
+        onAnalyze={() => {}}
+      />,
+    );
+
+    expect(screen.getAllByText("1분 이상 통화부터 분석할 수 있어요")).toHaveLength(1);
+  });
+
+  it("quota 가 주어지면 일반/황금 티켓 배지를 헤더에 노출한다", () => {
+    const items = [makeCall(1, new Date(2026, 3, 29, 19, 0))];
+    renderWithRouter(
+      <CallHistoryList
+        items={items}
+        now={NOW}
+        quota={{ freeTicket: 1, paidTicket: 2, nextResetAt: "2026-07-01T00:00:00" }}
+        hasNextPage={false}
+        isFetchingNextPage={false}
+        onLoadMore={() => {}}
+        onPartnerClick={() => {}}
+        onAnalyze={() => {}}
+      />,
+    );
+
+    const badge = screen.getByLabelText("분석 티켓 잔여");
+    expect(badge).toHaveTextContent("일반티켓1장");
+    expect(badge).toHaveTextContent("황금티켓2장");
   });
 
   it("sentinel 이 뷰포트에 들어오면 onLoadMore 를 호출한다 (hasNextPage=true)", () => {
@@ -85,9 +135,12 @@ describe("CallHistoryList", () => {
       <CallHistoryList
         items={items}
         now={NOW}
+        quota={undefined}
         hasNextPage={true}
         isFetchingNextPage={false}
-        onLoadMore={onLoadMore} onPartnerClick={() => {}}
+        onLoadMore={onLoadMore}
+        onPartnerClick={() => {}}
+        onAnalyze={() => {}}
       />,
     );
 
@@ -126,9 +179,12 @@ describe("CallHistoryList", () => {
       <CallHistoryList
         items={items}
         now={NOW}
+        quota={undefined}
         hasNextPage={false}
         isFetchingNextPage={false}
-        onLoadMore={onLoadMore} onPartnerClick={() => {}}
+        onLoadMore={onLoadMore}
+        onPartnerClick={() => {}}
+        onAnalyze={() => {}}
       />,
     );
 

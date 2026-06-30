@@ -1,7 +1,7 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { server } from "@/mocks/server";
 import { renderWithQueryClient } from "../../../test/utils/renderWithQueryClient";
 import { MatchConfirmModal } from "./MatchConfirmModal";
@@ -9,6 +9,10 @@ import { MatchConfirmModal } from "./MatchConfirmModal";
 const futureDeadline = () => new Date(Date.now() + 15000).toISOString();
 
 describe("MatchConfirmModal", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("partnerId 의 프로필 정보를 표시한다", async () => {
     server.use(
       http.get("http://localhost:3000/api/v1/users/2", () =>
@@ -180,5 +184,55 @@ describe("MatchConfirmModal", () => {
     // deadline 이 지나가도 onTimeout 은 호출 안 됨
     await new Promise((resolve) => setTimeout(resolve, 500));
     expect(onTimeout).not.toHaveBeenCalled();
+  });
+
+  describe("응답 남은 시간 진행바", () => {
+    const FIXED_NOW = new Date("2026-01-01T00:00:00Z");
+    const NOMINAL_WINDOW_MS = 15000;
+    // 막대는 iOS WKWebView 합성 레이어 고스트를 피하려 width 대신 transform: scaleX 로
+    // 채운다. 잔여 시간 비율을 scaleX 가 반영하는지 검증한다.
+    const barTransform = () =>
+      screen.getByTestId("confirm-countdown-bar").style.transform;
+
+    it("윈도우 시작 시 진행바가 가득 차 있다 (scaleX 1)", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(FIXED_NOW);
+      const deadline = new Date(Date.now() + NOMINAL_WINDOW_MS).toISOString();
+
+      renderWithQueryClient(
+        <MatchConfirmModal
+          partnerId={2}
+          confirmDeadline={deadline}
+          onAccept={vi.fn()}
+          onDecline={vi.fn()}
+        />,
+      );
+
+      expect(barTransform()).toContain("scaleX(1)");
+    });
+
+    it("시간이 흐르면 진행바(scaleX)가 잔여 비율만큼 줄어든다", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(FIXED_NOW);
+      const deadline = new Date(Date.now() + NOMINAL_WINDOW_MS).toISOString();
+
+      renderWithQueryClient(
+        <MatchConfirmModal
+          partnerId={2}
+          confirmDeadline={deadline}
+          onAccept={vi.fn()}
+          onDecline={vi.fn()}
+        />,
+      );
+
+      expect(barTransform()).toContain("scaleX(1)");
+
+      // 윈도우의 절반(7.5초) 경과 → 잔여 비율 0.5
+      act(() => {
+        vi.advanceTimersByTime(NOMINAL_WINDOW_MS / 2);
+      });
+
+      expect(barTransform()).toContain("scaleX(0.5)");
+    });
   });
 });

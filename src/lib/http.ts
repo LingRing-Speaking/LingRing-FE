@@ -5,6 +5,7 @@ import { clearTokens, saveTokens } from "@/domains/auth/storage";
 const API_PREFIX = "/api/v1";
 const REFRESH_PATH = "/auth/refresh";
 const UNAUTHORIZED_STATUS = 401;
+const NETWORK_ERROR_STATUS = 0;
 
 const buildUrl = (path: string) => `${env.apiBaseUrl}${API_PREFIX}${path}`;
 
@@ -35,9 +36,11 @@ function withAuthHeader(init?: RequestInit): RequestInit | undefined {
 // 동시에 여러 요청이 401 을 받아도 /auth/refresh 는 단 1회만 발사되도록 게이팅한다.
 // BE 는 refresh 토큰을 회전시키며 옛 토큰 재사용 시 모든 세션을 폐기하므로
 // (TokenIssuer.rotate + reuse detection), 동시 호출을 막지 않으면 race 로 즉시 로그아웃된다.
-let refreshInFlight: Promise<boolean> | null = null;
+type RefreshOutcome = "refreshed" | "rejected" | "unavailable";
 
-async function refreshAccessToken(): Promise<boolean> {
+let refreshInFlight: Promise<RefreshOutcome> | null = null;
+
+async function refreshAccessToken(): Promise<RefreshOutcome> {
   if (refreshInFlight) return refreshInFlight;
   refreshInFlight = doRefresh().finally(() => {
     refreshInFlight = null;
@@ -45,9 +48,14 @@ async function refreshAccessToken(): Promise<boolean> {
   return refreshInFlight;
 }
 
-async function doRefresh(): Promise<boolean> {
+// refresh 결과를 3가지로 구분한다:
+// - refreshed:   새 토큰 발급 성공 → 원 요청 재시도
+// - rejected:    refresh 가 "진짜로 거부됨"(401/400, refresh 토큰 만료·무효) → 세션 종료
+// - unavailable: refresh 를 "완료하지 못함"(네트워크 단절/5xx) → 토큰 보존, 일시 오류로 처리
+// 이 구분이 없으면 콜드스타트/배포 중 일시 장애가 인증 실패로 오인되어 멀쩡한 세션이 삭제된다.
+async function doRefresh(): Promise<RefreshOutcome> {
   const refreshToken = useAuthStore.getState().refreshToken;
-  if (!refreshToken) return false;
+  if (!refreshToken) return "rejected";
 
   let res: Response;
   try {
@@ -57,22 +65,15 @@ async function doRefresh(): Promise<boolean> {
       body: JSON.stringify({ refreshToken }),
     });
   } catch {
-    return false;
+    return "unavailable";
   }
 
-  if (!res.ok) {
-    useAuthStore.getState().clearSession();
-    await clearTokens();
-    return false;
-  }
+  if (res.status >= 500) return "unavailable";
+  if (!res.ok) return "rejected";
 
   const body = await res.json().catch(() => null);
   const tokens = (body as { data?: { accessToken?: string; refreshToken?: string } } | null)?.data;
-  if (!tokens?.accessToken || !tokens?.refreshToken) {
-    useAuthStore.getState().clearSession();
-    await clearTokens();
-    return false;
-  }
+  if (!tokens?.accessToken || !tokens?.refreshToken) return "rejected";
 
   useAuthStore.getState().updateTokens({
     accessToken: tokens.accessToken,
@@ -82,7 +83,7 @@ async function doRefresh(): Promise<boolean> {
     accessToken: tokens.accessToken,
     refreshToken: tokens.refreshToken,
   });
-  return true;
+  return "refreshed";
 }
 
 async function request<T>(
@@ -90,13 +91,34 @@ async function request<T>(
   init?: RequestInit,
   alreadyRetried = false,
 ): Promise<T> {
-  const res = await fetch(buildUrl(path), withAuthHeader(init));
+  let res: Response;
+  try {
+    res = await fetch(buildUrl(path), withAuthHeader(init));
+  } catch {
+    throw new ApiError(NETWORK_ERROR_STATUS, "Network request failed");
+  }
 
-  if (res.status === UNAUTHORIZED_STATUS && !alreadyRetried && path !== REFRESH_PATH) {
-    const refreshed = await refreshAccessToken();
-    if (refreshed) {
+  // refresh 토큰이 있을 때만(=세션이 있을 때만) refresh 를 시도한다.
+  // 로그인 엔드포인트(/auth/social 등)나 비로그인 상태의 401 은 세션 만료가 아니므로
+  // refresh·세션정리 흐름에 들어가지 않고 원래 에러를 그대로 surface 한다.
+  if (
+    res.status === UNAUTHORIZED_STATUS &&
+    !alreadyRetried &&
+    path !== REFRESH_PATH &&
+    useAuthStore.getState().refreshToken !== null
+  ) {
+    const outcome = await refreshAccessToken();
+    if (outcome === "refreshed") {
       return request<T>(path, init, true);
     }
+    if (outcome === "rejected") {
+      useAuthStore.getState().clearSession();
+      await clearTokens();
+      throw new ApiError(UNAUTHORIZED_STATUS, "Session expired");
+    }
+    // unavailable: refresh 를 완료하지 못함(네트워크/5xx).
+    // 401(인증 실패)로 surface 하지 않는다 → 토큰 보존, 네트워크 오류로 던진다.
+    throw new ApiError(NETWORK_ERROR_STATUS, "Token refresh unavailable");
   }
 
   const body = await res.json().catch(() => ({}));
@@ -109,9 +131,9 @@ async function request<T>(
     throw new ApiError(res.status, message);
   }
 
-  // BE 컨벤션: GlobalExceptionHandler 가 에러도 HTTP 200 으로 응답하면서
-  // envelope body.status 에 진짜 의미 status (예: 400, 409) 를 박는다.
-  // → HTTP status 가 정상이어도 envelope status 가 비-2xx 면 ApiError throw.
+  // 방어용 fallback: 정상적으로 BE 는 에러를 실제 HTTP status 로 응답하지만,
+  // 혹시 HTTP 200 으로 내려오면서 envelope body.status 만 비-2xx 인 경우에도
+  // ApiError 로 처리한다.
   const envelope = body as { status?: unknown; message?: unknown };
   if (
     typeof envelope.status === "number" &&
@@ -158,11 +180,16 @@ export async function httpPutRaw(
   body: Blob,
   contentType: string,
 ): Promise<void> {
-  const res = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: { "Content-Type": contentType },
-    body,
-  });
+  let res: Response;
+  try {
+    res = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": contentType },
+      body,
+    });
+  } catch {
+    throw new ApiError(NETWORK_ERROR_STATUS, "Network request failed");
+  }
   if (!res.ok) {
     throw new ApiError(res.status, `S3 PUT failed: ${res.status}`);
   }

@@ -9,6 +9,8 @@
   body {
     margin: 0;
     padding: 0;
+    /* 당겨서 새로고침·스크롤 바운스 등 오버스크롤을 차단해 네이티브 앱처럼 동작 */
+    overscroll-behavior: none;
   }
 
   body {
@@ -17,5 +19,25 @@
     background-color: theme("colors.gray.50");
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* 텍스트 선택 비활성화 — 입력/편집 요소는 아래에서 예외 처리 */
+    -webkit-user-select: none;
+    user-select: none;
+    /* 롱프레스 시 뜨는 콜아웃(복사·공유) 메뉴 비활성화 */
+    -webkit-touch-callout: none;
+    /* 탭 시 깜빡이는 회색 하이라이트 제거 */
+    -webkit-tap-highlight-color: transparent;
+    /* 더블탭 줌·확대 제스처 방지 (viewport user-scalable=no 와 함께) */
+    touch-action: manipulation;
+    /* iOS 회전 시 폰트 크기 자동 확대 방지 */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* 입력·편집 가능한 요소는 텍스트 선택과 콜아웃을 다시 허용 */
+  input,
+  textarea,
+  [contenteditable] {
+    -webkit-user-select: auto;
+    user-select: auto;
+    -webkit-touch-callout: default;
   }
 }
