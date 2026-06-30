@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  fetchAnalysisQuota,
   fetchAnalysisResult,
   fetchAnalysisStatus,
   fetchCallHistory,
@@ -8,6 +9,13 @@ import {
 } from "./callHistoryApi";
 
 describe("callHistoryApi", () => {
+  it("fetchAnalysisQuota 는 freeTicket, paidTicket, nextResetAt 을 반환한다", async () => {
+    const quota = await fetchAnalysisQuota();
+    expect(typeof quota.freeTicket).toBe("number");
+    expect(typeof quota.paidTicket).toBe("number");
+    expect(typeof quota.nextResetAt).toBe("string");
+  });
+
   it("fetchCallHistory 는 /calls?page=&size= 를 호출해 items, hasNext 를 반환한다", async () => {
     const result = await fetchCallHistory(0, 20);
 

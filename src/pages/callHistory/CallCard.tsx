@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
 import { Avatar } from "@/components/Avatar";
-import { useRequestAnalysis } from "@/domains/callHistory/hooks/useRequestAnalysis";
 import type { CallHistoryItem } from "@/domains/callHistory/types";
 import { AnalysisButton } from "./AnalysisButton";
 import { formatCallMeta } from "./timeBucket";
@@ -14,15 +13,17 @@ type Props = {
   call: CallHistoryItem;
   now: Date;
   onPartnerClick: (partnerId: number) => void;
+  // 분석 트리거는 티켓 차감 확인/소진 모달을 거쳐야 하므로 카드가 직접 요청하지
+  // 않고, 잔여 티켓과 모달을 쥔 페이지로 callId 만 올려보낸다.
+  onAnalyze: (callId: number) => void;
 };
 
-export function CallCard({ call, now, onPartnerClick }: Props) {
+export function CallCard({ call, now, onPartnerClick, onAnalyze }: Props) {
   const meta = formatCallMeta(new Date(call.startedAt), call.durationSec, now);
   const { partner, analysisId, analysisStatus } = call;
   const isUnknown = partner === null;
 
   const navigate = useNavigate();
-  const { mutate: triggerAnalysis } = useRequestAnalysis();
 
   const handleBodyClick = () => {
     if (!partner) return;
@@ -30,7 +31,7 @@ export function CallCard({ call, now, onPartnerClick }: Props) {
   };
 
   const handleTriggerAnalysis = () => {
-    triggerAnalysis(call.id);
+    onAnalyze(call.id);
   };
 
   const handleViewResult = () => {

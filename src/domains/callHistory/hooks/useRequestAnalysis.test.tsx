@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import type { ReactNode } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { env } from "@/config/env";
 import { server } from "@/mocks/server";
 import { useRequestAnalysis } from "./useRequestAnalysis";
@@ -68,6 +68,60 @@ describe("useRequestAnalysis", () => {
       expect(other?.analysisId).toBe(500);
       expect(other?.analysisStatus).toBe("COMPLETED");
     });
+  });
+
+  it("요청이 끝나면(onSettled) ['analysisQuota'] 를 invalidate 해 잔여 티켓을 갱신한다", async () => {
+    server.use(
+      http.post(`${env.apiBaseUrl}/api/v1/calls/:callId/analysis`, () =>
+        HttpResponse.json(
+          { data: { analysisId: 777 }, status: 202, message: "ACCEPTED" },
+          { status: 202 },
+        ),
+      ),
+    );
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    seedCallsCache(queryClient, [baseItem]);
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    const { result } = renderHook(() => useRequestAnalysis(), {
+      wrapper: buildWrapper(queryClient),
+    });
+
+    result.current.mutate(42);
+
+    await waitFor(() =>
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ["analysisQuota"],
+      }),
+    );
+  });
+
+  it("['calls'] 캐시가 아직 없으면 낙관적 갱신은 안전하게 no-op 으로 끝난다", async () => {
+    server.use(
+      http.post(`${env.apiBaseUrl}/api/v1/calls/:callId/analysis`, () =>
+        HttpResponse.json(
+          { data: { analysisId: 999 }, status: 202, message: "ACCEPTED" },
+          { status: 202 },
+        ),
+      ),
+    );
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    // 캐시를 seeding 하지 않는다 → onSuccess updater 의 `!old` 분기를 탄다.
+
+    const { result } = renderHook(() => useRequestAnalysis(), {
+      wrapper: buildWrapper(queryClient),
+    });
+
+    result.current.mutate(42);
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(queryClient.getQueryData(["calls"])).toBeUndefined();
   });
 
   it("서버 에러 시 캐시는 그대로 유지된다 (현재 onError 동작은 no-op)", async () => {

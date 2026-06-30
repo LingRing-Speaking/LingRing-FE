@@ -43,6 +43,21 @@ export type CallHistoryList = {
 };
 
 /**
+ * 분석 티켓 잔여. 분석 1회당 티켓 1장이 차감되며, 일반티켓을 먼저 쓰고 없으면
+ * 황금티켓이 차감된다(차감은 서버가 수행).
+ * - freeTicket: 매일 0시(KST)에 다시 차는 무료 "일반티켓".
+ * - paidTicket: 지급·구매된 "황금티켓".
+ * - nextResetAt: 일반티켓이 다시 차는 다음 0시. 오프셋 없는 LocalDateTime 이라
+ *   KST(Asia/Seoul)로 해석한다. 현재 UI 는 "매일 0시 충전" 안내만 하고 이 값을
+ *   직접 표시하진 않으나, 계약 충실성을 위해 받는다.
+ */
+export type AnalysisQuota = {
+  freeTicket: number;
+  paidTicket: number;
+  nextResetAt: string;
+};
+
+/**
  * 실수 카테고리. BE 에서 새 값이 추가될 가능성을 고려해 unknown 은 OTHER 폴백.
  */
 export type FeedbackTag =

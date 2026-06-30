@@ -1,24 +1,32 @@
 import { useEffect, useMemo, useRef } from "react";
-import type { CallHistoryItem } from "@/domains/callHistory/types";
+import type {
+  AnalysisQuota,
+  CallHistoryItem,
+} from "@/domains/callHistory/types";
+import { AnalysisQuotaBadge } from "./AnalysisQuotaBadge";
 import { CallCard } from "./CallCard";
 import { classifyCalls } from "./timeBucket";
 
 type Props = {
   items: CallHistoryItem[];
   now: Date;
+  quota: AnalysisQuota | undefined;
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   onLoadMore: () => void;
   onPartnerClick: (partnerId: number) => void;
+  onAnalyze: (callId: number) => void;
 };
 
 export function CallHistoryList({
   items,
   now,
+  quota,
   hasNextPage,
   isFetchingNextPage,
   onLoadMore,
   onPartnerClick,
+  onAnalyze,
 }: Props) {
   const groups = useMemo(() => classifyCalls(items, now), [items, now]);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -40,9 +48,12 @@ export function CallHistoryList({
 
   return (
     <div className="scrollbar-none flex-1 overflow-y-auto px-5 pb-24 pt-1">
-      <h1 className="m-0 mb-3.5 mt-2.5 text-[22px] font-extrabold leading-[1.3] tracking-[-0.02em] text-gray-900">
-        통화 기록
-      </h1>
+      <div className="mb-3.5 mt-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <h1 className="m-0 text-[22px] font-extrabold leading-[1.3] tracking-[-0.02em] text-gray-900">
+          통화 기록
+        </h1>
+        <AnalysisQuotaBadge quota={quota} />
+      </div>
       <p className="mb-5 flex items-center gap-2 rounded-xl bg-mint-50 px-3.5 py-3 text-[13px] font-semibold leading-[1.4] tracking-tight text-mint-600">
         <svg
           aria-hidden="true"
@@ -75,6 +86,7 @@ export function CallHistoryList({
                 call={call}
                 now={now}
                 onPartnerClick={onPartnerClick}
+                onAnalyze={onAnalyze}
               />
             ))}
           </div>

@@ -237,6 +237,15 @@ export const handlers = [
     });
   }),
 
+  http.get(apiUrl("/me/analysis-quota"), () => {
+    return HttpResponse.json({
+      // nextResetAt 은 오프셋 없는 LocalDateTime(다음 0시, KST 해석).
+      data: { freeTicket: 1, paidTicket: 0, nextResetAt: "2026-07-01T00:00:00" },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
   http.get(apiUrl("/expressions"), () => {
     return HttpResponse.json({
       data: {
