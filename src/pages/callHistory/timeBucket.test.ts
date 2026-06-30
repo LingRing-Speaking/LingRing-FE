@@ -162,3 +162,38 @@ describe("formatCallMeta", () => {
     expect(formatCallMeta(startedAt, 7320, now)).toBe("오늘 오전 10:00 · 2시간 2분");
   });
 });
+
+import { analysisExpiryDaysLeft } from "./timeBucket";
+
+describe("analysisExpiryDaysLeft", () => {
+  // 만료 = 통화 종료(startedAt + durationSec) + 30일.
+  const now = new Date(2026, 5, 30, 12, 0, 0); // 2026-06-30 12:00
+
+  it("방금 끝난 통화는 약 30일 남는다", () => {
+    const startedAt = new Date(2026, 5, 30, 11, 0, 0); // 1시간 전 시작
+    expect(analysisExpiryDaysLeft(startedAt, 600, now)).toBe(30);
+  });
+
+  it("종료 후 23일 지난 통화는 7일 남는다 (임박 경계)", () => {
+    // 종료 시각 = now - 23일 (durationSec 0 으로 단순화)
+    const endedAt = new Date(now.getTime() - 23 * 86_400_000);
+    expect(analysisExpiryDaysLeft(endedAt, 0, now)).toBe(7);
+  });
+
+  it("종료 후 정확히 30일이면 0 (만료 시점)", () => {
+    const endedAt = new Date(now.getTime() - 30 * 86_400_000);
+    expect(analysisExpiryDaysLeft(endedAt, 0, now)).toBe(0);
+  });
+
+  it("기한이 지나면 음수를 반환한다", () => {
+    const endedAt = new Date(now.getTime() - 32 * 86_400_000);
+    expect(analysisExpiryDaysLeft(endedAt, 0, now)).toBe(-2);
+  });
+
+  it("종료 시각은 startedAt + durationSec 로 계산한다 (durationSec 반영)", () => {
+    // 시작이 30일 전이지만 통화가 길어 종료가 더 늦으면 남은 일수가 그만큼 늘어 올림된다.
+    const startedAt = new Date(now.getTime() - 30 * 86_400_000);
+    // durationSec 1초만 있어도 ceil 로 0 → 1 로 올라간다.
+    expect(analysisExpiryDaysLeft(startedAt, 1, now)).toBe(1);
+  });
+});

@@ -11,13 +11,17 @@ export type CallPartner = {
  * - PROCESSING: 서버 분석 진행 중 → "분석중" (비활성)
  * - COMPLETED: 분석 완료 → "분석보기" (결과 페이지 진입)
  * - FAILED: 분석 실패 → "재분석"
+ * - EXPIRED: 통화 후 30일 경과로 녹음이 삭제돼 새 분석/재분석 불가 → "기간 만료" (비활성).
+ *   READY·FAILED·WAITING_RECORDINGS 가 이 상태로 전이하며, COMPLETED·PROCESSING 은
+ *   분석 결과가 남아 있어 그대로 유지된다. (서버가 내려주는 값)
  */
 export type AnalysisStatus =
   | "WAITING_RECORDINGS"
   | "READY"
   | "PROCESSING"
   | "COMPLETED"
-  | "FAILED";
+  | "FAILED"
+  | "EXPIRED";
 
 /**
  * 통화 카드 항목.

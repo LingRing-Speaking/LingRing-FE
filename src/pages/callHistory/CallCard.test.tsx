@@ -271,4 +271,78 @@ describe("CallCard", () => {
       expect(screen.getByText(/오늘 오후 7:30/)).toBeInTheDocument();
     });
   });
+
+  describe("녹음 만료 안내 (now=2026-04-29 14:00)", () => {
+    // 종료 후 약 25일 지난 통화 → 만료까지 5~6일 남아 임박 구간.
+    const nearExpiry = new Date(2026, 3, 4, 12, 0).toISOString();
+
+    it("만료 임박(≤7일) READY 카드에 'D-day' 칩을 노출한다", () => {
+      renderCard({
+        ...baseCall,
+        startedAt: nearExpiry,
+        durationSec: 200,
+        analysisStatus: "READY",
+        analysisId: null,
+      });
+      expect(screen.getByLabelText(/분석 기한 \d+일 남음/)).toBeInTheDocument();
+      expect(screen.getByText(/만료 D-\d+/)).toBeInTheDocument();
+    });
+
+    it("만료 임박 FAILED 카드에도 칩을 노출한다 (재분석도 녹음 필요)", () => {
+      renderCard({
+        ...baseCall,
+        startedAt: nearExpiry,
+        durationSec: 200,
+        analysisStatus: "FAILED",
+        analysisId: 100,
+      });
+      expect(screen.getByLabelText(/분석 기한 \d+일 남음/)).toBeInTheDocument();
+    });
+
+    it("최근 통화(임박 아님)에는 칩을 노출하지 않는다", () => {
+      renderCard({ ...baseCall, analysisStatus: "READY", analysisId: null });
+      expect(screen.queryByLabelText(/분석 기한/)).not.toBeInTheDocument();
+    });
+
+    it("임박이어도 COMPLETED 면 칩 대신 '분석보기' 만 노출한다", () => {
+      renderCard({
+        ...baseCall,
+        startedAt: nearExpiry,
+        durationSec: 200,
+        analysisStatus: "COMPLETED",
+        analysisId: 100,
+      });
+      expect(screen.queryByLabelText(/분석 기한/)).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "분석보기" }),
+      ).toBeInTheDocument();
+    });
+
+    it("EXPIRED 면 '기간 만료' 비활성 버튼을 노출하고 '분석하기' 는 없다", () => {
+      renderCard({
+        ...baseCall,
+        startedAt: new Date(2026, 2, 20, 12, 0).toISOString(),
+        durationSec: 200,
+        analysisStatus: "EXPIRED",
+        analysisId: null,
+      });
+      expect(screen.getByRole("button", { name: "기간 만료" })).toBeDisabled();
+      expect(
+        screen.queryByRole("button", { name: "분석하기" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("1분 미만 EXPIRED 통화는 버튼 자체를 숨긴다 (분석 불가 통화)", () => {
+      renderCard({
+        ...baseCall,
+        startedAt: new Date(2026, 2, 20, 12, 0).toISOString(),
+        durationSec: 30,
+        analysisStatus: "EXPIRED",
+        analysisId: null,
+      });
+      expect(
+        screen.queryByRole("button", { name: "기간 만료" }),
+      ).not.toBeInTheDocument();
+    });
+  });
 });

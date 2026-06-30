@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { BlockConfirmModal } from "@/domains/block/components/BlockConfirmModal";
 import { useAnalysisQuota } from "@/domains/callHistory/hooks/useAnalysisQuota";
 import { useCallHistory } from "@/domains/callHistory/hooks/useCallHistory";
@@ -12,15 +13,19 @@ import { ApiError } from "@/lib/http";
 import {
   AnalysisConfirmModal,
   AnalysisExhaustedModal,
+  AnalysisUnavailableModal,
 } from "./AnalysisQuotaModals";
 import { CallHistoryList } from "./CallHistoryList";
 import { EmptyCallHistory } from "./EmptyCallHistory";
 
 const TICKET_EXHAUSTED_STATUS = 403;
+// 녹음 보관 기간 만료 등으로 분석을 거절할 때 서버가 주는 상태 코드.
+const ANALYSIS_BLOCKED_STATUS = 400;
 
 export function CallHistoryPage() {
   const query = useCallHistory();
   const quota = useAnalysisQuota();
+  const queryClient = useQueryClient();
   const { mutate: triggerAnalysis } = useRequestAnalysis();
   const now = useMemo(() => new Date(), []);
   const [openPartnerId, setOpenPartnerId] = useState<number | null>(null);
@@ -29,6 +34,10 @@ export function CallHistoryPage() {
   // 차감 확인 대상 통화. null 이면 확인 모달이 닫힌 상태.
   const [confirmCallId, setConfirmCallId] = useState<number | null>(null);
   const [showExhausted, setShowExhausted] = useState(false);
+  // 서버가 분석을 거절(400, 예: 녹음 만료)했을 때 보여줄 사유. null 이면 닫힘.
+  const [unavailableMessage, setUnavailableMessage] = useState<string | null>(
+    null,
+  );
 
   const closeReport = () => {
     setReportingPartnerId(null);
@@ -62,11 +71,14 @@ export function CallHistoryPage() {
     if (callId === null) return;
     triggerAnalysis(callId, {
       onError: (error) => {
-        if (
-          error instanceof ApiError &&
-          error.status === TICKET_EXHAUSTED_STATUS
-        ) {
+        if (!(error instanceof ApiError)) return;
+        if (error.status === TICKET_EXHAUSTED_STATUS) {
           setShowExhausted(true);
+        } else if (error.status === ANALYSIS_BLOCKED_STATUS) {
+          // 녹음 보관 기간 만료 등으로 서버가 거절. 사유를 그대로 안내하고,
+          // 목록을 새로고침해 해당 카드를 최신 상태(EXPIRED 등)로 갱신한다.
+          setUnavailableMessage(error.message);
+          void queryClient.invalidateQueries({ queryKey: ["calls"] });
         }
       },
     });
@@ -155,6 +167,12 @@ export function CallHistoryPage() {
         <AnalysisExhaustedModal
           open={showExhausted}
           onClose={() => setShowExhausted(false)}
+        />
+
+        <AnalysisUnavailableModal
+          open={unavailableMessage !== null}
+          message={unavailableMessage ?? ""}
+          onClose={() => setUnavailableMessage(null)}
         />
 
         <BottomTabBar />

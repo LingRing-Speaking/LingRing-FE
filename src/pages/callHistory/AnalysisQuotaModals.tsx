@@ -138,3 +138,58 @@ export function AnalysisExhaustedModal({
     </ModalShell>
   );
 }
+
+/**
+ * 분석 요청이 서버에서 거절됐을 때(예: 녹음 보관 기간 만료 400) 서버가 준 사유를
+ * 그대로 보여주는 안내 모달. 보통은 EXPIRED 상태가 버튼을 막아 도달하지 않지만,
+ * 목록 로드~확인 클릭 사이에 막 만료된 레이스 상황의 안전망이다.
+ */
+export function AnalysisUnavailableModal({
+  open,
+  message,
+  onClose,
+}: {
+  open: boolean;
+  message: string;
+  onClose: () => void;
+}) {
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      labelledById="analysis-unavailable-title"
+    >
+      <div className="mx-auto mb-4 mt-1 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-7 w-7"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <polyline points="12 7.5 12 12 15 13.8" />
+        </svg>
+      </div>
+      <h2
+        id="analysis-unavailable-title"
+        className="m-0 mb-2 text-center text-[17px] font-bold leading-[1.3] tracking-tight text-gray-900"
+      >
+        분석할 수 없어요
+      </h2>
+      <p className="m-0 mb-5 text-center text-[13.5px] font-medium leading-[1.5] tracking-tight text-gray-500">
+        {message}
+      </p>
+      <button
+        type="button"
+        onClick={onClose}
+        className="w-full rounded-[12px] bg-mint-500 py-3.5 text-[14.5px] font-bold tracking-tight text-white active:bg-mint-600"
+      >
+        확인
+      </button>
+    </ModalShell>
+  );
+}

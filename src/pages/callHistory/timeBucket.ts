@@ -95,6 +95,26 @@ export function formatCallMeta(
   return `${startedAt.getMonth() + 1}월 ${startedAt.getDate()}일 · ${duration}`;
 }
 
+// 통화 녹음은 통화 종료 후 30일간만 보관되고, 그 뒤엔 삭제돼 분석/재분석이 불가능하다
+// (서버가 analysisStatus=EXPIRED 로 내려줌). FE 는 "만료 임박" 안내(D-day)를 위해
+// 서버와 동일한 기준 — 통화 종료 시각 + 30일 — 으로 남은 일수를 계산한다.
+const RECORDING_RETENTION_DAYS = 30;
+const MS_PER_DAY = 86_400_000;
+
+/**
+ * 분석 가능 기한까지 남은 일수(올림). 만료 시각 = 통화 종료(startedAt + durationSec)
+ * + 30일. 기한이 이미 지났으면 0 이하를 반환한다.
+ */
+export function analysisExpiryDaysLeft(
+  startedAt: Date,
+  durationSec: number,
+  now: Date,
+): number {
+  const endedAtMs = startedAt.getTime() + durationSec * 1000;
+  const expiresAtMs = endedAtMs + RECORDING_RETENTION_DAYS * MS_PER_DAY;
+  return Math.ceil((expiresAtMs - now.getTime()) / MS_PER_DAY);
+}
+
 // 입력 배열의 순서를 그대로 유지한다. 시간 내림차순 정렬은 서버 책임.
 export function classifyCalls(
   items: CallHistoryItem[],
