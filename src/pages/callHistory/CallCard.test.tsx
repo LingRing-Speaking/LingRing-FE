@@ -1,12 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { http, HttpResponse } from "msw";
 import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
-import { env } from "@/config/env";
-import { server } from "@/mocks/server";
 import type { CallHistoryItem } from "@/domains/callHistory/types";
 import { CallCard } from "./CallCard";
 
@@ -24,6 +21,7 @@ function LocationDisplay() {
 function renderCard(
   item: CallHistoryItem,
   onPartnerClick: (id: number) => void = () => {},
+  onAnalyze: (callId: number) => void = () => {},
 ) {
   const queryClient = makeQueryClient();
   queryClient.setQueryData(["calls"], {
@@ -47,6 +45,7 @@ function renderCard(
         call={item}
         now={new Date(2026, 3, 29, 14, 0)}
         onPartnerClick={onPartnerClick}
+        onAnalyze={onAnalyze}
       />,
       { wrapper },
     ),
@@ -133,31 +132,16 @@ describe("CallCard", () => {
       ).toBeInTheDocument();
     });
 
-    it("'분석하기' 클릭 시 ['calls'] 캐시가 응답의 analysisId + PROCESSING 으로 갱신되며, 결과 페이지로 이동하지 않는다", async () => {
-      server.use(
-        http.post(`${env.apiBaseUrl}/api/v1/calls/:callId/analysis`, () =>
-          HttpResponse.json(
-            { data: { analysisId: 777 }, status: 202, message: "ACCEPTED" },
-            { status: 202 },
-          ),
-        ),
+    it("'분석하기' 클릭 시 onAnalyze(call.id) 를 호출한다 (카드는 직접 요청하지 않고 결과 페이지로도 이동하지 않는다)", async () => {
+      const onAnalyze = vi.fn();
+      renderCard(
+        { ...baseCall, analysisStatus: "READY", analysisId: null },
+        () => {},
+        onAnalyze,
       );
-
-      const { queryClient } = renderCard({
-        ...baseCall,
-        analysisStatus: "READY",
-        analysisId: null,
-      });
       await userEvent.click(screen.getByRole("button", { name: "분석하기" }));
 
-      await waitFor(() => {
-        const cache = queryClient.getQueryData<{
-          pages: { items: CallHistoryItem[] }[];
-        }>(["calls"]);
-        expect(cache?.pages[0]?.items[0]?.analysisId).toBe(777);
-        expect(cache?.pages[0]?.items[0]?.analysisStatus).toBe("PROCESSING");
-      });
-
+      expect(onAnalyze).toHaveBeenCalledWith(42);
       // 분석 흐름은 카드에 머무름 — 결과 페이지로 이동하지 않아야 한다.
       expect(screen.queryByTestId("location-pathname")).not.toBeInTheDocument();
     });
@@ -176,30 +160,26 @@ describe("CallCard", () => {
       });
     });
 
-    it("'재분석' 클릭 시 분석을 다시 트리거하고 PROCESSING 으로 캐시가 갱신된다", async () => {
-      server.use(
-        http.post(`${env.apiBaseUrl}/api/v1/calls/:callId/analysis`, () =>
-          HttpResponse.json(
-            { data: { analysisId: 888 }, status: 202, message: "ACCEPTED" },
-            { status: 202 },
-          ),
-        ),
-      );
-
-      const { queryClient } = renderCard({
+    it("analysisId 가 없는 COMPLETED(이론상 모순) 면 '분석보기' 를 눌러도 이동하지 않는다", async () => {
+      renderCard({
         ...baseCall,
-        analysisStatus: "FAILED",
-        analysisId: 100,
+        analysisStatus: "COMPLETED",
+        analysisId: null,
       });
+      await userEvent.click(screen.getByRole("button", { name: "분석보기" }));
+      expect(screen.queryByTestId("location-pathname")).not.toBeInTheDocument();
+    });
+
+    it("'재분석' 클릭 시에도 onAnalyze(call.id) 를 호출한다", async () => {
+      const onAnalyze = vi.fn();
+      renderCard(
+        { ...baseCall, analysisStatus: "FAILED", analysisId: 100 },
+        () => {},
+        onAnalyze,
+      );
       await userEvent.click(screen.getByRole("button", { name: "재분석" }));
 
-      await waitFor(() => {
-        const cache = queryClient.getQueryData<{
-          pages: { items: CallHistoryItem[] }[];
-        }>(["calls"]);
-        expect(cache?.pages[0]?.items[0]?.analysisId).toBe(888);
-        expect(cache?.pages[0]?.items[0]?.analysisStatus).toBe("PROCESSING");
-      });
+      expect(onAnalyze).toHaveBeenCalledWith(42);
     });
   });
 

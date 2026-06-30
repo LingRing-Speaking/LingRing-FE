@@ -1,5 +1,6 @@
 import { httpGet, httpPost } from "@/lib/http";
 import type {
+  AnalysisQuota,
   AnalysisResult,
   AnalysisStatus,
   CallHistoryList,
@@ -8,6 +9,13 @@ import type {
 
 export const fetchCallHistory = (page: number, size: number) =>
   httpGet<CallHistoryList>(`/calls?page=${page}&size=${size}`);
+
+/**
+ * 분석 티켓 잔여 조회. 서버가 자정 충전을 푸시하지 않는 lazy 방식이라, 화면 진입·
+ * 앱 포그라운드 복귀 시 다시 호출해 갱신한다(useAnalysisQuota).
+ */
+export const fetchAnalysisQuota = () =>
+  httpGet<AnalysisQuota>("/me/analysis-quota");
 
 /**
  * 분석 트리거. BE 가 멱등이라 이미 진행 중/완료된 통화여도 동일한 analysisId 를

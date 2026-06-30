@@ -50,10 +50,12 @@ describe("CallHistoryList", () => {
       <CallHistoryList
         items={items}
         now={NOW}
+        quota={undefined}
         hasNextPage={false}
         isFetchingNextPage={false}
         onLoadMore={() => {}}
         onPartnerClick={() => {}}
+        onAnalyze={() => {}}
       />,
     );
 
@@ -77,14 +79,36 @@ describe("CallHistoryList", () => {
       <CallHistoryList
         items={items}
         now={NOW}
+        quota={undefined}
         hasNextPage={false}
         isFetchingNextPage={false}
         onLoadMore={() => {}}
         onPartnerClick={() => {}}
+        onAnalyze={() => {}}
       />,
     );
 
     expect(screen.getAllByText("1분 이상 통화부터 분석할 수 있어요")).toHaveLength(1);
+  });
+
+  it("quota 가 주어지면 일반/황금 티켓 배지를 헤더에 노출한다", () => {
+    const items = [makeCall(1, new Date(2026, 3, 29, 19, 0))];
+    renderWithRouter(
+      <CallHistoryList
+        items={items}
+        now={NOW}
+        quota={{ freeTicket: 1, paidTicket: 2, nextResetAt: "2026-07-01T00:00:00" }}
+        hasNextPage={false}
+        isFetchingNextPage={false}
+        onLoadMore={() => {}}
+        onPartnerClick={() => {}}
+        onAnalyze={() => {}}
+      />,
+    );
+
+    const badge = screen.getByLabelText("분석 티켓 잔여");
+    expect(badge).toHaveTextContent("일반티켓1장");
+    expect(badge).toHaveTextContent("황금티켓2장");
   });
 
   it("sentinel 이 뷰포트에 들어오면 onLoadMore 를 호출한다 (hasNextPage=true)", () => {
@@ -111,9 +135,12 @@ describe("CallHistoryList", () => {
       <CallHistoryList
         items={items}
         now={NOW}
+        quota={undefined}
         hasNextPage={true}
         isFetchingNextPage={false}
-        onLoadMore={onLoadMore} onPartnerClick={() => {}}
+        onLoadMore={onLoadMore}
+        onPartnerClick={() => {}}
+        onAnalyze={() => {}}
       />,
     );
 
@@ -152,9 +179,12 @@ describe("CallHistoryList", () => {
       <CallHistoryList
         items={items}
         now={NOW}
+        quota={undefined}
         hasNextPage={false}
         isFetchingNextPage={false}
-        onLoadMore={onLoadMore} onPartnerClick={() => {}}
+        onLoadMore={onLoadMore}
+        onPartnerClick={() => {}}
+        onAnalyze={() => {}}
       />,
     );
 
