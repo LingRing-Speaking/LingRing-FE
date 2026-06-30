@@ -147,4 +147,32 @@ describe("AnalysisButton", () => {
       expect(onView).not.toHaveBeenCalled();
     });
   });
+
+  describe("analysisStatus=EXPIRED (녹음 보관 기간 만료)", () => {
+    it("'기간 만료' 버튼이 비활성으로 노출된다", () => {
+      render(
+        <AnalysisButton
+          analysisStatus="EXPIRED"
+          onTriggerAnalysis={() => {}}
+          onViewResult={() => {}}
+        />,
+      );
+      expect(screen.getByRole("button", { name: "기간 만료" })).toBeDisabled();
+    });
+
+    it("disabled 라 클릭해도 어떤 콜백도 호출되지 않는다", async () => {
+      const onTrigger = vi.fn();
+      const onView = vi.fn();
+      render(
+        <AnalysisButton
+          analysisStatus="EXPIRED"
+          onTriggerAnalysis={onTrigger}
+          onViewResult={onView}
+        />,
+      );
+      await userEvent.click(screen.getByRole("button", { name: "기간 만료" }));
+      expect(onTrigger).not.toHaveBeenCalled();
+      expect(onView).not.toHaveBeenCalled();
+    });
+  });
 });

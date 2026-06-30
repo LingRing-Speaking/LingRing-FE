@@ -253,6 +253,33 @@ describe("CallHistoryPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("확인 후 서버가 400(녹음 만료) 을 주면 사유 안내 모달을 띄운다", async () => {
+    const user = userEvent.setup();
+    seedAnalyzableCall({ freeTicket: 1, paidTicket: 0 });
+    server.use(
+      http.post("http://localhost:3000/api/v1/calls/1/analysis", () =>
+        HttpResponse.json(
+          {
+            data: null,
+            status: 400,
+            message: "녹음 보관 기간이 지나 분석할 수 없습니다.",
+          },
+          { status: 400 },
+        ),
+      ),
+    );
+
+    renderWithQueryClient(<CallHistoryPage />);
+    await user.click(await screen.findByRole("button", { name: "분석하기" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "분석하기" }));
+
+    expect(await screen.findByText("분석할 수 없어요")).toBeInTheDocument();
+    expect(
+      screen.getByText("녹음 보관 기간이 지나 분석할 수 없습니다."),
+    ).toBeInTheDocument();
+  });
+
   it("에러 시 다시 시도 버튼 클릭하면 refetch 동작", async () => {
     let attempts = 0;
     server.use(

@@ -2,12 +2,16 @@ import { useNavigate } from "react-router-dom";
 import { Avatar } from "@/components/Avatar";
 import type { CallHistoryItem } from "@/domains/callHistory/types";
 import { AnalysisButton } from "./AnalysisButton";
-import { formatCallMeta } from "./timeBucket";
+import { analysisExpiryDaysLeft, formatCallMeta } from "./timeBucket";
 
 const UNKNOWN_PARTNER_NAME = "알 수 없음";
 
 // 1분(60초) 이상 통화만 분석을 요청할 수 있다. (서버에서도 동일하게 검증)
 const ANALYSIS_MIN_DURATION_SEC = 60;
+
+// 분석 가능 기한이 이 일수 이내로 남으면 카드에 "만료 D-N" 칩을 띄워, 녹음이
+// 삭제되기 전에 분석을 유도한다.
+const EXPIRY_WARNING_DAYS = 7;
 
 type Props = {
   call: CallHistoryItem;
@@ -19,7 +23,8 @@ type Props = {
 };
 
 export function CallCard({ call, now, onPartnerClick, onAnalyze }: Props) {
-  const meta = formatCallMeta(new Date(call.startedAt), call.durationSec, now);
+  const startedAtDate = new Date(call.startedAt);
+  const meta = formatCallMeta(startedAtDate, call.durationSec, now);
   const { partner, analysisId, analysisStatus } = call;
   const isUnknown = partner === null;
 
@@ -49,6 +54,18 @@ export function CallCard({ call, now, onPartnerClick, onAnalyze }: Props) {
   const hasOngoingOrCompletedAnalysis =
     analysisStatus === "PROCESSING" || analysisStatus === "COMPLETED";
   const hideAnalysisButton = isTooShortToAnalyze && !hasOngoingOrCompletedAnalysis;
+
+  // 분석을 시작/재시도할 수 있는(READY·FAILED) 카드가 만료 임박(≤7일)이면 D-day
+  // 칩으로 알려 녹음 삭제 전 분석을 유도한다. 이미 만료(EXPIRED)거나 분석이 끝난
+  // (COMPLETED)·진행 중(PROCESSING) 카드엔 띄우지 않는다.
+  const isAnalyzable =
+    analysisStatus === "READY" || analysisStatus === "FAILED";
+  const daysLeft = analysisExpiryDaysLeft(startedAtDate, call.durationSec, now);
+  const showExpiryWarning =
+    !hideAnalysisButton &&
+    isAnalyzable &&
+    daysLeft >= 1 &&
+    daysLeft <= EXPIRY_WARNING_DAYS;
 
   return (
     <div className="flex items-center gap-2 rounded-[18px] bg-white py-2 pl-3 pr-2 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
@@ -88,12 +105,39 @@ export function CallCard({ call, now, onPartnerClick, onAnalyze }: Props) {
         </div>
       </button>
       {!hideAnalysisButton && (
-        <AnalysisButton
-          analysisStatus={analysisStatus}
-          onTriggerAnalysis={handleTriggerAnalysis}
-          onViewResult={handleViewResult}
-        />
+        <div className="flex flex-shrink-0 flex-col items-end gap-1">
+          <AnalysisButton
+            analysisStatus={analysisStatus}
+            onTriggerAnalysis={handleTriggerAnalysis}
+            onViewResult={handleViewResult}
+          />
+          {showExpiryWarning && <ExpiryWarningChip daysLeft={daysLeft} />}
+        </div>
       )}
     </div>
+  );
+}
+
+function ExpiryWarningChip({ daysLeft }: { daysLeft: number }) {
+  return (
+    <span
+      aria-label={`분석 기한 ${daysLeft}일 남음`}
+      className="inline-flex items-center gap-1 rounded-full bg-coral-100 px-2 py-1 text-[11px] font-bold leading-none tracking-tight text-coral-600"
+    >
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-3 w-3"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <polyline points="12 7.5 12 12 15 13.8" />
+      </svg>
+      만료 D-{daysLeft}
+    </span>
   );
 }

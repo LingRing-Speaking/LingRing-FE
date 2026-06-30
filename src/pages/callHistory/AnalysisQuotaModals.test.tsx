@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   AnalysisConfirmModal,
   AnalysisExhaustedModal,
+  AnalysisUnavailableModal,
 } from "./AnalysisQuotaModals";
 
 describe("AnalysisConfirmModal", () => {
@@ -63,5 +64,35 @@ describe("AnalysisExhaustedModal", () => {
     expect(
       screen.queryByText("오늘 분석 티켓을 다 썼어요"),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("AnalysisUnavailableModal", () => {
+  it("open 이면 제목과 서버가 준 사유 메시지를 노출한다", () => {
+    render(
+      <AnalysisUnavailableModal
+        open
+        message="녹음 보관 기간이 지나 분석할 수 없습니다."
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByText("분석할 수 없어요")).toBeInTheDocument();
+    expect(
+      screen.getByText("녹음 보관 기간이 지나 분석할 수 없습니다."),
+    ).toBeInTheDocument();
+  });
+
+  it("'확인' 클릭 시 onClose 가 호출된다", async () => {
+    const onClose = vi.fn();
+    render(<AnalysisUnavailableModal open message="사유" onClose={onClose} />);
+    await userEvent.click(screen.getByRole("button", { name: "확인" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("open=false 면 렌더하지 않는다", () => {
+    render(
+      <AnalysisUnavailableModal open={false} message="사유" onClose={() => {}} />,
+    );
+    expect(screen.queryByText("분석할 수 없어요")).not.toBeInTheDocument();
   });
 });

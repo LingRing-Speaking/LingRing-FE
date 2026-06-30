@@ -77,5 +77,18 @@ export function AnalysisButton({
           재분석
         </button>
       );
+
+    case "EXPIRED":
+      // 녹음 보관 기간(30일)이 지나 녹음이 삭제됨 → 분석을 시작/재시도할 수 없다. 비활성.
+      return (
+        <button
+          type="button"
+          disabled
+          aria-label="기간 만료"
+          className="inline-flex flex-shrink-0 cursor-default items-center gap-1.5 rounded-full bg-gray-100 px-3.5 py-2 text-[13px] font-bold leading-none tracking-tight text-gray-400"
+        >
+          기간 만료
+        </button>
+      );
   }
 }
