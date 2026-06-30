@@ -5,6 +5,7 @@ import { KakaoIdTokenMissingError, KakaoLoginUnavailableError } from "../kakao";
 import { NicknameRetryExhaustedError, signInWithKakao } from "../signIn";
 import { saveTokens } from "../storage";
 import { useAuthStore } from "../store";
+import { needsAgreement } from "@/domains/onboarding/needsAgreement";
 
 export type SignInFailure =
   | { kind: "unavailable"; message: string }
@@ -66,7 +67,7 @@ export function useKakaoSignIn(): UseKakaoSignInResult {
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
       });
-      const next = result.user.requiresOnboarding ? "/onboarding/terms" : "/home";
+      const next = needsAgreement(result.user) ? "/onboarding/terms" : "/home";
       navigate(next, { replace: true });
     } catch (err) {
       setFailure(classify(err));

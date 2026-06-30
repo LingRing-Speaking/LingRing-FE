@@ -4,6 +4,7 @@ import { ApiError } from "@/lib/http";
 import { postDemoLogin } from "../api/demoLogin";
 import { saveTokens } from "../storage";
 import { useAuthStore } from "../store";
+import { needsAgreement } from "@/domains/onboarding/needsAgreement";
 
 export type DemoSignInFailure =
   | { kind: "invalid_token"; message: string }
@@ -54,7 +55,7 @@ export function useDemoSignIn(): UseDemoSignInResult {
           accessToken: result.accessToken,
           refreshToken: result.refreshToken,
         });
-        const next = result.user.requiresOnboarding ? "/onboarding/terms" : "/home";
+        const next = needsAgreement(result.user) ? "/onboarding/terms" : "/home";
         navigate(next, { replace: true });
       } catch (err) {
         setFailure(classify(err));
