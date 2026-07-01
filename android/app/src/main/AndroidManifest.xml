@@ -63,4 +63,7 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Capacitor 의 getUserMedia(audio) 권한 처리(BridgeWebChromeClient.onPermissionRequest)가
+         RECORD_AUDIO 와 함께 요청. 미선언 시 항상 거부되어 통화가 "마이크 권한이 필요해요"로 즉시 종료됨. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 </manifest>
