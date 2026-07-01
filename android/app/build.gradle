@@ -71,6 +71,8 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // MainActivity 의 KakaoSdk.init 사용 — 플러그인이 implementation 으로 감싸 app 모듈에 노출 안 됨. 직접 선언.
+    implementation "com.kakao.sdk:v2-user:2.20.1"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
