@@ -56,6 +56,24 @@ final class AudioRecordingADM: NSObject {
 }
 
 extension AudioRecordingADM {
+    // libwebrtc worker thread 에서 호출되는 getter 가 queue 소유 상태(inputFormat/outputFormat)를
+    // 안전하게 읽기 위한 헬퍼. delegate 접근자와 같은 재진입 회피 패턴.
+    fileprivate func syncRead<T>(_ read: () -> T) -> T {
+        if DispatchQueue.getSpecific(key: queueKey) == queueValue {
+            return read()
+        }
+        return queue.sync { read() }
+    }
+
+    // #182 계측: 라우트/포맷 전환 시점에 "세션 rate vs 노드 rate" 일치 여부를 실기기 로그로 확인.
+    fileprivate func logAudioState(_ tag: String) {
+        let route = audioSession.currentRoute
+        let outs = route.outputs.map { $0.portType.rawValue }.joined(separator: "+")
+        let ins = route.inputs.map { $0.portType.rawValue }.joined(separator: "+")
+        let (nodeIn, nodeOut) = syncRead { (inputFormat?.sampleRate ?? -1, outputFormat?.sampleRate ?? -1) }
+        NSLog("[ADM-DIAG][\(tag)] session=\(audioSession.sampleRate)Hz out=\(outs) in=\(ins) nodeIn=\(nodeIn)Hz nodeOut=\(nodeOut)Hz")
+    }
+
     fileprivate func shutdownEngine() {
         guard let audioEngine = audioEngine else { return }
         if let observer = audioEngineObserver {
@@ -65,15 +83,20 @@ extension AudioRecordingADM {
         if audioEngine.isRunning {
             audioEngine.stop()
         }
+        // notify 계열은 계약상 dispatchAsync/dispatchSync 블록 안에서만 호출 가능 (RTCAudioDevice.h #182)
         if let sinkNode = audioSinkNode {
             audioEngine.detach(sinkNode)
             audioSinkNode = nil
-            delegate?.notifyAudioInputInterrupted()
+            if let delegate = delegate_ {
+                delegate.dispatchAsync { delegate.notifyAudioInputInterrupted() }
+            }
         }
         if let sourceNode = audioSourceNode {
             audioEngine.detach(sourceNode)
             audioSourceNode = nil
-            delegate?.notifyAudioOutputInterrupted()
+            if let delegate = delegate_ {
+                delegate.dispatchAsync { delegate.notifyAudioOutputInterrupted() }
+            }
         }
         self.audioEngine = nil
     }
@@ -81,13 +104,13 @@ extension AudioRecordingADM {
     // BT 연결/해제 같은 HW 변경 시 sample rate 가 바뀌어도 AVAudioEngine 의 internal
     // sample rate 는 자동 따라가지 않음 → audio speed 깨짐 (느리게/빠르게 들림).
     // AVAudioEngineConfigurationChange notification 받아 engine 을 새 HW 포맷으로 재구성.
+    // 파라미터 notify 는 재구성 완료 후 updateEngine 끝에서 일괄 수행 (#182).
     @objc fileprivate func handleEngineConfigurationChange() {
         queue.async { [weak self] in
             guard let self = self else { return }
+            self.logAudioState("engineConfigChange")
             NSLog("[AudioRecordingADM] engine configuration changed — restart")
             self.shutdownEngine()
-            self.delegate_?.notifyAudioInputParametersChange()
-            self.delegate_?.notifyAudioOutputParametersChange()
             self.updateEngine()
         }
     }
@@ -120,6 +143,16 @@ extension AudioRecordingADM {
                 try engine.start()
             } catch {
                 NSLog("[AudioRecordingADM] engine start failed: \(error)")
+            }
+        }
+
+        // (재)구성이 끝난 뒤 최종 파라미터를 libwebrtc 에 전달. getter 가 노드 attach 포맷을
+        // 반환하므로, 이 notify 가 곧 "실제 교환 rate" 의 동기화다. 계약상 notify 는 반드시
+        // dispatchAsync/dispatchSync 블록 안에서 호출해야 한다 (RTCAudioDevice.h #182).
+        if let delegate = delegate_ {
+            delegate.dispatchAsync {
+                delegate.notifyAudioInputParametersChange()
+                delegate.notifyAudioOutputParametersChange()
             }
         }
     }
@@ -171,7 +204,6 @@ extension AudioRecordingADM {
             NSLog("[AudioRecordingADM] failed to create rtcFormat")
             return
         }
-        inputFormat = rtcFormat
 
         guard let converter = SimpleAudioConverter(from: hwFormat, to: rtcFormat) else {
             NSLog("[AudioRecordingADM] failed to create converter")
@@ -210,6 +242,9 @@ extension AudioRecordingADM {
         engine.attach(sinkNode)
         engine.connect(engine.inputNode, to: sinkNode, format: hwFormat)
         audioSinkNode = sinkNode
+        // attach 성공 시에만 기록 — 이 값이 deviceInputSampleRate 로 보고되는 계약의 원천 (#182)
+        inputFormat = rtcFormat
+        logAudioState("sink attached")
     }
 
     fileprivate func attachSourceNodeIfNeeded(engine: AVAudioEngine) {
@@ -236,7 +271,6 @@ extension AudioRecordingADM {
                                              interleaved: true) else {
             return
         }
-        outputFormat = rtcFormat
 
         let getPlayoutData = delegate.getPlayoutData
         let sourceNode = AVAudioSourceNode(format: rtcFormat) { (isSilence, timestamp, frameCount, outputData) -> OSStatus in
@@ -250,6 +284,9 @@ extension AudioRecordingADM {
         engine.attach(sourceNode)
         engine.connect(sourceNode, to: engine.mainMixerNode, format: rtcFormat)
         audioSourceNode = sourceNode
+        // attach 성공 시에만 기록 — 이 값이 deviceOutputSampleRate 로 보고되는 계약의 원천 (#182)
+        outputFormat = rtcFormat
+        logAudioState("source attached")
     }
 }
 
@@ -257,12 +294,14 @@ extension AudioRecordingADM {
     // WebRTCPlugin.configureForCall 의 책임을 ADM 안으로 이전.
     // 이어피스 default + .voiceChat mode + iOS 17+ .allowBluetoothHFP 정책 보존.
     func configureAudioSessionForCall() throws {
+        logAudioState("configureForCall:before")
         try audioSession.setCategory(
             .playAndRecord,
             mode: .voiceChat,
             options: bluetoothOptions()
         )
         try audioSession.setActive(true)
+        logAudioState("configureForCall:after")
     }
 
     func deactivateAudioSession() throws {
@@ -311,23 +350,20 @@ extension AudioRecordingADM {
         switch reason {
         case .override, .unknown:
             return
-        case .newDeviceAvailable, .oldDeviceUnavailable:
-            // BT 헤드폰 같은 audio device 연결/해제 시 HW sample rate 가 바뀜.
+        case .newDeviceAvailable, .oldDeviceUnavailable, .categoryChange, .routeConfigurationChange:
+            // 라우트가 바뀌면 HW sample rate 가 바뀔 수 있다. BT 이어폰은 착탈뿐 아니라
+            // configureForCall 의 카테고리 전환(A2DP→HFP 플립, reason=.categoryChange)으로도
+            // rate 가 2~3배 바뀐다 — notify 만으로는 노드가 낡은 포맷에 남아 배속/저속이
+            // 고착되므로 항상 engine 을 재구성한다 (#182). rate 가 실제로 같으면 재구성은
+            // 같은 포맷으로 재부착될 뿐이라 무해하다.
             // VPIO 환경에서는 AVAudioEngineConfigurationChange 가 안 발화하는 경우 있어
-            // route change 에서 직접 engine 재시작 트리거.
+            // route change 에서 직접 engine 재시작 트리거. notify 는 updateEngine 끝에서 일괄.
             queue.async { [weak self] in
                 guard let self = self else { return }
-                NSLog("[AudioRecordingADM] device route changed (\(reason.rawValue)) — restart engine")
+                self.logAudioState("routeChange(\(reason.rawValue))")
+                NSLog("[AudioRecordingADM] route changed (\(reason.rawValue)) — restart engine")
                 self.shutdownEngine()
-                self.delegate_?.notifyAudioInputParametersChange()
-                self.delegate_?.notifyAudioOutputParametersChange()
                 self.updateEngine()
-            }
-        case .categoryChange, .routeConfigurationChange:
-            // sample rate 안 바뀌는 미세 변경. engine 재시작 없이 notify 만.
-            delegate?.dispatchAsync { [weak self] in
-                self?.delegate?.notifyAudioInputParametersChange()
-                self?.delegate?.notifyAudioOutputParametersChange()
             }
         default:
             return
@@ -356,13 +392,22 @@ extension AudioRecordingADM {
 
 extension AudioRecordingADM: RTCAudioDevice {
     // MARK: parameters
-    var deviceInputSampleRate: Double { audioSession.sampleRate }
+    // 계약 (RTCAudioDevice.h): 이 rate 는 deliverRecordedData/getPlayoutData 로 "실제 교환되는
+    // PCM 의 rate" 여야 하며 libwebrtc 는 이 경계에서 리샘플링하지 않는다. 그래서 원천은
+    // 라이브 audioSession.sampleRate(라우트 전환 중 노드와 어긋날 수 있음 — #182 배속/저속의
+    // 근본 원인)가 아니라 노드 attach 시점 포맷이어야 한다. 세션 값은 엔진이 아직 없을 때의
+    // 폴백 (mstyura AVAudioEngineRTCAudioDevice 와 동일 구조).
+    var deviceInputSampleRate: Double {
+        syncRead { inputFormat?.sampleRate } ?? audioSession.sampleRate
+    }
     var inputIOBufferDuration: TimeInterval { audioSession.ioBufferDuration }
     // libwebrtc 는 internal 로 mono 처리. HW 가 stereo 여도 mono 로 노출해야
     // AVAudioBuffer channel count mismatch (buffer=2 vs format=1) 회피.
     var inputNumberOfChannels: Int { 1 }
     var inputLatency: TimeInterval { audioSession.inputLatency }
-    var deviceOutputSampleRate: Double { audioSession.sampleRate }
+    var deviceOutputSampleRate: Double {
+        syncRead { outputFormat?.sampleRate } ?? audioSession.sampleRate
+    }
     var outputIOBufferDuration: TimeInterval { audioSession.ioBufferDuration }
     var outputNumberOfChannels: Int { 1 }
     var outputLatency: TimeInterval { audioSession.outputLatency }
