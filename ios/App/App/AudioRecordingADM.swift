@@ -18,9 +18,11 @@ final class AudioRecordingADM: NSObject {
     fileprivate var audioSourceNode: AVAudioSourceNode?
     fileprivate var audioEngineObserver: NSObjectProtocol?
 
-    // 녹음 파일 (Phase 2). 마이크 PCM 을 libwebrtc 로 deliver 하는 같은 sink block 에서
-    // AVAudioFile 에도 동시에 write. 통화 connected 시점에 start, end 시점에 stop.
-    fileprivate var recordingFile: AVAudioFile?
+    // 녹음 write 경로 (Phase 2). 마이크 PCM 을 libwebrtc 로 deliver 하는 같은 sink block 에서
+    // 파일에도 동시에 write. 통화 connected 시점에 start, end 시점에 stop.
+    // file+converter+버퍼를 RecordingWriter 하나로 묶어 단일 참조로 교체 — 라우트 전환 시
+    // converter 와 file 이 어긋난 조합으로 읽히는 것을 방지 (#184).
+    fileprivate var recordingWriter: RecordingWriter?
     fileprivate var recordingFileURL: URL?
 
     fileprivate var delegate_: RTCAudioDeviceDelegate?
@@ -224,17 +226,10 @@ extension AudioRecordingADM {
             var renderContext = (Unmanaged.passUnretained(converter), inputData)
             let result = deliverRecordedData(&flags, timestamp, 1, framesCount, nil, &renderContext, customRenderBlock)
 
-            // 2) 동시에 녹음 파일에 write (Phase 2). 활성 file 있을 때만.
-            if let self = self, let file = self.recordingFile {
-                if let buffer = AVAudioPCMBuffer(pcmFormat: hwFormat, bufferListNoCopy: inputData) {
-                    buffer.frameLength = framesCount
-                    do {
-                        try file.write(from: buffer)
-                    } catch {
-                        NSLog("[AudioRecordingADM] file write failed: \(error)")
-                    }
-                }
-            }
+            // 2) 동시에 녹음 파일에 write (Phase 2). 활성 writer 있을 때만.
+            //    writer 가 mic 포맷 → 파일 고정 포맷(24kHz mono) 변환을 담당하므로 라우트
+            //    전환으로 hwFormat 이 바뀌어도 파일 write 가 끊기지 않는다 (#184).
+            self?.recordingWriter?.write(inputData, frames: framesCount)
 
             return result
         }
@@ -245,6 +240,19 @@ extension AudioRecordingADM {
         // attach 성공 시에만 기록 — 이 값이 deviceInputSampleRate 로 보고되는 계약의 원천 (#182)
         inputFormat = rtcFormat
         logAudioState("sink attached")
+
+        // 녹음 중 라우트 전환으로 mic 포맷이 바뀐 경우: 파일은 그대로 두고 converter 만
+        // 새 포맷으로 교체. 교체 실패 시 기존 writer 로 계속 쓰면 포맷 불일치로 매 버퍼
+        // 실패하므로 중단이 낫다 (#184).
+        if let writer = recordingWriter, writer.micFormat != hwFormat {
+            if let rebuilt = RecordingWriter(file: writer.file, micFormat: hwFormat) {
+                recordingWriter = rebuilt
+                NSLog("[AudioRecordingADM] recording converter rebuilt: mic=\(hwFormat.sampleRate)Hz")
+            } else {
+                recordingWriter = nil
+                NSLog("[AudioRecordingADM] recording writer rebuild failed — recording stops (mic=\(hwFormat))")
+            }
+        }
     }
 
     fileprivate func attachSourceNodeIfNeeded(engine: AVAudioEngine) {
@@ -487,9 +495,83 @@ extension AudioRecordingADM: RTCAudioDevice {
     }
 }
 
+// MARK: - RecordingWriter (#184)
+
+// 녹음 write 경로의 단일 소유 객체: 고정 포맷 파일 + mic 포맷→파일 포맷 converter + 재사용 출력 버퍼.
+// sink block(IO thread)은 이 객체 하나만 읽으므로, 라우트 전환 시 참조 교체만으로 file/converter 가
+// 항상 짝이 맞는다. AVAudioConverter 가 SRC(예: 48kHz→24kHz)와 스테레오→모노 다운믹스를 담당.
+private final class RecordingWriter {
+    let file: AVAudioFile
+    let micFormat: AVAudioFormat
+    private let converter: AVAudioConverter
+    private let outputBuffer: AVAudioPCMBuffer
+    private var didLogWriteFailure = false
+
+    // IO 콜백당 최대 프레임(경험상 ≤4096)에 SRC 비율 여유를 더한 고정 용량 — 콜백 안 할당 회피.
+    private static let maxFramesPerCallback: Double = 4096
+
+    init?(file: AVAudioFile, micFormat: AVAudioFormat) {
+        guard micFormat.sampleRate > 0,
+              let converter = AVAudioConverter(from: micFormat, to: file.processingFormat) else {
+            return nil
+        }
+        let ratio = file.processingFormat.sampleRate / micFormat.sampleRate
+        let capacity = AVAudioFrameCount((Self.maxFramesPerCallback * max(1.0, ratio)).rounded(.up)) + 64
+        guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: capacity) else {
+            return nil
+        }
+        self.file = file
+        self.micFormat = micFormat
+        self.converter = converter
+        self.outputBuffer = outputBuffer
+    }
+
+    // sink block(IO thread)에서 호출. 실패해도 통화를 막지 않도록 로그만 남긴다 (최초 1회).
+    func write(_ inputData: UnsafePointer<AudioBufferList>, frames: AVAudioFrameCount) {
+        guard let input = AVAudioPCMBuffer(pcmFormat: micFormat, bufferListNoCopy: inputData) else { return }
+        input.frameLength = frames
+
+        // pull 방식 스트리밍 변환. .endOfStream 은 SRC 필터 상태를 flush 해버리므로 쓰지 않고,
+        // 콜백마다 입력 1개(.haveData) → 이후 .noDataNow. 변환 잔여 샘플은 converter 가 내부
+        // 보관했다가 다음 콜백 출력에 포함하므로 유실이 없다.
+        var fed = false
+        var error: NSError?
+        outputBuffer.frameLength = 0
+        let status = converter.convert(to: outputBuffer, error: &error) { _, inputStatus in
+            if fed {
+                inputStatus.pointee = .noDataNow
+                return nil
+            }
+            fed = true
+            inputStatus.pointee = .haveData
+            return input
+        }
+        guard status != .error else {
+            logWriteFailureOnce("convert: \(error?.localizedDescription ?? "unknown")")
+            return
+        }
+        guard outputBuffer.frameLength > 0 else { return } // SRC 지연으로 이번 콜백 출력 없음 — 정상
+
+        do {
+            try file.write(from: outputBuffer)
+        } catch {
+            logWriteFailureOnce("file.write: \(error.localizedDescription)")
+        }
+    }
+
+    private func logWriteFailureOnce(_ message: String) {
+        guard !didLogWriteFailure else { return }
+        didLogWriteFailure = true
+        NSLog("[AudioRecordingADM] recording write failed (이후 동일 오류 로그 생략): \(message)")
+    }
+}
+
 // MARK: - Phase 2: file recording (JS bridge 용 public API)
 
 extension AudioRecordingADM {
+    // 녹음 파일 고정 sample rate. call-recording-design §7 스펙 (음성/STT 용도 충분).
+    fileprivate static let recordingFileSampleRate: Double = 24000
+
     struct PendingRecording {
         let callId: Int64
         let filePath: String
@@ -530,25 +612,31 @@ extension AudioRecordingADM {
             Thread.sleep(forTimeInterval: Double(pollIntervalMs) / 1000.0)
             waitedMs += pollIntervalMs
         }
-        guard let engine = audioEngine else {
-            // polling 통과 후에도 nil 인 케이스 — 이론상 발생 안 함. 방어적 가드.
-            throw NSError(domain: "AudioRecordingADM", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: "engine became nil after wait"])
-        }
-        let hwFormat = engine.inputNode.outputFormat(forBus: 1)
-        // .m4a 컨테이너 + AAC 인코딩으로 저장하려면 AVAudioFile 의 commonFormat 설정 활용.
-        // settings 미지정 시 기본 PCM 으로 저장됨 — 호환성 위해 AAC settings 명시.
-        let settings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatMPEG4AAC,
-            AVSampleRateKey: hwFormat.sampleRate,
-            AVNumberOfChannelsKey: hwFormat.channelCount,
-            AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue,
-            AVEncoderBitRateKey: 64000,
-        ]
-        let file = try AVAudioFile(forWriting: fileURL, settings: settings)
-
-        queue.sync {
-            self.recordingFile = file
+        // 파일 생성 + writer 설치는 queue 에서 — attach/rebuild(라우트 전환) 와 직렬화되어
+        // "sink 는 새 포맷인데 writer 는 옛 포맷" 조합이 생기지 않는다 (#184).
+        try queue.sync {
+            guard let engine = audioEngine else {
+                // polling 통과 후에도 nil 인 케이스 — 이론상 발생 안 함. 방어적 가드.
+                throw NSError(domain: "AudioRecordingADM", code: 1,
+                              userInfo: [NSLocalizedDescriptionKey: "engine became nil after wait"])
+            }
+            let hwFormat = engine.inputNode.outputFormat(forBus: 1)
+            // .m4a 컨테이너 + AAC 인코딩. 파일 포맷은 라우트와 무관한 고정 스펙
+            // (call-recording-design §7: 24kHz mono, 64kbps — 음성/STT 충분).
+            // 라우트 전환으로 mic 포맷이 바뀌어도 파일은 불변, writer 의 converter 만 교체 (#184).
+            let settings: [String: Any] = [
+                AVFormatIDKey: kAudioFormatMPEG4AAC,
+                AVSampleRateKey: Self.recordingFileSampleRate,
+                AVNumberOfChannelsKey: 1,
+                AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue,
+                AVEncoderBitRateKey: 64000,
+            ]
+            let file = try AVAudioFile(forWriting: fileURL, settings: settings)
+            guard let writer = RecordingWriter(file: file, micFormat: hwFormat) else {
+                throw NSError(domain: "AudioRecordingADM", code: 2,
+                              userInfo: [NSLocalizedDescriptionKey: "failed to create recording converter (mic=\(hwFormat))"])
+            }
+            self.recordingWriter = writer
             self.recordingFileURL = fileURL
         }
 
@@ -569,15 +657,16 @@ extension AudioRecordingADM {
     //   3) closure return 후 size 를 읽으면 정확한 최종 byte 수
     func stopFileRecording() -> RecordingResult.Stopped? {
         let stopped: (URL, Int64)? = queue.sync {
-            guard let url = self.recordingFileURL, let file = self.recordingFile else {
+            guard let url = self.recordingFileURL, let writer = self.recordingWriter else {
                 return nil
             }
+            let file = writer.file
             let durationMs = Int64(Double(file.length) / file.processingFormat.sampleRate * 1000)
-            self.recordingFile = nil
+            self.recordingWriter = nil
             self.recordingFileURL = nil
             return (url, durationMs)
-            // closure 종료 → local `file` 의 last strong reference 해제 → AVAudioFile deinit
-            // → m4a moov atom 작성 + 파일 close.
+            // closure 종료 → local `writer`/`file` 의 last strong reference 해제 → AVAudioFile
+            // deinit → m4a moov atom 작성 + 파일 close.
         }
         guard let (url, durationMs) = stopped else { return nil }
 
