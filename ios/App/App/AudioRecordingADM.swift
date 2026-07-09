@@ -51,6 +51,11 @@ final class AudioRecordingADM: NSObject {
     fileprivate var inputFormat: AVAudioFormat?
     fileprivate var outputFormat: AVAudioFormat?
 
+    // 엔진이 마지막으로 구성된 시점의 세션 rate/라우트. route change 가 실제 변화 없이
+    // (엔진 재시작 자체가 발화시킨 .routeConfigurationChange 등) 도착했을 때 재시작을
+    // 스킵하는 판정 기준 — 재시작→(8)→재시작 부메랑 루프 방지.
+    fileprivate var lastAppliedRouteSignature: String?
+
     override init() {
         super.init()
         queue.setSpecific(key: queueKey, value: queueValue)
@@ -65,6 +70,15 @@ extension AudioRecordingADM {
             return read()
         }
         return queue.sync { read() }
+    }
+
+    // 현재 세션 rate + 입출력 포트 조합. lastAppliedRouteSignature 와 비교해
+    // "재구성이 실제로 필요한 변화인가" 를 판정한다.
+    fileprivate func currentRouteSignature() -> String {
+        let route = audioSession.currentRoute
+        let outs = route.outputs.map { $0.portType.rawValue }.joined(separator: "+")
+        let ins = route.inputs.map { $0.portType.rawValue }.joined(separator: "+")
+        return "\(audioSession.sampleRate)|\(outs)|\(ins)"
     }
 
     // #182 계측: 라우트/포맷 전환 시점에 "세션 rate vs 노드 rate" 일치 여부를 실기기 로그로 확인.
@@ -147,6 +161,9 @@ extension AudioRecordingADM {
                 NSLog("[AudioRecordingADM] engine start failed: \(error)")
             }
         }
+
+        // 이 구성이 반영한 세션 rate/라우트를 기록 — 이후 동일 상태의 route change 는 스킵된다.
+        lastAppliedRouteSignature = currentRouteSignature()
 
         // (재)구성이 끝난 뒤 최종 파라미터를 libwebrtc 에 전달. getter 가 노드 attach 포맷을
         // 반환하므로, 이 notify 가 곧 "실제 교환 rate" 의 동기화다. 계약상 notify 는 반드시
@@ -362,12 +379,19 @@ extension AudioRecordingADM {
             // 라우트가 바뀌면 HW sample rate 가 바뀔 수 있다. BT 이어폰은 착탈뿐 아니라
             // configureForCall 의 카테고리 전환(A2DP→HFP 플립, reason=.categoryChange)으로도
             // rate 가 2~3배 바뀐다 — notify 만으로는 노드가 낡은 포맷에 남아 배속/저속이
-            // 고착되므로 항상 engine 을 재구성한다 (#182). rate 가 실제로 같으면 재구성은
-            // 같은 포맷으로 재부착될 뿐이라 무해하다.
+            // 고착되므로 engine 을 재구성한다 (#182).
+            // 단, 엔진 재구성 자체가 .routeConfigurationChange(8) 를 다시 발화시키므로
+            // "실제 변화 없음"이면 스킵해야 한다 — 아니면 재시작→(8)→재시작 무한 루프로
+            // 네이티브 WebRTC 호출(setLocalDescription 등)이 굶어 시그널링이 멈춘다.
             // VPIO 환경에서는 AVAudioEngineConfigurationChange 가 안 발화하는 경우 있어
             // route change 에서 직접 engine 재시작 트리거. notify 는 updateEngine 끝에서 일괄.
             queue.async { [weak self] in
                 guard let self = self else { return }
+                if self.audioEngine?.isRunning == true,
+                   self.lastAppliedRouteSignature == self.currentRouteSignature() {
+                    NSLog("[AudioRecordingADM] route changed (\(reason.rawValue)) — 실제 변화 없음, 재시작 스킵")
+                    return
+                }
                 self.logAudioState("routeChange(\(reason.rawValue))")
                 NSLog("[AudioRecordingADM] route changed (\(reason.rawValue)) — restart engine")
                 self.shutdownEngine()
