@@ -1,5 +1,9 @@
 import { Capacitor } from "@capacitor/core";
 import { NativeWebRTC, isIosNative } from "@/lib/native/webrtcPlugin";
+import {
+  createAndroidRecordingStore,
+  type AndroidRecordingStore,
+} from "./androidRecordingStore";
 import { uploadRecording, uploadRecordingBlob } from "./recordingUploader";
 
 // 통화 녹음의 플랫폼 추상화. 녹음 대상은 양 플랫폼 모두 "학습자 본인의 마이크 음성".
@@ -61,10 +65,11 @@ function createIosCallRecorder(): CallRecorder {
 function createWebCallRecorder(getStream: () => MediaStream | null): CallRecorder {
   let recorder: MediaRecorder | null = null;
   let stoppedPromise: Promise<void> | null = null;
+  let store: AndroidRecordingStore | null = null;
   const chunks: Blob[] = [];
 
   return {
-    async start() {
+    async start(callId) {
       const stream = getStream();
       if (!stream) {
         console.warn("[callRecorder] 로컬 스트림이 없어 녹음을 생략합니다");
@@ -76,9 +81,18 @@ function createWebCallRecorder(getStream: () => MediaStream | null): CallRecorde
         return;
       }
 
+      // 디스크 백업 (#187): 업로드 전에 앱이 죽어도 다음 시작 recovery 로 살릴 수 있게
+      // chunk 를 앱 저장소에도 이어 쓴다. 메모리 chunks 가 본선이고 store 실패는 무시된다.
+      // 클로저로 캡처해 finalize 의 stop() 이 흘려보내는 마지막 chunk 까지 백업된다.
+      const backupStore = createAndroidRecordingStore(callId, mimeType);
+      store = backupStore;
+
       const rec = new MediaRecorder(stream, { mimeType });
       rec.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) chunks.push(e.data);
+        if (e.data && e.data.size > 0) {
+          chunks.push(e.data);
+          void backupStore.append(e.data);
+        }
       };
       // onstop 은 최종 dataavailable 이후 발생 → 이 시점에 chunks 가 완전.
       // 통화 종료로 트랙이 먼저 끝나 자동 stop 되는 경우도 동일하게 resolve 된다.
@@ -92,8 +106,10 @@ function createWebCallRecorder(getStream: () => MediaStream | null): CallRecorde
     async finalize(callId) {
       const rec = recorder;
       const stopped = stoppedPromise;
+      const backup = store;
       recorder = null;
       stoppedPromise = null;
+      store = null;
       if (!rec) return;
 
       const mimeType = rec.mimeType || "audio/webm";
@@ -108,16 +124,20 @@ function createWebCallRecorder(getStream: () => MediaStream | null): CallRecorde
         await Promise.race([stopped, delay(FLUSH_TIMEOUT_MS)]);
       }
 
-      if (chunks.length === 0) return;
       const blob = new Blob(chunks, { type: mimeType });
       chunks.length = 0;
-      if (blob.size === 0) return;
+      if (blob.size === 0) {
+        // 올릴 것이 없으면 잔존 백업 파일만 정리
+        await backup?.remove();
+        return;
+      }
 
       try {
         await uploadRecordingBlob({ callId, blob });
+        // 업로드 성공 → 백업 파일 삭제. 실패 시 보존해 다음 앱 시작 recovery 가 재시도.
+        await backup?.remove();
       } catch (e) {
-        // v1: Android 는 디스크 보존/복구가 없어 업로드 실패 시 해당 녹음은 유실된다.
-        console.warn("[callRecorder] blob upload failed (Android v1 미복구)", e);
+        console.warn("[callRecorder] blob upload failed, will retry next startup", e);
       }
     },
   };

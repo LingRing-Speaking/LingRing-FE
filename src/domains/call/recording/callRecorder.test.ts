@@ -14,11 +14,22 @@ vi.mock("./recordingUploader", () => ({
   uploadRecording: vi.fn(),
   uploadRecordingBlob: vi.fn(),
 }));
+vi.mock("./androidRecordingStore", () => ({
+  createAndroidRecordingStore: vi.fn(),
+}));
 
 import { Capacitor } from "@capacitor/core";
 import { isIosNative, NativeWebRTC } from "@/lib/native/webrtcPlugin";
 import { uploadRecording, uploadRecordingBlob } from "./recordingUploader";
+import { createAndroidRecordingStore } from "./androidRecordingStore";
 import { createCallRecorder } from "./callRecorder";
+
+function makeStoreMock() {
+  return {
+    append: vi.fn().mockResolvedValue(undefined),
+    remove: vi.fn().mockResolvedValue(undefined),
+  };
+}
 
 // jsdom 은 MediaRecorder 가 없으므로 제어 가능한 목으로 대체.
 class MockMediaRecorder {
@@ -126,5 +137,65 @@ describe("Android web recorder", () => {
     await recorder.start(9);
     await recorder.finalize(9);
     expect(uploadRecordingBlob).not.toHaveBeenCalled();
+  });
+
+  it("녹음 chunk 를 디스크 백업 store 에도 append 한다", async () => {
+    const store = makeStoreMock();
+    vi.mocked(createAndroidRecordingStore).mockReturnValue(store);
+
+    const recorder = createCallRecorder(() => ({}) as MediaStream)!;
+    await recorder.start(9);
+    await recorder.finalize(9); // mock stop 이 chunk 1개를 발생시킴
+
+    expect(createAndroidRecordingStore).toHaveBeenCalledWith(
+      9,
+      "audio/webm;codecs=opus",
+    );
+    expect(store.append).toHaveBeenCalledTimes(1);
+    expect(store.append.mock.calls[0][0]).toBeInstanceOf(Blob);
+  });
+
+  it("업로드 성공 시 백업 파일을 삭제한다", async () => {
+    const store = makeStoreMock();
+    vi.mocked(createAndroidRecordingStore).mockReturnValue(store);
+    vi.mocked(uploadRecordingBlob).mockResolvedValue({ recordingId: 1 });
+
+    const recorder = createCallRecorder(() => ({}) as MediaStream)!;
+    await recorder.start(9);
+    await recorder.finalize(9);
+
+    expect(store.remove).toHaveBeenCalledTimes(1);
+  });
+
+  it("업로드 실패 시 백업 파일을 보존한다 (다음 시작 recovery 대상)", async () => {
+    const store = makeStoreMock();
+    vi.mocked(createAndroidRecordingStore).mockReturnValue(store);
+    vi.mocked(uploadRecordingBlob).mockRejectedValue(new Error("network"));
+
+    const recorder = createCallRecorder(() => ({}) as MediaStream)!;
+    await recorder.start(9);
+    await recorder.finalize(9);
+
+    expect(store.remove).not.toHaveBeenCalled();
+  });
+
+  it("chunk 가 없으면 업로드 없이 백업 파일만 정리한다", async () => {
+    // stop 시 데이터를 내지 않는 MediaRecorder
+    class SilentMediaRecorder extends MockMediaRecorder {
+      override stop() {
+        this.state = "inactive";
+        this.onstop?.();
+      }
+    }
+    vi.stubGlobal("MediaRecorder", SilentMediaRecorder);
+    const store = makeStoreMock();
+    vi.mocked(createAndroidRecordingStore).mockReturnValue(store);
+
+    const recorder = createCallRecorder(() => ({}) as MediaStream)!;
+    await recorder.start(9);
+    await recorder.finalize(9);
+
+    expect(uploadRecordingBlob).not.toHaveBeenCalled();
+    expect(store.remove).toHaveBeenCalledTimes(1);
   });
 });
