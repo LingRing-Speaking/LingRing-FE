@@ -1,5 +1,5 @@
-import type { PluginListenerHandle } from "@capacitor/core";
-import { isIosNative, NativeWebRTC } from "@/lib/native/webrtcPlugin";
+import { Capacitor, type PluginListenerHandle } from "@capacitor/core";
+import { NativeWebRTC } from "@/lib/native/webrtcPlugin";
 import type { IceCandidatePayload } from "../signaling/types";
 
 const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
@@ -24,10 +24,11 @@ export type PeerSessionCallbacks = {
 };
 
 // 환경에 따라 native libwebrtc plugin 또는 W3C RTCPeerConnection 으로 분기.
-// iOS native 환경에서는 WKWebView 의 WebRTC audio engine fight 를 회피하기 위해 native 로
-// 우회 (#84 방안 3). 그 외 (web/dev) 는 표준 W3C 사용.
+// 네이티브 앱(iOS/Android)은 WebView 의 WebRTC audio engine fight 를 회피하기 위해
+// native 로 우회 — iOS #84 방안 3, Android #193 (크로미움이 오디오 라우팅을 소유해
+// 이어피스 전환이 원천 불가함이 실측 확정됨). 웹(dev)은 표준 W3C 사용.
 export function createPeerSession(cb: PeerSessionCallbacks): PeerSession {
-  if (isIosNative()) return createNativePeerSession(cb);
+  if (Capacitor.isNativePlatform()) return createNativePeerSession(cb);
   return createWebPeerSession(cb);
 }
 
