@@ -52,7 +52,6 @@ function CallPageInner({
   useCallRecording({
     callId,
     status: session.status,
-    getLocalStream: session.getLocalStream,
   });
   const profile = useUserProfile(partnerId);
   const [sheetOpen, setSheetOpen] = useState(false);

@@ -18,9 +18,11 @@ final class AudioRecordingADM: NSObject {
     fileprivate var audioSourceNode: AVAudioSourceNode?
     fileprivate var audioEngineObserver: NSObjectProtocol?
 
-    // 녹음 파일 (Phase 2). 마이크 PCM 을 libwebrtc 로 deliver 하는 같은 sink block 에서
-    // AVAudioFile 에도 동시에 write. 통화 connected 시점에 start, end 시점에 stop.
-    fileprivate var recordingFile: AVAudioFile?
+    // 녹음 write 경로 (Phase 2). 마이크 PCM 을 libwebrtc 로 deliver 하는 같은 sink block 에서
+    // 파일에도 동시에 write. 통화 connected 시점에 start, end 시점에 stop.
+    // file+converter+버퍼를 RecordingWriter 하나로 묶어 단일 참조로 교체 — 라우트 전환 시
+    // converter 와 file 이 어긋난 조합으로 읽히는 것을 방지 (#184).
+    fileprivate var recordingWriter: RecordingWriter?
     fileprivate var recordingFileURL: URL?
 
     fileprivate var delegate_: RTCAudioDeviceDelegate?
@@ -49,6 +51,11 @@ final class AudioRecordingADM: NSObject {
     fileprivate var inputFormat: AVAudioFormat?
     fileprivate var outputFormat: AVAudioFormat?
 
+    // 엔진이 마지막으로 구성된 시점의 세션 rate/라우트. route change 가 실제 변화 없이
+    // (엔진 재시작 자체가 발화시킨 .routeConfigurationChange 등) 도착했을 때 재시작을
+    // 스킵하는 판정 기준 — 재시작→(8)→재시작 부메랑 루프 방지.
+    fileprivate var lastAppliedRouteSignature: String?
+
     override init() {
         super.init()
         queue.setSpecific(key: queueKey, value: queueValue)
@@ -56,6 +63,33 @@ final class AudioRecordingADM: NSObject {
 }
 
 extension AudioRecordingADM {
+    // libwebrtc worker thread 에서 호출되는 getter 가 queue 소유 상태(inputFormat/outputFormat)를
+    // 안전하게 읽기 위한 헬퍼. delegate 접근자와 같은 재진입 회피 패턴.
+    fileprivate func syncRead<T>(_ read: () -> T) -> T {
+        if DispatchQueue.getSpecific(key: queueKey) == queueValue {
+            return read()
+        }
+        return queue.sync { read() }
+    }
+
+    // 현재 세션 rate + 입출력 포트 조합. lastAppliedRouteSignature 와 비교해
+    // "재구성이 실제로 필요한 변화인가" 를 판정한다.
+    fileprivate func currentRouteSignature() -> String {
+        let route = audioSession.currentRoute
+        let outs = route.outputs.map { $0.portType.rawValue }.joined(separator: "+")
+        let ins = route.inputs.map { $0.portType.rawValue }.joined(separator: "+")
+        return "\(audioSession.sampleRate)|\(outs)|\(ins)"
+    }
+
+    // #182 계측: 라우트/포맷 전환 시점에 "세션 rate vs 노드 rate" 일치 여부를 실기기 로그로 확인.
+    fileprivate func logAudioState(_ tag: String) {
+        let route = audioSession.currentRoute
+        let outs = route.outputs.map { $0.portType.rawValue }.joined(separator: "+")
+        let ins = route.inputs.map { $0.portType.rawValue }.joined(separator: "+")
+        let (nodeIn, nodeOut) = syncRead { (inputFormat?.sampleRate ?? -1, outputFormat?.sampleRate ?? -1) }
+        NSLog("[ADM-DIAG][\(tag)] session=\(audioSession.sampleRate)Hz out=\(outs) in=\(ins) nodeIn=\(nodeIn)Hz nodeOut=\(nodeOut)Hz")
+    }
+
     fileprivate func shutdownEngine() {
         guard let audioEngine = audioEngine else { return }
         if let observer = audioEngineObserver {
@@ -65,15 +99,20 @@ extension AudioRecordingADM {
         if audioEngine.isRunning {
             audioEngine.stop()
         }
+        // notify 계열은 계약상 dispatchAsync/dispatchSync 블록 안에서만 호출 가능 (RTCAudioDevice.h #182)
         if let sinkNode = audioSinkNode {
             audioEngine.detach(sinkNode)
             audioSinkNode = nil
-            delegate?.notifyAudioInputInterrupted()
+            if let delegate = delegate_ {
+                delegate.dispatchAsync { delegate.notifyAudioInputInterrupted() }
+            }
         }
         if let sourceNode = audioSourceNode {
             audioEngine.detach(sourceNode)
             audioSourceNode = nil
-            delegate?.notifyAudioOutputInterrupted()
+            if let delegate = delegate_ {
+                delegate.dispatchAsync { delegate.notifyAudioOutputInterrupted() }
+            }
         }
         self.audioEngine = nil
     }
@@ -81,13 +120,13 @@ extension AudioRecordingADM {
     // BT 연결/해제 같은 HW 변경 시 sample rate 가 바뀌어도 AVAudioEngine 의 internal
     // sample rate 는 자동 따라가지 않음 → audio speed 깨짐 (느리게/빠르게 들림).
     // AVAudioEngineConfigurationChange notification 받아 engine 을 새 HW 포맷으로 재구성.
+    // 파라미터 notify 는 재구성 완료 후 updateEngine 끝에서 일괄 수행 (#182).
     @objc fileprivate func handleEngineConfigurationChange() {
         queue.async { [weak self] in
             guard let self = self else { return }
+            self.logAudioState("engineConfigChange")
             NSLog("[AudioRecordingADM] engine configuration changed — restart")
             self.shutdownEngine()
-            self.delegate_?.notifyAudioInputParametersChange()
-            self.delegate_?.notifyAudioOutputParametersChange()
             self.updateEngine()
         }
     }
@@ -120,6 +159,19 @@ extension AudioRecordingADM {
                 try engine.start()
             } catch {
                 NSLog("[AudioRecordingADM] engine start failed: \(error)")
+            }
+        }
+
+        // 이 구성이 반영한 세션 rate/라우트를 기록 — 이후 동일 상태의 route change 는 스킵된다.
+        lastAppliedRouteSignature = currentRouteSignature()
+
+        // (재)구성이 끝난 뒤 최종 파라미터를 libwebrtc 에 전달. getter 가 노드 attach 포맷을
+        // 반환하므로, 이 notify 가 곧 "실제 교환 rate" 의 동기화다. 계약상 notify 는 반드시
+        // dispatchAsync/dispatchSync 블록 안에서 호출해야 한다 (RTCAudioDevice.h #182).
+        if let delegate = delegate_ {
+            delegate.dispatchAsync {
+                delegate.notifyAudioInputParametersChange()
+                delegate.notifyAudioOutputParametersChange()
             }
         }
     }
@@ -171,7 +223,6 @@ extension AudioRecordingADM {
             NSLog("[AudioRecordingADM] failed to create rtcFormat")
             return
         }
-        inputFormat = rtcFormat
 
         guard let converter = SimpleAudioConverter(from: hwFormat, to: rtcFormat) else {
             NSLog("[AudioRecordingADM] failed to create converter")
@@ -192,17 +243,10 @@ extension AudioRecordingADM {
             var renderContext = (Unmanaged.passUnretained(converter), inputData)
             let result = deliverRecordedData(&flags, timestamp, 1, framesCount, nil, &renderContext, customRenderBlock)
 
-            // 2) 동시에 녹음 파일에 write (Phase 2). 활성 file 있을 때만.
-            if let self = self, let file = self.recordingFile {
-                if let buffer = AVAudioPCMBuffer(pcmFormat: hwFormat, bufferListNoCopy: inputData) {
-                    buffer.frameLength = framesCount
-                    do {
-                        try file.write(from: buffer)
-                    } catch {
-                        NSLog("[AudioRecordingADM] file write failed: \(error)")
-                    }
-                }
-            }
+            // 2) 동시에 녹음 파일에 write (Phase 2). 활성 writer 있을 때만.
+            //    writer 가 mic 포맷 → 파일 고정 포맷(24kHz mono) 변환을 담당하므로 라우트
+            //    전환으로 hwFormat 이 바뀌어도 파일 write 가 끊기지 않는다 (#184).
+            self?.recordingWriter?.write(inputData, frames: framesCount)
 
             return result
         }
@@ -210,6 +254,22 @@ extension AudioRecordingADM {
         engine.attach(sinkNode)
         engine.connect(engine.inputNode, to: sinkNode, format: hwFormat)
         audioSinkNode = sinkNode
+        // attach 성공 시에만 기록 — 이 값이 deviceInputSampleRate 로 보고되는 계약의 원천 (#182)
+        inputFormat = rtcFormat
+        logAudioState("sink attached")
+
+        // 녹음 중 라우트 전환으로 mic 포맷이 바뀐 경우: 파일은 그대로 두고 converter 만
+        // 새 포맷으로 교체. 교체 실패 시 기존 writer 로 계속 쓰면 포맷 불일치로 매 버퍼
+        // 실패하므로 중단이 낫다 (#184).
+        if let writer = recordingWriter, writer.micFormat != hwFormat {
+            if let rebuilt = RecordingWriter(file: writer.file, micFormat: hwFormat) {
+                recordingWriter = rebuilt
+                NSLog("[AudioRecordingADM] recording converter rebuilt: mic=\(hwFormat.sampleRate)Hz")
+            } else {
+                recordingWriter = nil
+                NSLog("[AudioRecordingADM] recording writer rebuild failed — recording stops (mic=\(hwFormat))")
+            }
+        }
     }
 
     fileprivate func attachSourceNodeIfNeeded(engine: AVAudioEngine) {
@@ -236,7 +296,6 @@ extension AudioRecordingADM {
                                              interleaved: true) else {
             return
         }
-        outputFormat = rtcFormat
 
         let getPlayoutData = delegate.getPlayoutData
         let sourceNode = AVAudioSourceNode(format: rtcFormat) { (isSilence, timestamp, frameCount, outputData) -> OSStatus in
@@ -250,6 +309,9 @@ extension AudioRecordingADM {
         engine.attach(sourceNode)
         engine.connect(sourceNode, to: engine.mainMixerNode, format: rtcFormat)
         audioSourceNode = sourceNode
+        // attach 성공 시에만 기록 — 이 값이 deviceOutputSampleRate 로 보고되는 계약의 원천 (#182)
+        outputFormat = rtcFormat
+        logAudioState("source attached")
     }
 }
 
@@ -257,12 +319,14 @@ extension AudioRecordingADM {
     // WebRTCPlugin.configureForCall 의 책임을 ADM 안으로 이전.
     // 이어피스 default + .voiceChat mode + iOS 17+ .allowBluetoothHFP 정책 보존.
     func configureAudioSessionForCall() throws {
+        logAudioState("configureForCall:before")
         try audioSession.setCategory(
             .playAndRecord,
             mode: .voiceChat,
             options: bluetoothOptions()
         )
         try audioSession.setActive(true)
+        logAudioState("configureForCall:after")
     }
 
     func deactivateAudioSession() throws {
@@ -311,23 +375,27 @@ extension AudioRecordingADM {
         switch reason {
         case .override, .unknown:
             return
-        case .newDeviceAvailable, .oldDeviceUnavailable:
-            // BT 헤드폰 같은 audio device 연결/해제 시 HW sample rate 가 바뀜.
+        case .newDeviceAvailable, .oldDeviceUnavailable, .categoryChange, .routeConfigurationChange:
+            // 라우트가 바뀌면 HW sample rate 가 바뀔 수 있다. BT 이어폰은 착탈뿐 아니라
+            // configureForCall 의 카테고리 전환(A2DP→HFP 플립, reason=.categoryChange)으로도
+            // rate 가 2~3배 바뀐다 — notify 만으로는 노드가 낡은 포맷에 남아 배속/저속이
+            // 고착되므로 engine 을 재구성한다 (#182).
+            // 단, 엔진 재구성 자체가 .routeConfigurationChange(8) 를 다시 발화시키므로
+            // "실제 변화 없음"이면 스킵해야 한다 — 아니면 재시작→(8)→재시작 무한 루프로
+            // 네이티브 WebRTC 호출(setLocalDescription 등)이 굶어 시그널링이 멈춘다.
             // VPIO 환경에서는 AVAudioEngineConfigurationChange 가 안 발화하는 경우 있어
-            // route change 에서 직접 engine 재시작 트리거.
+            // route change 에서 직접 engine 재시작 트리거. notify 는 updateEngine 끝에서 일괄.
             queue.async { [weak self] in
                 guard let self = self else { return }
-                NSLog("[AudioRecordingADM] device route changed (\(reason.rawValue)) — restart engine")
+                if self.audioEngine?.isRunning == true,
+                   self.lastAppliedRouteSignature == self.currentRouteSignature() {
+                    NSLog("[AudioRecordingADM] route changed (\(reason.rawValue)) — 실제 변화 없음, 재시작 스킵")
+                    return
+                }
+                self.logAudioState("routeChange(\(reason.rawValue))")
+                NSLog("[AudioRecordingADM] route changed (\(reason.rawValue)) — restart engine")
                 self.shutdownEngine()
-                self.delegate_?.notifyAudioInputParametersChange()
-                self.delegate_?.notifyAudioOutputParametersChange()
                 self.updateEngine()
-            }
-        case .categoryChange, .routeConfigurationChange:
-            // sample rate 안 바뀌는 미세 변경. engine 재시작 없이 notify 만.
-            delegate?.dispatchAsync { [weak self] in
-                self?.delegate?.notifyAudioInputParametersChange()
-                self?.delegate?.notifyAudioOutputParametersChange()
             }
         default:
             return
@@ -356,13 +424,22 @@ extension AudioRecordingADM {
 
 extension AudioRecordingADM: RTCAudioDevice {
     // MARK: parameters
-    var deviceInputSampleRate: Double { audioSession.sampleRate }
+    // 계약 (RTCAudioDevice.h): 이 rate 는 deliverRecordedData/getPlayoutData 로 "실제 교환되는
+    // PCM 의 rate" 여야 하며 libwebrtc 는 이 경계에서 리샘플링하지 않는다. 그래서 원천은
+    // 라이브 audioSession.sampleRate(라우트 전환 중 노드와 어긋날 수 있음 — #182 배속/저속의
+    // 근본 원인)가 아니라 노드 attach 시점 포맷이어야 한다. 세션 값은 엔진이 아직 없을 때의
+    // 폴백 (mstyura AVAudioEngineRTCAudioDevice 와 동일 구조).
+    var deviceInputSampleRate: Double {
+        syncRead { inputFormat?.sampleRate } ?? audioSession.sampleRate
+    }
     var inputIOBufferDuration: TimeInterval { audioSession.ioBufferDuration }
     // libwebrtc 는 internal 로 mono 처리. HW 가 stereo 여도 mono 로 노출해야
     // AVAudioBuffer channel count mismatch (buffer=2 vs format=1) 회피.
     var inputNumberOfChannels: Int { 1 }
     var inputLatency: TimeInterval { audioSession.inputLatency }
-    var deviceOutputSampleRate: Double { audioSession.sampleRate }
+    var deviceOutputSampleRate: Double {
+        syncRead { outputFormat?.sampleRate } ?? audioSession.sampleRate
+    }
     var outputIOBufferDuration: TimeInterval { audioSession.ioBufferDuration }
     var outputNumberOfChannels: Int { 1 }
     var outputLatency: TimeInterval { audioSession.outputLatency }
@@ -442,9 +519,83 @@ extension AudioRecordingADM: RTCAudioDevice {
     }
 }
 
+// MARK: - RecordingWriter (#184)
+
+// 녹음 write 경로의 단일 소유 객체: 고정 포맷 파일 + mic 포맷→파일 포맷 converter + 재사용 출력 버퍼.
+// sink block(IO thread)은 이 객체 하나만 읽으므로, 라우트 전환 시 참조 교체만으로 file/converter 가
+// 항상 짝이 맞는다. AVAudioConverter 가 SRC(예: 48kHz→24kHz)와 스테레오→모노 다운믹스를 담당.
+private final class RecordingWriter {
+    let file: AVAudioFile
+    let micFormat: AVAudioFormat
+    private let converter: AVAudioConverter
+    private let outputBuffer: AVAudioPCMBuffer
+    private var didLogWriteFailure = false
+
+    // IO 콜백당 최대 프레임(경험상 ≤4096)에 SRC 비율 여유를 더한 고정 용량 — 콜백 안 할당 회피.
+    private static let maxFramesPerCallback: Double = 4096
+
+    init?(file: AVAudioFile, micFormat: AVAudioFormat) {
+        guard micFormat.sampleRate > 0,
+              let converter = AVAudioConverter(from: micFormat, to: file.processingFormat) else {
+            return nil
+        }
+        let ratio = file.processingFormat.sampleRate / micFormat.sampleRate
+        let capacity = AVAudioFrameCount((Self.maxFramesPerCallback * max(1.0, ratio)).rounded(.up)) + 64
+        guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: capacity) else {
+            return nil
+        }
+        self.file = file
+        self.micFormat = micFormat
+        self.converter = converter
+        self.outputBuffer = outputBuffer
+    }
+
+    // sink block(IO thread)에서 호출. 실패해도 통화를 막지 않도록 로그만 남긴다 (최초 1회).
+    func write(_ inputData: UnsafePointer<AudioBufferList>, frames: AVAudioFrameCount) {
+        guard let input = AVAudioPCMBuffer(pcmFormat: micFormat, bufferListNoCopy: inputData) else { return }
+        input.frameLength = frames
+
+        // pull 방식 스트리밍 변환. .endOfStream 은 SRC 필터 상태를 flush 해버리므로 쓰지 않고,
+        // 콜백마다 입력 1개(.haveData) → 이후 .noDataNow. 변환 잔여 샘플은 converter 가 내부
+        // 보관했다가 다음 콜백 출력에 포함하므로 유실이 없다.
+        var fed = false
+        var error: NSError?
+        outputBuffer.frameLength = 0
+        let status = converter.convert(to: outputBuffer, error: &error) { _, inputStatus in
+            if fed {
+                inputStatus.pointee = .noDataNow
+                return nil
+            }
+            fed = true
+            inputStatus.pointee = .haveData
+            return input
+        }
+        guard status != .error else {
+            logWriteFailureOnce("convert: \(error?.localizedDescription ?? "unknown")")
+            return
+        }
+        guard outputBuffer.frameLength > 0 else { return } // SRC 지연으로 이번 콜백 출력 없음 — 정상
+
+        do {
+            try file.write(from: outputBuffer)
+        } catch {
+            logWriteFailureOnce("file.write: \(error.localizedDescription)")
+        }
+    }
+
+    private func logWriteFailureOnce(_ message: String) {
+        guard !didLogWriteFailure else { return }
+        didLogWriteFailure = true
+        NSLog("[AudioRecordingADM] recording write failed (이후 동일 오류 로그 생략): \(message)")
+    }
+}
+
 // MARK: - Phase 2: file recording (JS bridge 용 public API)
 
 extension AudioRecordingADM {
+    // 녹음 파일 고정 sample rate. call-recording-design §7 스펙 (음성/STT 용도 충분).
+    fileprivate static let recordingFileSampleRate: Double = 24000
+
     struct PendingRecording {
         let callId: Int64
         let filePath: String
@@ -485,25 +636,31 @@ extension AudioRecordingADM {
             Thread.sleep(forTimeInterval: Double(pollIntervalMs) / 1000.0)
             waitedMs += pollIntervalMs
         }
-        guard let engine = audioEngine else {
-            // polling 통과 후에도 nil 인 케이스 — 이론상 발생 안 함. 방어적 가드.
-            throw NSError(domain: "AudioRecordingADM", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: "engine became nil after wait"])
-        }
-        let hwFormat = engine.inputNode.outputFormat(forBus: 1)
-        // .m4a 컨테이너 + AAC 인코딩으로 저장하려면 AVAudioFile 의 commonFormat 설정 활용.
-        // settings 미지정 시 기본 PCM 으로 저장됨 — 호환성 위해 AAC settings 명시.
-        let settings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatMPEG4AAC,
-            AVSampleRateKey: hwFormat.sampleRate,
-            AVNumberOfChannelsKey: hwFormat.channelCount,
-            AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue,
-            AVEncoderBitRateKey: 64000,
-        ]
-        let file = try AVAudioFile(forWriting: fileURL, settings: settings)
-
-        queue.sync {
-            self.recordingFile = file
+        // 파일 생성 + writer 설치는 queue 에서 — attach/rebuild(라우트 전환) 와 직렬화되어
+        // "sink 는 새 포맷인데 writer 는 옛 포맷" 조합이 생기지 않는다 (#184).
+        try queue.sync {
+            guard let engine = audioEngine else {
+                // polling 통과 후에도 nil 인 케이스 — 이론상 발생 안 함. 방어적 가드.
+                throw NSError(domain: "AudioRecordingADM", code: 1,
+                              userInfo: [NSLocalizedDescriptionKey: "engine became nil after wait"])
+            }
+            let hwFormat = engine.inputNode.outputFormat(forBus: 1)
+            // .m4a 컨테이너 + AAC 인코딩. 파일 포맷은 라우트와 무관한 고정 스펙
+            // (call-recording-design §7: 24kHz mono, 64kbps — 음성/STT 충분).
+            // 라우트 전환으로 mic 포맷이 바뀌어도 파일은 불변, writer 의 converter 만 교체 (#184).
+            let settings: [String: Any] = [
+                AVFormatIDKey: kAudioFormatMPEG4AAC,
+                AVSampleRateKey: Self.recordingFileSampleRate,
+                AVNumberOfChannelsKey: 1,
+                AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue,
+                AVEncoderBitRateKey: 64000,
+            ]
+            let file = try AVAudioFile(forWriting: fileURL, settings: settings)
+            guard let writer = RecordingWriter(file: file, micFormat: hwFormat) else {
+                throw NSError(domain: "AudioRecordingADM", code: 2,
+                              userInfo: [NSLocalizedDescriptionKey: "failed to create recording converter (mic=\(hwFormat))"])
+            }
+            self.recordingWriter = writer
             self.recordingFileURL = fileURL
         }
 
@@ -524,15 +681,16 @@ extension AudioRecordingADM {
     //   3) closure return 후 size 를 읽으면 정확한 최종 byte 수
     func stopFileRecording() -> RecordingResult.Stopped? {
         let stopped: (URL, Int64)? = queue.sync {
-            guard let url = self.recordingFileURL, let file = self.recordingFile else {
+            guard let url = self.recordingFileURL, let writer = self.recordingWriter else {
                 return nil
             }
+            let file = writer.file
             let durationMs = Int64(Double(file.length) / file.processingFormat.sampleRate * 1000)
-            self.recordingFile = nil
+            self.recordingWriter = nil
             self.recordingFileURL = nil
             return (url, durationMs)
-            // closure 종료 → local `file` 의 last strong reference 해제 → AVAudioFile deinit
-            // → m4a moov atom 작성 + 파일 close.
+            // closure 종료 → local `writer`/`file` 의 last strong reference 해제 → AVAudioFile
+            // deinit → m4a moov atom 작성 + 파일 close.
         }
         guard let (url, durationMs) = stopped else { return nil }
 

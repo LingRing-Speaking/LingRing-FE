@@ -1,68 +1,80 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// uploadRecordingBlob 은 webrtcPlugin 을 쓰지 않지만, 모듈 import 시 registerPlugin 로딩을 피하려 목 처리.
+vi.mock("@capacitor/core", () => ({
+  Capacitor: { isNativePlatform: vi.fn() },
+}));
 vi.mock("@/lib/native/webrtcPlugin", () => ({
-  isIosNative: vi.fn(() => false),
-  NativeWebRTC: {},
+  NativeWebRTC: {
+    uploadRecordingFile: vi.fn(),
+    deleteRecordingFile: vi.fn(),
+  },
 }));
 vi.mock("@/domains/call/api/recording", () => ({
   requestRecordingPresignedUrl: vi.fn(),
   createRecording: vi.fn(),
 }));
 
+import { Capacitor } from "@capacitor/core";
+import { NativeWebRTC } from "@/lib/native/webrtcPlugin";
 import { createRecording, requestRecordingPresignedUrl } from "@/domains/call/api/recording";
-import { uploadRecordingBlob } from "./recordingUploader";
+import { uploadRecording } from "./recordingUploader";
 
-describe("uploadRecordingBlob (Android web 경로)", () => {
+const INPUT = { callId: 3, filePath: "/data/rec/call-3.m4a", sizeBytes: 1024 };
+
+describe("uploadRecording (native 공통)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true);
     vi.mocked(requestRecordingPresignedUrl).mockResolvedValue({
       url: "https://s3.example/put",
-      key: "recordings/3.webm",
+      key: "call-recordings/3/1/uuid",
     });
     vi.mocked(createRecording).mockResolvedValue({
       recordingId: 55,
       status: "UPLOADED",
     });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({ ok: true, status: 200 })),
-    );
-  });
-  afterEach(() => {
-    vi.unstubAllGlobals();
+    vi.mocked(NativeWebRTC.uploadRecordingFile).mockResolvedValue({ statusCode: 200 });
+    vi.mocked(NativeWebRTC.deleteRecordingFile).mockResolvedValue(undefined);
   });
 
-  it("presign → S3 PUT → createRecording 순서로 업로드하고 content-type 의 codecs 를 제거한다", async () => {
-    const blob = new Blob(["audio"], { type: "audio/webm;codecs=opus" });
-
-    const result = await uploadRecordingBlob({ callId: 3, blob });
+  it("presign(audio/mp4) → native PUT → createRecording → 파일 삭제 순으로 진행한다", async () => {
+    const result = await uploadRecording(INPUT);
 
     expect(requestRecordingPresignedUrl).toHaveBeenCalledWith(3, {
-      contentType: "audio/webm",
-      contentLength: blob.size,
+      contentType: "audio/mp4",
+      contentLength: 1024,
     });
-    expect(fetch).toHaveBeenCalledWith(
-      "https://s3.example/put",
-      expect.objectContaining({
-        method: "PUT",
-        headers: { "Content-Type": "audio/webm" },
-      }),
-    );
+    expect(NativeWebRTC.uploadRecordingFile).toHaveBeenCalledWith({
+      filePath: INPUT.filePath,
+      url: "https://s3.example/put",
+      contentType: "audio/mp4",
+    });
     expect(createRecording).toHaveBeenCalledWith(3, {
-      recordingKey: "recordings/3.webm",
+      recordingKey: "call-recordings/3/1/uuid",
+    });
+    expect(NativeWebRTC.deleteRecordingFile).toHaveBeenCalledWith({
+      filePath: INPUT.filePath,
     });
     expect(result).toEqual({ recordingId: 55 });
   });
 
-  it("S3 PUT 실패 시 createRecording 을 호출하지 않고 throw 한다", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({ ok: false, status: 403 })),
-    );
-    const blob = new Blob(["audio"], { type: "audio/webm" });
+  it("PUT 실패 시 throw 하고 파일을 삭제하지 않는다 (보존 → recovery)", async () => {
+    vi.mocked(NativeWebRTC.uploadRecordingFile).mockRejectedValue(new Error("network"));
 
-    await expect(uploadRecordingBlob({ callId: 3, blob })).rejects.toThrow();
+    await expect(uploadRecording(INPUT)).rejects.toThrow("network");
     expect(createRecording).not.toHaveBeenCalled();
+    expect(NativeWebRTC.deleteRecordingFile).not.toHaveBeenCalled();
+  });
+
+  it("파일 삭제 실패는 무시하고 성공을 반환한다", async () => {
+    vi.mocked(NativeWebRTC.deleteRecordingFile).mockRejectedValue(new Error("busy"));
+
+    await expect(uploadRecording(INPUT)).resolves.toEqual({ recordingId: 55 });
+  });
+
+  it("웹(비네이티브)에서는 throw 한다", async () => {
+    vi.mocked(Capacitor.isNativePlatform).mockReturnValue(false);
+
+    await expect(uploadRecording(INPUT)).rejects.toThrow("네이티브 전용");
   });
 });

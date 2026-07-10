@@ -1,9 +1,11 @@
+import { Capacitor } from "@capacitor/core";
 import { ApiError } from "@/lib/http";
-import { NativeWebRTC, isIosNative } from "@/lib/native/webrtcPlugin";
+import { NativeWebRTC } from "@/lib/native/webrtcPlugin";
 import { uploadRecording } from "./recordingUploader";
 
 // 앱 시작 시 1 회 호출. 이전 통화에서 업로드 못 끝낸 잔여 파일 발견 시 재시도.
 // 실패 케이스 (앱 강제 종료 + 업로드 미완 / 네트워크 끊김 / BE 일시 장애 등).
+// iOS(#84)·Android(#193) 모두 native 가 파일을 보존하므로 recovery 경로도 하나다.
 //
 // 정책:
 // - 업로드 성공 → 파일 삭제 (recordingUploader 가 알아서)
@@ -11,9 +13,9 @@ import { uploadRecording } from "./recordingUploader";
 // - 403 (CALL_PARTICIPANT_MISMATCH 등) → 파일 삭제 (recovery 무의미)
 // - 400 CALL_RECORDING_S3_MISSING → S3 에 없으므로 새로 PUT 재시도 가능. 단 본 흐름은 1회만
 // - 네트워크 실패 / 5xx → 파일 보존 (다음 startup 재시도)
-// - 파일 깨짐 (size 0) → 삭제 + sentry (다음 PR)
+// - 파일 깨짐 (size 0) → 삭제
 export async function recoveryRun(): Promise<void> {
-  if (!isIosNative()) return;
+  if (!Capacitor.isNativePlatform()) return;
 
   let pending: Awaited<ReturnType<typeof NativeWebRTC.listPendingRecordings>>;
   try {
@@ -48,8 +50,8 @@ export async function recoveryRun(): Promise<void> {
         try {
           await NativeWebRTC.deleteRecordingFile({ filePath: item.filePath });
         } catch {
-        // 삭제 실패 무시 — 다음 startup 재시도
-      }
+          // 삭제 실패 무시 — 다음 startup 재시도
+        }
       }
       const status = e instanceof ApiError ? e.status : undefined;
       console.warn("[recordingRecovery] upload failed", { callId: item.callId, status }, e);
