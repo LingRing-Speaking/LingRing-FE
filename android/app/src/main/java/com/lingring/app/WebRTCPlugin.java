@@ -114,6 +114,10 @@ public class WebRTCPlugin extends Plugin {
         final Peer peer = requirePeer(call);
         if (peer == null) return;
 
+        // #55: 백그라운드 통화 유지 — 마이크형 FGS 시작 (동결 면제 + 백그라운드 마이크).
+        // start 는 포그라운드 사용자 액션 흐름이므로 FGS while-in-use 시작 조건 충족.
+        CallForegroundService.start(getContext());
+
         // 통화 모드 진입 — VoIP 표준. 라우팅 세부(이어피스/스피커)는 Phase 2 에서.
         audioManager().setMode(AudioManager.MODE_IN_COMMUNICATION);
 
@@ -138,6 +142,7 @@ public class WebRTCPlugin extends Plugin {
         }
         if (peers.isEmpty()) {
             audioManager().setMode(AudioManager.MODE_NORMAL);
+            CallForegroundService.stop(getContext());
         }
         call.resolve();
     }

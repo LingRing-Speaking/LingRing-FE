@@ -48,6 +48,12 @@
             </intent-filter>
         </activity>
 
+        <!-- #55: 통화 중 백그라운드 유지 (마이크형 FGS — 동결 면제 + 백그라운드 마이크) -->
+        <service
+            android:name=".CallForegroundService"
+            android:foregroundServiceType="microphone"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -66,4 +72,9 @@
     <!-- Capacitor 의 getUserMedia(audio) 권한 처리(BridgeWebChromeClient.onPermissionRequest)가
          RECORD_AUDIO 와 함께 요청. 미선언 시 항상 거부되어 통화가 "마이크 권한이 필요해요"로 즉시 종료됨. -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- #55: 통화 중 마이크형 foreground service -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- 알림 노출용 (13+). 런타임 요청은 FCM 푸시 도입 시 통합 예정 — 미허용이어도 FGS 는 동작 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>
