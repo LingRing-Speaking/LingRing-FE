@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ApiError } from "@/lib/http";
 
+vi.mock("@capacitor/core", () => ({
+  Capacitor: { isNativePlatform: () => true },
+}));
 vi.mock("@/lib/native/webrtcPlugin", () => ({
-  isIosNative: () => true,
   NativeWebRTC: {
     listPendingRecordings: vi.fn(),
     deleteRecordingFile: vi.fn(),

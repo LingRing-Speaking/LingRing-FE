@@ -6,8 +6,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const listenerHandlers = new Map<string, (data: unknown) => void>();
 const removeMock = vi.fn().mockResolvedValue(undefined);
 
+// Android 네이티브 환경으로 mock — #193 부터 native 경로는 iOS 전용이 아니라
+// 네이티브 플랫폼 공통이다. (web 경로 테스트는 peerConnection.test.ts)
+vi.mock("@capacitor/core", () => ({
+  Capacitor: {
+    isNativePlatform: () => true,
+    getPlatform: () => "android",
+  },
+  registerPlugin: vi.fn(() => ({})),
+}));
 vi.mock("@/lib/native/webrtcPlugin", () => ({
-  isIosNative: () => true,
+  isIosNative: () => false,
   NativeWebRTC: {
     createPeerConnection: vi.fn().mockResolvedValue(undefined),
     start: vi.fn().mockResolvedValue(undefined),
