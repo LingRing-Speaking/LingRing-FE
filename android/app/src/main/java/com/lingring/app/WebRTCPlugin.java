@@ -28,6 +28,7 @@ import org.webrtc.SdpObserver;
 import org.webrtc.SessionDescription;
 import org.webrtc.audio.JavaAudioDeviceModule;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +52,8 @@ public class WebRTCPlugin extends Plugin {
     private PeerConnectionFactory factory;
     private JavaAudioDeviceModule adm;
     private final Map<String, Peer> peers = new ConcurrentHashMap<>();
+    // 녹음(#193 Phase 3): ADM 의 samplesReadyCallback 이 활성 writer 로 PCM 을 흘린다.
+    private volatile RecordingWriter activeWriter;
 
     private static final class Peer {
         final PeerConnection pc;
@@ -265,6 +268,138 @@ public class WebRTCPlugin extends Plugin {
         return false;
     }
 
+    // MARK: - recording (#193 Phase 3)
+    // iOS 계약과 동일: startFileRecording → (통화) → stopFileRecording → uploadRecordingFile.
+    // 실패/미업로드 파일은 filesDir/call-recordings/ 에 보존 → 앱 시작 시 recoveryRun 이 처리.
+
+    private static final java.util.regex.Pattern RECORDING_FILE =
+            java.util.regex.Pattern.compile("^call-(\\d+)\\.m4a$");
+
+    @PluginMethod
+    public void startFileRecording(final PluginCall call) {
+        final Double callId = call.getDouble("callId");
+        if (callId == null) {
+            call.reject("callId is required");
+            return;
+        }
+        final File file = new File(recordingsDir(), "call-" + callId.longValue() + ".m4a");
+        if (file.exists() && !file.delete()) {
+            call.reject("failed to reset existing recording file");
+            return;
+        }
+        activeWriter = new RecordingWriter(file);
+        final JSObject result = new JSObject();
+        result.put("filePath", file.getAbsolutePath());
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void stopFileRecording(final PluginCall call) {
+        final RecordingWriter writer = activeWriter;
+        activeWriter = null;
+        final JSObject result = new JSObject();
+        if (writer == null) {
+            call.resolve(result);
+            return;
+        }
+        final RecordingWriter.Result stopped = writer.stop();
+        result.put("filePath", writer.file().getAbsolutePath());
+        result.put("sizeBytes", stopped.sizeBytes);
+        result.put("durationMs", stopped.durationMs);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void listPendingRecordings(final PluginCall call) {
+        final com.getcapacitor.JSArray items = new com.getcapacitor.JSArray();
+        final File[] files = recordingsDir().listFiles();
+        if (files != null) {
+            for (File file : files) {
+                final java.util.regex.Matcher m = RECORDING_FILE.matcher(file.getName());
+                if (!m.matches()) continue;
+                final JSObject item = new JSObject();
+                item.put("callId", Long.parseLong(m.group(1)));
+                item.put("filePath", file.getAbsolutePath());
+                item.put("sizeBytes", file.length());
+                items.put(item);
+            }
+        }
+        final JSObject result = new JSObject();
+        result.put("items", items);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void deleteRecordingFile(final PluginCall call) {
+        final String filePath = call.getString("filePath");
+        if (filePath == null) {
+            call.reject("filePath is required");
+            return;
+        }
+        final File file = new File(filePath);
+        // 우리 녹음 디렉토리 밖 삭제 방지
+        if (!file.getAbsolutePath().startsWith(recordingsDir().getAbsolutePath())) {
+            call.reject("filePath is outside recordings dir");
+            return;
+        }
+        if (file.exists() && !file.delete()) {
+            call.reject("delete failed");
+            return;
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void uploadRecordingFile(final PluginCall call) {
+        final String filePath = call.getString("filePath");
+        final String url = call.getString("url");
+        final String contentType = call.getString("contentType");
+        if (filePath == null || url == null || contentType == null) {
+            call.reject("filePath/url/contentType required");
+            return;
+        }
+        final File file = new File(filePath);
+        if (!file.exists()) {
+            call.reject("file not found: " + filePath);
+            return;
+        }
+
+        java.net.HttpURLConnection conn = null;
+        try {
+            conn = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+            conn.setRequestMethod("PUT");
+            conn.setDoOutput(true);
+            conn.setFixedLengthStreamingMode(file.length());
+            conn.setRequestProperty("Content-Type", contentType);
+            try (java.io.OutputStream out = conn.getOutputStream();
+                 java.io.FileInputStream in = new java.io.FileInputStream(file)) {
+                final byte[] buffer = new byte[64 * 1024];
+                int read;
+                while ((read = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, read);
+                }
+            }
+            final int statusCode = conn.getResponseCode();
+            if (statusCode < 200 || statusCode >= 300) {
+                call.reject("S3 PUT failed: " + statusCode);
+                return;
+            }
+            final JSObject result = new JSObject();
+            result.put("statusCode", statusCode);
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject("upload failed: " + e.getMessage());
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+    }
+
+    private File recordingsDir() {
+        final File dir = new File(getContext().getFilesDir(), "call-recordings");
+        if (!dir.exists()) dir.mkdirs();
+        return dir;
+    }
+
     // MARK: - helpers
 
     private synchronized PeerConnectionFactory factory() {
@@ -272,7 +407,13 @@ public class WebRTCPlugin extends Plugin {
             PeerConnectionFactory.initialize(
                     PeerConnectionFactory.InitializationOptions.builder(getContext())
                             .createInitializationOptions());
-            adm = JavaAudioDeviceModule.builder(getContext()).createAudioDeviceModule();
+            adm = JavaAudioDeviceModule.builder(getContext())
+                    // 마이크 PCM 탭 — 활성 writer 가 있을 때만 녹음 파일로 흘린다 (#193 Phase 3)
+                    .setSamplesReadyCallback(samples -> {
+                        final RecordingWriter writer = activeWriter;
+                        if (writer != null) writer.write(samples);
+                    })
+                    .createAudioDeviceModule();
             factory = PeerConnectionFactory.builder()
                     .setAudioDeviceModule(adm)
                     .createPeerConnectionFactory();
