@@ -12,6 +12,9 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 
+import android.media.AudioDeviceInfo;
+import android.os.Build;
+
 import org.json.JSONArray;
 import org.webrtc.AudioSource;
 import org.webrtc.AudioTrack;
@@ -196,6 +199,70 @@ public class WebRTCPlugin extends Plugin {
             peer.track.setEnabled(enabled);
         }
         call.resolve();
+    }
+
+    // MARK: - audio routing (#193 Phase 2)
+    // 네이티브 스택이 오디오를 소유하므로(재생 usage=VOICE_COMMUNICATION) setCommunicationDevice
+    // 가 그대로 실효한다 — WebView 경로의 크로미움 재지정 문제(#190)가 여기엔 없다 (Phase 0 실측).
+
+    // off 시 우선순위: BT > 유선 > 이어피스 — .allowBluetooth 정책과 정합.
+    private static final int[] OFF_DEVICE_PRIORITY = {
+            AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+            AudioDeviceInfo.TYPE_WIRED_HEADSET,
+            AudioDeviceInfo.TYPE_USB_HEADSET,
+            AudioDeviceInfo.TYPE_BUILTIN_EARPIECE,
+    };
+
+    // 통화 연결 시점: 통화 모드 + 이어피스 기본 라우팅을 명시적으로 잡는다.
+    @PluginMethod
+    public void configureForCall(final PluginCall call) {
+        audioManager().setMode(AudioManager.MODE_IN_COMMUNICATION);
+        routeToSpeaker(false);
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void setSpeaker(final PluginCall call) {
+        routeToSpeaker(Boolean.TRUE.equals(call.getBoolean("on")));
+        call.resolve();
+    }
+
+    // 통화 종료: 라우팅 해제 + 모드 복원 (close 의 복원과 멱등).
+    @PluginMethod
+    public void endCall(final PluginCall call) {
+        final AudioManager am = audioManager();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            am.clearCommunicationDevice();
+        } else {
+            am.setSpeakerphoneOn(false);
+        }
+        am.setMode(AudioManager.MODE_NORMAL);
+        call.resolve();
+    }
+
+    private void routeToSpeaker(final boolean on) {
+        final AudioManager am = audioManager();
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            am.setSpeakerphoneOn(on);
+            return;
+        }
+        if (on) {
+            selectCommunicationDevice(am, AudioDeviceInfo.TYPE_BUILTIN_SPEAKER);
+            return;
+        }
+        for (int type : OFF_DEVICE_PRIORITY) {
+            if (selectCommunicationDevice(am, type)) return;
+        }
+        am.clearCommunicationDevice();
+    }
+
+    private boolean selectCommunicationDevice(final AudioManager am, final int type) {
+        for (AudioDeviceInfo device : am.getAvailableCommunicationDevices()) {
+            if (device.getType() == type) {
+                return am.setCommunicationDevice(device);
+            }
+        }
+        return false;
     }
 
     // MARK: - helpers
