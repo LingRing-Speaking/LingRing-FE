@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 import * as Sentry from "@sentry/capacitor";
 import * as SentryReact from "@sentry/react";
 
@@ -15,11 +16,21 @@ export function initSentry(): void {
     return;
   }
 
+  // 구 바이너리(스토어 구버전)에 OTA 로 새 JS 가 내려간 경우 네이티브 플러그인이
+  // 없다 — 그대로 init 하면 네이티브 브릿지가 throw 하므로 JS 전용 모드로 강등한다.
+  const nativeAvailable = Capacitor.isPluginAvailable("SentryCapacitor");
+  if (!nativeAvailable) {
+    console.warn(`${LOG_PREFIX} 네이티브 플러그인 없음(구 바이너리) — JS 전용 모드로 초기화`);
+  }
+
   try {
     Sentry.init(
       {
         dsn,
         environment,
+        enableNative: nativeAvailable,
+        // 강등 시 SDK 자체 경고 로그 억제 — 위에서 우리 로그로 대신한다.
+        enableNativeNagger: false,
         // vite define 이 git 없는 환경에서 null 을 넣을 수 있어 undefined 로 정규화.
         release: import.meta.env.VITE_SENTRY_RELEASE ?? undefined,
         // 도입 목적은 에러 추적 — 성능 트레이싱은 끄고 무료 쿼터를 아낀다.
