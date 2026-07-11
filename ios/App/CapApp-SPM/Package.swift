@@ -13,9 +13,11 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", exact: "8.3.1"),
         .package(name: "CapacitorCommunityAppleSignIn", path: "../../../node_modules/@capacitor-community/apple-sign-in"),
+        .package(name: "CapacitorFilesystem", path: "../../../node_modules/@capacitor/filesystem"),
         .package(name: "CapacitorPreferences", path: "../../../node_modules/@capacitor/preferences"),
         .package(name: "CapacitorSplashScreen", path: "../../../node_modules/@capacitor/splash-screen"),
         .package(name: "CapgoCapacitorUpdater", path: "../../../node_modules/@capgo/capacitor-updater"),
+        .package(name: "SentryCapacitor", path: "../../../node_modules/@sentry/capacitor"),
         .package(name: "CapacitorKakaoLoginPlugin", path: "../../../node_modules/capacitor-kakao-login-plugin"),
         .package(url: "https://github.com/stasel/WebRTC.git", .upToNextMajor(from: "147.0.0"))
     ],
@@ -26,9 +28,11 @@ let package = Package(
                 .product(name: "Capacitor", package: "capacitor-swift-pm"),
                 .product(name: "Cordova", package: "capacitor-swift-pm"),
                 .product(name: "CapacitorCommunityAppleSignIn", package: "CapacitorCommunityAppleSignIn"),
+                .product(name: "CapacitorFilesystem", package: "CapacitorFilesystem"),
                 .product(name: "CapacitorPreferences", package: "CapacitorPreferences"),
                 .product(name: "CapacitorSplashScreen", package: "CapacitorSplashScreen"),
                 .product(name: "CapgoCapacitorUpdater", package: "CapgoCapacitorUpdater"),
+                .product(name: "SentryCapacitor", package: "SentryCapacitor"),
                 .product(name: "CapacitorKakaoLoginPlugin", package: "CapacitorKakaoLoginPlugin"),
                 .product(name: "WebRTC", package: "WebRTC")
             ]
