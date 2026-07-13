@@ -235,16 +235,16 @@ function SlotCard({ slot, item, bookmarkQueryKey }: SlotProps) {
   return (
     <div
       data-slot={slot}
-      className="relative flex w-1/3 flex-shrink-0 flex-col justify-center min-h-[142px] px-5 py-5"
+      className="flex w-1/3 flex-shrink-0 flex-col justify-center min-h-[142px] px-5 py-5"
     >
-      {showStar && (
-        <div className="absolute right-2 top-2">
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <p className="m-0 text-[19px] font-bold leading-snug tracking-[-0.01em] text-gray-900">
+          {item?.expression ?? ""}
+        </p>
+        {showStar && (
           <IcebreakerBookmarkStar item={item} queryKey={bookmarkQueryKey} />
-        </div>
-      )}
-      <p className="m-0 mb-2 pr-9 text-[19px] font-bold leading-snug tracking-[-0.01em] text-gray-900">
-        {item?.expression ?? ""}
-      </p>
+        )}
+      </div>
       <p className="m-0 text-[13px] font-medium leading-relaxed text-gray-600">
         {item?.meaning ?? ""}
       </p>

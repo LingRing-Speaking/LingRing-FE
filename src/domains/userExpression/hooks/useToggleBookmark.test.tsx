@@ -136,11 +136,9 @@ describe("useToggleBookmark", () => {
 
     const invalidated = spy.mock.calls.map((c) => c[0]?.queryKey);
     expect(invalidated).toEqual(
-      expect.arrayContaining([
-        ["expressions"],
-        ["me", "stats"],
-        ["icebreakers"],
-      ]),
+      expect.arrayContaining([["expressions"], ["me", "stats"]]),
     );
+    // 아이스브레이커 랜덤 쿼리는 무효화하지 않는다 — 무효화하면 문장이 재추첨된다.
+    expect(invalidated).not.toContainEqual(["icebreakers"]);
   });
 });
