@@ -138,6 +138,47 @@ describe("UserExpressionsPage", () => {
     expect(statsCallCount).toBeGreaterThanOrEqual(2);
   });
 
+  it("카드의 찜 해제(별표) 를 누르면 목록에서 제거된다", async () => {
+    // GET 이 현재 목록을 반영하는 stateful 목: DELETE 후 무효화 refetch 에도 유지.
+    let items = [
+      { id: 1, userId: 1, expression: "첫 표현", meaning: "뜻1", createdAt: "" },
+      { id: 2, userId: 1, expression: "둘째 표현", meaning: "뜻2", createdAt: "" },
+    ];
+    server.use(
+      http.get("http://localhost:3000/api/v1/expressions", () =>
+        HttpResponse.json({
+          data: { items, hasNext: false },
+          status: 200,
+          message: "OK",
+        }),
+      ),
+      http.delete(
+        "http://localhost:3000/api/v1/expressions/:id",
+        ({ params }) => {
+          items = items.filter((it) => it.id !== Number(params.id));
+          return HttpResponse.json({
+            data: null,
+            status: 204,
+            message: "NO_CONTENT",
+          });
+        },
+      ),
+    );
+
+    renderWithQueryClient(<UserExpressionsPage />);
+    await waitFor(() =>
+      expect(screen.getByText("첫 표현")).toBeInTheDocument(),
+    );
+
+    const stars = screen.getAllByRole("button", { name: "찜 해제" });
+    await userEvent.click(stars[0]);
+
+    await waitFor(() =>
+      expect(screen.queryByText("첫 표현")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByText("둘째 표현")).toBeInTheDocument();
+  });
+
   it("뒤로 가기 버튼은 /mypage 로 이동하는 링크다", () => {
     renderWithQueryClient(<UserExpressionsPage />);
 

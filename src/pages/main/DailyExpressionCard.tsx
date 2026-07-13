@@ -1,16 +1,13 @@
+import { todayKstDateString } from "@/domains/recommendedExpression/hooks/useDailyRecommendedExpression";
 import type { DailyRecommendedExpression } from "@/domains/recommendedExpression/types";
+import { BookmarkStarButton } from "@/domains/userExpression/components/BookmarkStarButton";
+import { useToggleBookmark } from "@/domains/userExpression/hooks/useToggleBookmark";
 
 type Props = { data: DailyRecommendedExpression | null };
 
 export function DailyExpressionCard({ data }: Props) {
   return (
-    <button
-      type="button"
-      disabled
-      aria-disabled="true"
-      aria-label="오늘의 표현 자세히 보기"
-      className="mb-5 flex w-full cursor-not-allowed items-start gap-3.5 rounded-[20px] border border-gray-100 bg-white p-[18px_20px] text-left shadow-card"
-    >
+    <article className="mb-5 flex w-full items-start gap-3.5 rounded-[20px] border border-gray-100 bg-white p-[18px_20px] text-left shadow-card">
       <div
         aria-hidden="true"
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-mint-100 to-coral-100 text-[20px]"
@@ -36,11 +33,32 @@ export function DailyExpressionCard({ data }: Props) {
           </p>
         )}
       </div>
-      {data && (
-        <span aria-hidden="true" className="self-center text-[20px] text-gray-400">
-          ›
-        </span>
-      )}
-    </button>
+      {data && <DailyBookmarkStar data={data} />}
+    </article>
+  );
+}
+
+function DailyBookmarkStar({ data }: { data: DailyRecommendedExpression }) {
+  const { toggle, isPending } = useToggleBookmark<DailyRecommendedExpression | null>(
+    {
+      queryKey: ["recommendedExpression", "daily", todayKstDateString()],
+      patch: (current, nextBookmarkId) =>
+        current ? { ...current, bookmarkId: nextBookmarkId } : current,
+    },
+  );
+
+  return (
+    <div className="self-center">
+      <BookmarkStarButton
+        active={data.bookmarkId !== null}
+        pending={isPending}
+        onToggle={() =>
+          toggle(data.bookmarkId, {
+            source: "DAILY_EXPRESSION",
+            recommendedExpressionId: data.id,
+          })
+        }
+      />
+    </div>
   );
 }

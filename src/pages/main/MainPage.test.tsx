@@ -124,17 +124,64 @@ describe("MainPage", () => {
     expect(dailyCallCount).toBe(2);
   });
 
-  it("표현 카드는 disabled 이고, 하단 탭의 홈은 활성 상태다", async () => {
+  it("표현 카드에 찜 별표가 있고, 하단 탭의 홈은 활성 상태다", async () => {
     renderWithQueryClient(<MainPage />, { initialEntries: ["/home"] });
 
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "오늘의 표현 자세히 보기" }),
-      ).toBeDisabled(),
+        screen.getByRole("button", { name: "찜하기" }),
+      ).toBeInTheDocument(),
     );
     expect(screen.getByRole("link", { name: /^홈$/ })).toHaveAttribute(
       "aria-current",
       "page",
     );
+  });
+
+  it("오늘의 표현 별표를 누르면 찜 등록되고 불이 들어온다", async () => {
+    // GET 이 현재 찜 상태를 반영하는 stateful 목: 등록 후 무효화 refetch 에도 유지.
+    let bookmarked = false;
+    server.use(
+      http.get(
+        "http://localhost:3000/api/v1/recommended-expressions/daily",
+        () =>
+          HttpResponse.json({
+            data: {
+              id: 1,
+              expression: "Sounds good to me.",
+              meaning: "좋아요, 저도 동의해요",
+              createdAt: "2026-04-25T08:00:00.000000",
+              bookmarkId: bookmarked ? 700 : null,
+            },
+            status: 200,
+            message: "OK",
+          }),
+      ),
+      http.post("http://localhost:3000/api/v1/expressions", () => {
+        bookmarked = true;
+        return HttpResponse.json({
+          data: {
+            id: 700,
+            userId: 1,
+            expression: "Sounds good to me.",
+            meaning: "좋아요, 저도 동의해요",
+            createdAt: "2026-07-13T00:00:00.000000",
+          },
+          status: 201,
+          message: "CREATED",
+        });
+      }),
+    );
+
+    renderWithQueryClient(<MainPage />, {
+      user: { id: 1, nickname: "Lee", profileImage: null },
+    });
+
+    const star = await screen.findByRole("button", { name: "찜하기" });
+    await userEvent.click(star);
+
+    expect(
+      await screen.findByRole("button", { name: "찜 해제" }),
+    ).toBeInTheDocument();
   });
 });

@@ -105,7 +105,12 @@ export function UserExpressionsPage() {
           <div className="scrollbar-none flex-1 overflow-y-auto px-5 pb-8 pt-1">
             <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
               {items.map((item) => (
-                <PhraseCard key={item.id} expression={item.expression} meaning={item.meaning} />
+                <PhraseCard
+                  key={item.id}
+                  id={item.id}
+                  expression={item.expression}
+                  meaning={item.meaning}
+                />
               ))}
             </ul>
             <div ref={sentinelRef} aria-hidden="true" className="h-1" />

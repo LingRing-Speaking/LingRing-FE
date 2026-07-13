@@ -1,12 +1,21 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Icebreaker } from "@/domains/icebreaker/types";
 import { IcebreakerRotator } from "./IcebreakerRotator";
 
 const sentences: Icebreaker[] = [
-  { id: 1, expression: "First en", meaning: "첫번째 한국어", createdAt: "" },
-  { id: 2, expression: "Second en", meaning: "두번째 한국어", createdAt: "" },
-  { id: 3, expression: "Third en", meaning: "세번째 한국어", createdAt: "" },
+  { id: 1, expression: "First en", meaning: "첫번째 한국어", createdAt: "", bookmarkId: null },
+  { id: 2, expression: "Second en", meaning: "두번째 한국어", createdAt: "", bookmarkId: null },
+  { id: 3, expression: "Third en", meaning: "세번째 한국어", createdAt: "", bookmarkId: null },
 ];
 
 const INTERVAL_MS = 1000;
@@ -163,5 +172,70 @@ describe("IcebreakerRotator", () => {
 
     const track = screen.getByTestId("rotator-track");
     expect(track.style.transform).toContain("-50px");
+  });
+});
+
+describe("IcebreakerRotator 찜 별표", () => {
+  const KEY = ["icebreakers", "random", 5];
+  const real: Icebreaker[] = [
+    { id: 1, expression: "First en", meaning: "첫번째", createdAt: "", bookmarkId: null },
+    { id: 2, expression: "Second en", meaning: "두번째", createdAt: "", bookmarkId: null },
+  ];
+  const fallback: Icebreaker[] = [
+    { id: -1, expression: "Fallback en", meaning: "폴백", createdAt: "", bookmarkId: null },
+  ];
+
+  function setup(list: Icebreaker[]) {
+    const qc = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, gcTime: Infinity },
+        mutations: { retry: false },
+      },
+    });
+    qc.setQueryData(KEY, list);
+    render(
+      <QueryClientProvider client={qc}>
+        <IcebreakerRotator
+          sentences={list}
+          intervalMs={100_000}
+          bookmarkQueryKey={KEY}
+        />
+      </QueryClientProvider>,
+    );
+    return qc;
+  }
+
+  const currentSlot = () =>
+    screen
+      .getByTestId("rotator-track")
+      .querySelector('[data-slot="current"]') as HTMLElement;
+
+  it("current 슬롯의 실제 아이스브레이커에는 찜하기 별표가 있다", () => {
+    setup(real);
+
+    expect(
+      within(currentSlot()).getByRole("button", { name: "찜하기" }),
+    ).toBeInTheDocument();
+  });
+
+  it("폴백(id<0) 아이스브레이커에는 별표가 없다", () => {
+    setup(fallback);
+
+    expect(
+      screen.queryByRole("button", { name: "찜하기" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("별표를 누르면 낙관적으로 찜된다", async () => {
+    const qc = setup(real);
+
+    await userEvent.click(
+      within(currentSlot()).getByRole("button", { name: "찜하기" }),
+    );
+
+    await waitFor(() => {
+      const list = qc.getQueryData<Icebreaker[]>(KEY);
+      expect(list?.[0].bookmarkId).not.toBeNull();
+    });
   });
 });
