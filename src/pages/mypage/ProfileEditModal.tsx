@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "@/lib/http";
 import { useUpdateProfile } from "@/domains/user/hooks/useUpdateProfile";
+import { MAX_NICKNAME_LENGTH, validateNickname } from "@/domains/user/nickname";
 
 const MAX_BYTES = 30 * 1024 * 1024;
 const MAX_MB_LABEL = 30;
-const MIN_NICKNAME = 2;
-const MAX_NICKNAME = 15;
 const FALLBACK_ERROR = "저장에 실패했어요. 다시 시도해주세요.";
 
 interface ProfileEditModalProps {
@@ -16,15 +15,6 @@ interface ProfileEditModalProps {
 }
 
 type FieldError = string | null;
-
-function validateNickname(value: string): FieldError {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return "닉네임을 입력해주세요.";
-  if (trimmed.length < MIN_NICKNAME || trimmed.length > MAX_NICKNAME) {
-    return `닉네임은 ${MIN_NICKNAME}~${MAX_NICKNAME}자여야 해요.`;
-  }
-  return null;
-}
 
 function validateImageFile(file: File): FieldError {
   if (!file.type.startsWith("image/")) return "이미지 파일만 선택해주세요.";
@@ -80,9 +70,10 @@ export function ProfileEditModal({
 
   if (!open) return null;
 
-  const nicknameError = validateNickname(nickname);
+  const nicknameCheck = validateNickname(nickname);
   const nicknameChanged = nickname.trim() !== currentNickname;
-  const nicknameToSubmit = nicknameChanged && !nicknameError ? nickname.trim() : undefined;
+  const nicknameToSubmit =
+    nicknameChanged && nicknameCheck.ok ? nicknameCheck.value : undefined;
   const fileToSubmit = file && !fileError ? file : undefined;
   const canSubmit = Boolean(nicknameToSubmit || fileToSubmit) && !updateProfile.isPending;
 
@@ -191,12 +182,12 @@ export function ProfileEditModal({
               setSubmitError(null);
             }}
             disabled={updateProfile.isPending}
-            maxLength={MAX_NICKNAME}
+            maxLength={MAX_NICKNAME_LENGTH}
             className="w-full rounded-[12px] border border-gray-200 px-3.5 py-2.5 text-[15px] tracking-tight text-gray-900 outline-none focus:border-mint-500 disabled:bg-gray-50"
           />
-          {nicknameError && nicknameChanged && (
+          {!nicknameCheck.ok && nicknameChanged && (
             <p role="alert" className="mt-1.5 text-[12.5px] font-medium text-coral-600">
-              {nicknameError}
+              {nicknameCheck.reason}
             </p>
           )}
         </div>

@@ -19,6 +19,7 @@ import { AnalysisResultPage } from "@/pages/analysis/AnalysisResultPage";
 import { SettingsPage } from "@/pages/settings/SettingsPage";
 import { WithdrawPage } from "@/pages/withdraw/WithdrawPage";
 import { OnboardingTermsPage } from "@/pages/onboarding/OnboardingTermsPage";
+import { OnboardingNicknamePage } from "@/pages/onboarding/OnboardingNicknamePage";
 
 function AuthenticatedRoutes() {
   return (
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route element={<AuthenticatedRoutes />}>
             <Route path="/onboarding/terms" element={<OnboardingTermsPage />} />
+            <Route path="/onboarding/nickname" element={<OnboardingNicknamePage />} />
             <Route element={<OnboardedRoutes />}>
               <Route path="/home" element={<MainPage />} />
               <Route path="/matching" element={<MatchingPage />} />
