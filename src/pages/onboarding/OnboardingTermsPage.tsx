@@ -6,6 +6,7 @@ import {
   LEGAL_TERMS_URL,
   LEGAL_TERMS_VERSION,
 } from "@/config/legal";
+import { useAuthStore } from "@/domains/auth/store";
 import { useAcceptOnboarding } from "@/domains/onboarding/hooks/useAcceptOnboarding";
 import type { AgreementItem } from "@/domains/onboarding/api/postAgreement";
 
@@ -50,13 +51,18 @@ export function OnboardingTermsPage() {
 
   const handleSubmit = () => {
     if (!allChecked || acceptOnboarding.isPending) return;
+    // 신규 가입자(requiresOnboarding)만 닉네임 설정 단계로 보낸다.
+    // 약관 버전 변경으로 재동의만 하는 기존 유저는 이미 닉네임이 있으므로 곧바로 홈으로.
+    // 동의 성공 시 requiresOnboarding이 false로 갱신되므로 mutate 전에 값을 캡처한다.
+    const isNewSignup = Boolean(useAuthStore.getState().user?.requiresOnboarding);
     acceptOnboarding.mutate(
       {
         termsVersion: LEGAL_TERMS_VERSION,
         agreedItems: AGREEMENTS.map(({ key }) => key),
       },
       {
-        onSuccess: () => navigate("/home", { replace: true }),
+        onSuccess: () =>
+          navigate(isNewSignup ? "/onboarding/nickname" : "/home", { replace: true }),
       },
     );
   };
