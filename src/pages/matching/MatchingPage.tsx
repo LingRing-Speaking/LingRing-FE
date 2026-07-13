@@ -161,6 +161,7 @@ export function MatchingPage() {
             <IcebreakerRotator
               sentences={sentences}
               intervalMs={ROTATION_INTERVAL_MS}
+              bookmarkQueryKey={["icebreakers", "random", ICEBREAKER_COUNT]}
             />
 
             <div className="mt-auto flex justify-center pb-6 pt-2">

@@ -72,11 +72,15 @@ export type FeedbackTag =
   | "OTHER";
 
 export type MistakeItem = {
+  /** 분석 내 mistake 식별자. 찜 등록 시 지목하고, 별표 캐시 패치의 키로 쓴다. */
+  id: number;
   tag: FeedbackTag;
   wrong: string;
   improved: string;
   reason: string;
   koMeaning: string;
+  /** 찜(저장)했으면 저장한 표현 row id, 아니면 null. 별표 상태의 출처. */
+  bookmarkId: number | null;
 };
 
 export type PositiveItem = {

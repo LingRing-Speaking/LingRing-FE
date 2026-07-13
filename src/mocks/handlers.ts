@@ -143,21 +143,28 @@ const SAMPLE_RESULT_BASE: Omit<AnalysisResult, "callId" | "userId"> = {
   ],
   mistakes: [
     {
+      id: 1,
       tag: "GRAMMAR",
       wrong: "I goed to school yesterday.",
       improved: "I went to school yesterday.",
       reason: "go 의 과거형은 went 입니다.",
       koMeaning: "나는 어제 학교에 갔다.",
+      bookmarkId: null,
     },
     {
+      id: 2,
       tag: "COLLOCATION",
       wrong: "make a homework",
       improved: "do my homework",
       reason: "homework 는 do 와 결합합니다.",
       koMeaning: "숙제를 하다",
+      bookmarkId: null,
     },
   ],
 };
+
+// 목에서 찜 등록 시 발급할 표현 id 시퀀스(기존 목 데이터 id 와 겹치지 않게 큰 값부터).
+let mockBookmarkSeq = 1000;
 
 export const handlers = [
   http.get(apiUrl("/me"), () => {
@@ -279,6 +286,32 @@ export const handlers = [
     });
   }),
 
+  // 찜 등록. 실제 BE 는 source 로 원본을 조회해 expression/meaning 을 채우지만,
+  // 목에서는 생성된 표현을 간단히 고정 문구로 반환한다.
+  http.post(apiUrl("/expressions"), async () => {
+    mockBookmarkSeq += 1;
+    return HttpResponse.json({
+      data: {
+        id: mockBookmarkSeq,
+        userId: 1,
+        expression: "Saved expression (mock)",
+        meaning: "저장된 표현 (목)",
+        createdAt: "2026-07-13T00:00:00.000000",
+      },
+      status: 201,
+      message: "CREATED",
+    });
+  }),
+
+  // 찜 해제.
+  http.delete(apiUrl("/expressions/:id"), () => {
+    return HttpResponse.json({
+      data: null,
+      status: 204,
+      message: "NO_CONTENT",
+    });
+  }),
+
   http.get(apiUrl("/recommended-expressions/daily"), () => {
     return HttpResponse.json({
       data: {
@@ -286,6 +319,7 @@ export const handlers = [
         expression: "Sounds good to me.",
         meaning: "좋아요, 저도 동의해요 — 가볍게 맞장구칠 때",
         createdAt: "2026-04-25T08:00:00.000000",
+        bookmarkId: null,
       },
       status: 200,
       message: "OK",
@@ -300,6 +334,7 @@ export const handlers = [
       expression: `Sample expression ${i + 1}`,
       meaning: `샘플 표현 ${i + 1}`,
       createdAt: "2026-04-28T22:34:56.123456",
+      bookmarkId: null,
     }));
     return HttpResponse.json({
       data: { items },
