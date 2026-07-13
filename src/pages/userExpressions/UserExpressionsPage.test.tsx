@@ -54,8 +54,8 @@ describe("UserExpressionsPage", () => {
       ).toBeInTheDocument();
     });
     expect(
-      screen.getByRole("button", { name: "통화 시작하기" }),
-    ).toBeDisabled();
+      screen.queryByRole("button", { name: "통화 시작하기" }),
+    ).not.toBeInTheDocument();
   });
 
   it("한 쿼리만 실패해도 에러 화면 + 다시 시도 버튼을 보여준다", async () => {

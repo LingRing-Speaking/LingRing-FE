@@ -24,7 +24,7 @@ export function BookmarkStarButton({ active, pending, onToggle }: Props) {
       }}
       onTouchStart={(e) => e.stopPropagation()}
       className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors disabled:opacity-40 ${
-        active ? "text-coral-500" : "text-gray-300 active:text-gray-400"
+        active ? "text-yellow-400" : "text-gray-300 active:text-gray-400"
       }`}
     >
       <svg
