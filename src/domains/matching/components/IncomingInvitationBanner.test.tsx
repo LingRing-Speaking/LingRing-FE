@@ -42,6 +42,33 @@ describe("IncomingInvitationBanner", () => {
     expect(screen.getByRole("button", { name: "거절" })).toBeInTheDocument();
   });
 
+  it("받기 버튼이 거절보다 앞(왼쪽)에 온다", async () => {
+    renderWithQueryClient(<IncomingInvitationBanner />);
+
+    setStoreInvitation({ inviterId: 2, deadline: futureDeadline() });
+    await screen.findByRole("alert");
+
+    const buttonLabels = screen.getAllByRole("button").map((button) => button.textContent);
+    expect(buttonLabels).toEqual(["받기", "거절"]);
+  });
+
+  it("하단 게이지가 남은 시간을 보여주고 시간이 흐르면 줄어든다", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    renderWithQueryClient(<IncomingInvitationBanner />);
+
+    setStoreInvitation({ inviterId: 2, deadline: futureDeadline(30_000) });
+
+    const gauge = await screen.findByRole("progressbar");
+    expect(Number(gauge.getAttribute("aria-valuenow"))).toBeGreaterThanOrEqual(29);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+
+    expect(Number(gauge.getAttribute("aria-valuenow"))).toBeLessThanOrEqual(20);
+  });
+
   it("받기 클릭 → accept 호출 후 /call/:roomId 로 navigate 하고 partnerId·callId 를 state 로 넘긴다", async () => {
     const user = userEvent.setup();
     server.use(
