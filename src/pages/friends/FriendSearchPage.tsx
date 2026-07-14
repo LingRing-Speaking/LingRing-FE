@@ -132,8 +132,9 @@ export function FriendSearchPage() {
           onClose={() => setOpenUserId(null)}
           actions={() =>
             result ? (
-              <div className="mt-2 flex justify-center py-2.5">
+              <div className="mt-4">
                 <RelationActionButton
+                  variant="cta"
                   relation={result.relation}
                   onAdd={onAdd}
                   onAccept={onAccept}

@@ -15,8 +15,10 @@ type Props = {
   userId: number | null;
   open: boolean;
   onClose: () => void;
-  // 프로필 로드 완료 후 하단에 그릴 컨텍스트별 액션(통화=차단/신고, 친구=삭제, 검색=친구추가 등).
+  // 프로필 로드 완료 후 하단에 그릴 컨텍스트별 액션(통화·검색=친구추가 CTA, 친구=삭제 등).
   actions?: (profile: UserProfile) => ReactNode;
+  // 좌상단(닫기 버튼 미러 위치)에 그릴 보조 액션. 통화 상대 모달의 ⋯ 메뉴가 여기 들어간다.
+  headerAction?: ReactNode;
 };
 
 /**
@@ -24,7 +26,7 @@ type Props = {
  * 보여주고, 하단 액션 영역만 호출처가 슬롯으로 주입한다. 통화 상대·친구·검색 결과가
  * 모두 이 모달을 재사용한다.
  */
-export function UserProfileModal({ userId, open, onClose, actions }: Props) {
+export function UserProfileModal({ userId, open, onClose, actions, headerAction }: Props) {
   const profile = useUserProfile(open ? userId : null);
 
   useEffect(() => {
@@ -48,6 +50,8 @@ export function UserProfileModal({ userId, open, onClose, actions }: Props) {
           aria-labelledby="user-profile-name"
           className="pointer-events-auto relative w-full max-w-[320px] rounded-[22px] bg-white p-6 pb-[22px] shadow-[0_20px_50px_rgba(0,0,0,0.25)]"
         >
+          {headerAction && <div className="absolute left-3 top-3">{headerAction}</div>}
+
           <button
             type="button"
             aria-label="닫기"

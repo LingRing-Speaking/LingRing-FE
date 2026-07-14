@@ -28,27 +28,27 @@ function mockProfile(relation: FriendRelation) {
   );
 }
 
-function renderModal() {
+function renderModal(overrides?: { onReport?: () => void; onBlock?: () => void }) {
   return renderWithQueryClient(
     <PartnerProfileModal
       partnerId={PARTNER_ID}
       open
       onClose={vi.fn()}
-      onReport={vi.fn()}
-      onBlock={vi.fn()}
+      onReport={overrides?.onReport ?? vi.fn()}
+      onBlock={overrides?.onBlock ?? vi.fn()}
     />,
   );
 }
 
 describe("PartnerProfileModal 친구 추가", () => {
-  it("relation 이 NONE 이면 [친구 추가] 버튼과 차단/신고가 함께 노출된다", async () => {
+  it("relation 이 NONE 이면 [친구 추가] 버튼이 노출되고 차단/신고는 본문에 없다", async () => {
     mockProfile("NONE");
 
     renderModal();
 
     expect(await screen.findByRole("button", { name: "친구 추가" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "차단하기" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "신고하기" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "차단하기" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "신고하기" })).not.toBeInTheDocument();
   });
 
   it("[친구 추가] 클릭 → POST /friends 후 버튼이 [요청됨]으로 갱신된다", async () => {
@@ -134,5 +134,47 @@ describe("PartnerProfileModal 친구 추가", () => {
 
     expect(await screen.findByText("✓ 친구")).toBeInTheDocument();
     await waitFor(() => expect(patchedUserId).toBe(PARTNER_ID));
+  });
+});
+
+describe("PartnerProfileModal 차단/신고 ⋯ 메뉴", () => {
+  it("[더보기] 클릭 → 차단하기/신고하기 메뉴가 열린다", async () => {
+    const user = userEvent.setup();
+    mockProfile("NONE");
+
+    renderModal();
+
+    await user.click(await screen.findByRole("button", { name: "더보기" }));
+
+    expect(screen.getByRole("menuitem", { name: "차단하기" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "신고하기" })).toBeInTheDocument();
+  });
+
+  it("[신고하기] 선택 → onReport 호출 후 메뉴가 닫힌다", async () => {
+    const user = userEvent.setup();
+    const onReport = vi.fn();
+    mockProfile("NONE");
+
+    renderModal({ onReport });
+
+    await user.click(await screen.findByRole("button", { name: "더보기" }));
+    await user.click(screen.getByRole("menuitem", { name: "신고하기" }));
+
+    expect(onReport).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menuitem", { name: "신고하기" })).not.toBeInTheDocument();
+  });
+
+  it("[차단하기] 선택 → onBlock 호출 후 메뉴가 닫힌다", async () => {
+    const user = userEvent.setup();
+    const onBlock = vi.fn();
+    mockProfile("NONE");
+
+    renderModal({ onBlock });
+
+    await user.click(await screen.findByRole("button", { name: "더보기" }));
+    await user.click(screen.getByRole("menuitem", { name: "차단하기" }));
+
+    expect(onBlock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menuitem", { name: "차단하기" })).not.toBeInTheDocument();
   });
 });
