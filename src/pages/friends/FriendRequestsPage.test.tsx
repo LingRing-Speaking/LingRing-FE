@@ -36,4 +36,14 @@ describe("FriendRequestsPage", () => {
 
     await waitFor(() => expect(screen.getAllByRole("button", { name: "수락" })).toHaveLength(1));
   });
+
+  it("받은 요청의 프로필을 누르면 상대 상세 정보 모달이 열린다", async () => {
+    const user = userEvent.setup();
+    renderWithQueryClient(<FriendRequestsPage />, { initialEntries: ["/friends/requests"] });
+
+    await user.click(await screen.findByRole("button", { name: /하늘/ }));
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("매너온도")).toBeInTheDocument();
+  });
 });

@@ -6,6 +6,7 @@ import { useAcceptFriendRequest } from "@/domains/friends/hooks/useAcceptFriendR
 import { usePendingRequests } from "@/domains/friends/hooks/usePendingRequests";
 import { useReceivedCount } from "@/domains/friends/hooks/useReceivedCount";
 import { useRemoveRelation } from "@/domains/friends/hooks/useRemoveRelation";
+import { UserProfileModal } from "@/domains/user/components/UserProfileModal";
 import { PageShell } from "@/components/PageShell";
 import type { FriendDirection } from "@/domains/friends/types";
 
@@ -17,6 +18,8 @@ const SEGMENTS: { value: FriendDirection; label: string }[] = [
 export function FriendRequestsPage() {
   const navigate = useNavigate();
   const [segment, setSegment] = useState<FriendDirection>("RECEIVED");
+  // 프로필 탭 시 상세 정보 모달 대상 userId
+  const [openUserId, setOpenUserId] = useState<number | null>(null);
 
   const received = usePendingRequests("RECEIVED");
   const sent = usePendingRequests("SENT");
@@ -118,6 +121,7 @@ export function FriendRequestsPage() {
               <li key={item.userId}>
                 <RequestListItem
                   item={item}
+                  onSelect={setOpenUserId}
                   onAccept={(userId) => acceptMutation.mutate(userId)}
                   onRemove={(userId) => removeMutation.mutate(userId)}
                   actioning={isActioning(item.userId)}
@@ -126,6 +130,12 @@ export function FriendRequestsPage() {
             ))}
           </ul>
         )}
+
+        <UserProfileModal
+          userId={openUserId}
+          open={openUserId != null}
+          onClose={() => setOpenUserId(null)}
+        />
       </main>
     </PageShell>
   );
