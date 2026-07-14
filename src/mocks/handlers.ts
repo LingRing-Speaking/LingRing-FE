@@ -224,13 +224,15 @@ export const handlers = [
   }),
 
   http.get(apiUrl("/users/:userId"), ({ params }) => {
+    const userId = Number(params.userId);
     return HttpResponse.json({
       data: {
-        id: Number(params.userId),
+        id: userId,
         nickname: "Sophie",
         profileImage: null,
         level: "INTERMEDIATE",
         mannerTemperature: 36.5,
+        relation: relationFor(userId),
       },
       status: 200,
       message: "OK",
