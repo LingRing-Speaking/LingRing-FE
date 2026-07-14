@@ -124,7 +124,8 @@ describe("CallHistoryPage", () => {
 
     renderWithQueryClient(<CallHistoryPage />);
     await user.click(await screen.findByRole("button", { name: /Sophie/ }));
-    await user.click(await screen.findByRole("button", { name: "차단하기" }));
+    await user.click(await screen.findByRole("button", { name: "더보기" }));
+    await user.click(screen.getByRole("menuitem", { name: "차단하기" }));
 
     expect(await screen.findByText("이 사용자를 차단할까요?")).toBeInTheDocument();
   });
