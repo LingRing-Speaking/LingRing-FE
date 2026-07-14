@@ -1,3 +1,4 @@
+import { goOffline } from "@/domains/presence/api/presenceApi";
 import { logout as logoutOnServer } from "./api/logout";
 import { logoutFromKakao } from "./kakao";
 import { clearTokens } from "./storage";
@@ -5,6 +6,9 @@ import { useAuthStore } from "./store";
 
 // 로컬 세션은 어떤 일이 있어도 끊는다. BE/카카오 SDK 호출 실패가 사용자를 로그인 상태로 묶어두는 일은 없어야 함.
 export async function signOut(): Promise<void> {
+  // 토큰이 유효할 때(세션 정리 전) 먼저 오프라인을 알린다 — 즉시 오프라인 반영.
+  // 실패해도 무시: 최대 10초 뒤 TTL 로 어차피 오프라인 처리된다.
+  void goOffline().catch(() => {});
   try {
     await logoutOnServer();
   } catch {

@@ -36,7 +36,7 @@ export function FriendListItem({ item, onSelect, onRemove }: Props) {
       onClick={() => onSelect(item.userId)}
       className="flex w-full items-center gap-3 px-5 py-3 text-left active:bg-gray-50"
     >
-      <Avatar src={item.profileImage} name={name} size="sm" />
+      <Avatar src={item.profileImage} name={name} size="sm" online={item.online} />
       <span className="text-[15px] font-semibold text-gray-800">{name}</span>
     </button>
   );
