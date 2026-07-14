@@ -1,4 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
+import { CountBadge } from "@/domains/friends/components/CountBadge";
+import { useReceivedCount } from "@/domains/friends/hooks/useReceivedCount";
 
 const TAB_BASE =
   "flex flex-1 flex-col items-center gap-1 py-1.5 text-[11px] font-semibold tracking-tight";
@@ -41,6 +43,24 @@ function CallHistoryIcon({ active }: { active: boolean }) {
   );
 }
 
+function FriendsIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-6 w-6"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" fillOpacity={active ? 0.12 : 0} />
+      <circle cx="9" cy="7" r="4" fillOpacity={active ? 0.12 : 0} />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
 function MyPageIcon({ active }: { active: boolean }) {
   return (
     <svg
@@ -61,8 +81,12 @@ function MyPageIcon({ active }: { active: boolean }) {
 export function BottomTabBar() {
   const { pathname } = useLocation();
   const isHome = pathname === "/home";
+  const isFriends = pathname === "/friends";
   const isHistory = pathname === "/history";
   const isMyPage = pathname === "/mypage";
+
+  const receivedCount = useReceivedCount();
+  const pendingRequestCount = receivedCount.data?.count ?? 0;
 
   return (
     <nav
@@ -76,6 +100,18 @@ export function BottomTabBar() {
       >
         <HomeIcon active={isHome} />
         <span>홈</span>
+      </Link>
+
+      <Link
+        to="/friends"
+        aria-current={isFriends ? "page" : undefined}
+        className={`${TAB_BASE} ${isFriends ? "text-gray-900" : "text-gray-400"}`}
+      >
+        <span className="relative">
+          <FriendsIcon active={isFriends} />
+          <CountBadge count={pendingRequestCount} className="absolute -right-2.5 -top-1" />
+        </span>
+        <span>친구</span>
       </Link>
 
       <Link

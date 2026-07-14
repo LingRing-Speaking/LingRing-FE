@@ -9,6 +9,9 @@ import { MainPage } from "@/pages/main/MainPage";
 import { MatchingPage } from "@/pages/matching/MatchingPage";
 import { CallPage } from "@/pages/call/CallPage";
 import { MyPagePage } from "@/pages/mypage/MyPagePage";
+import { FriendsPage } from "@/pages/friends/FriendsPage";
+import { FriendRequestsPage } from "@/pages/friends/FriendRequestsPage";
+import { FriendSearchPage } from "@/pages/friends/FriendSearchPage";
 import { SplashPage } from "@/pages/splash/SplashPage";
 import { UserExpressionsPage } from "@/pages/userExpressions/UserExpressionsPage";
 import { BlockListPage } from "@/pages/blockList/BlockListPage";
@@ -52,6 +55,9 @@ export default function App() {
             <Route path="/onboarding/nickname" element={<OnboardingNicknamePage />} />
             <Route element={<OnboardedRoutes />}>
               <Route path="/home" element={<MainPage />} />
+              <Route path="/friends" element={<FriendsPage />} />
+              <Route path="/friends/requests" element={<FriendRequestsPage />} />
+              <Route path="/friends/search" element={<FriendSearchPage />} />
               <Route path="/matching" element={<MatchingPage />} />
               <Route path="/call/:roomId" element={<CallPage />} />
               <Route path="/mypage" element={<MyPagePage />} />
