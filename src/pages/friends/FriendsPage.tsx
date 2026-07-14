@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FriendDeleteConfirmModal } from "@/domains/friends/components/FriendDeleteConfirmModal";
 import { FriendList } from "@/domains/friends/components/FriendList";
+import { FriendRequestsCard } from "@/domains/friends/components/FriendRequestsCard";
 import { FriendsEmpty } from "@/domains/friends/components/FriendsEmpty";
-import { ReceivedRequestCard } from "@/domains/friends/components/ReceivedRequestCard";
 import { useFriends } from "@/domains/friends/hooks/useFriends";
+import { usePendingRequests } from "@/domains/friends/hooks/usePendingRequests";
 import { useReceivedCount } from "@/domains/friends/hooks/useReceivedCount";
 import { useRemoveRelation } from "@/domains/friends/hooks/useRemoveRelation";
 import { UserProfileModal } from "@/domains/user/components/UserProfileModal";
@@ -15,6 +16,7 @@ export function FriendsPage() {
   const navigate = useNavigate();
   const friends = useFriends();
   const receivedCount = useReceivedCount();
+  const sentRequests = usePendingRequests("SENT");
   const removeMutation = useRemoveRelation();
 
   // 프로필 모달 대상 userId. 그 위에 삭제 확인이 열리면 프로필 모달은 가린다.
@@ -24,6 +26,11 @@ export function FriendsPage() {
   const items = friends.data?.pages.flatMap((page) => page.items) ?? [];
   const count = receivedCount.data?.count ?? 0;
   const isEmpty = items.length === 0;
+
+  // 받은 요청뿐 아니라 "보낸 요청"만 있어도 요청 페이지로 갈 입구가 필요하다.
+  // (안 그러면 받은 게 없을 때 내가 보낸 요청을 확인·취소할 방법이 없음)
+  const hasSentRequest = (sentRequests.data?.pages.flatMap((page) => page.items).length ?? 0) > 0;
+  const showRequestsEntry = count > 0 || hasSentRequest;
 
   const status = (() => {
     if (friends.isError) return "error";
@@ -97,7 +104,7 @@ export function FriendsPage() {
 
         {status === "success" && (
           <div className="flex flex-1 flex-col overflow-y-auto pb-24">
-            {count > 0 && <ReceivedRequestCard count={count} onClick={goRequests} />}
+            {showRequestsEntry && <FriendRequestsCard count={count} onClick={goRequests} />}
             {isEmpty ? (
               <FriendsEmpty onSearch={goSearch} hasPendingRequest={count > 0} />
             ) : (
