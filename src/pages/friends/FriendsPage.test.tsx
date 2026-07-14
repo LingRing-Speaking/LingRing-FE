@@ -39,6 +39,49 @@ describe("FriendsPage", () => {
     expect(screen.getByRole("button", { name: "친구 찾기" })).toBeInTheDocument();
   });
 
+  it("친구도 받은 요청도 없지만 보낸 요청이 있으면 요청 카드로 진입할 수 있다", async () => {
+    // 친구·받은 요청은 0, 보낸 요청만 존재 → 카드가 떠서 보낸 요청을 확인할 수 있어야 한다.
+    server.use(
+      http.get("http://localhost:3000/api/v1/friends/received-count", () =>
+        HttpResponse.json({ data: { count: 0 }, status: 200, message: "OK" }),
+      ),
+      http.get(FRIENDS_URL, ({ request }) => {
+        const url = new URL(request.url);
+        if (
+          url.searchParams.get("status") === "PENDING" &&
+          url.searchParams.get("direction") === "SENT"
+        ) {
+          return HttpResponse.json({
+            data: {
+              items: [
+                {
+                  userId: 7,
+                  nickname: "준서",
+                  profileImage: null,
+                  status: "PENDING",
+                  direction: "SENT",
+                  requestedAt: "2026-07-12T08:00:00",
+                },
+              ],
+              hasNext: false,
+            },
+            status: 200,
+            message: "OK",
+          });
+        }
+        return HttpResponse.json({
+          data: { items: [], hasNext: false },
+          status: 200,
+          message: "OK",
+        });
+      }),
+    );
+    renderWithQueryClient(<FriendsPage />, { initialEntries: ["/friends"] });
+
+    expect(await screen.findByText("아직 친구가 없어요")).toBeInTheDocument();
+    expect(screen.getByText("👥 친구 요청")).toBeInTheDocument();
+  });
+
   it("친구 행을 누르면 프로필 모달이 열리고 삭제 액션이 있다", async () => {
     const user = userEvent.setup();
     renderWithQueryClient(<FriendsPage />, { initialEntries: ["/friends"] });
