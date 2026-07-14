@@ -581,6 +581,64 @@ describe("useCallSession", () => {
     expect(playMock).not.toHaveBeenCalled();
   });
 
+  describe("상대 미입장 타임아웃", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("connecting 이 15초 지속되면 status='error' 로 종료한다", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const { result } = renderHook(() => useCallSession(baseOpts));
+      await waitFor(() => expect(sendMock).toHaveBeenCalledWith({ type: "JOIN" }));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_000);
+      });
+
+      expect(result.current.status).toBe("error");
+      expect(result.current.errorMessage).toBe("상대방과 연결되지 않았어요");
+      expect(peerCloseMock).toHaveBeenCalled();
+      expect(closeWsMock).toHaveBeenCalled();
+    });
+
+    it("connected 이후에는 타임아웃이 발동하지 않는다", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const { result } = renderHook(() => useCallSession(baseOpts));
+      await waitFor(() => expect(lastPeerCallbacks).not.toBeNull());
+
+      await act(async () => {
+        lastPeerCallbacks!.onConnectionStateChange("connected");
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20_000);
+      });
+
+      expect(result.current.status).toBe("connected");
+    });
+
+    it("타임아웃 전에 통화가 끝났으면(ended) 상태를 덮어쓰지 않는다", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const { result } = renderHook(() => useCallSession(baseOpts));
+      await waitFor(() => expect(sendMock).toHaveBeenCalledWith({ type: "JOIN" }));
+
+      await act(async () => {
+        dispatchMessage({
+          type: "HANGUP",
+          fromUserId: 2,
+          toUserId: 1,
+          payload: null,
+        });
+      });
+      expect(result.current.status).toBe("ended");
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20_000);
+      });
+
+      expect(result.current.status).toBe("ended");
+    });
+  });
+
   describe("endReason (종료 사유)", () => {
     it("초기 endReason 은 null 이다", () => {
       const { result } = renderHook(() => useCallSession(baseOpts));

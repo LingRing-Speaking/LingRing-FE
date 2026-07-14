@@ -86,7 +86,8 @@ describe("FriendsPage", () => {
     const user = userEvent.setup();
     renderWithQueryClient(<FriendsPage />, { initialEntries: ["/friends"] });
 
-    await user.click(await screen.findByRole("button", { name: /지우/ }));
+    // 통화 버튼("지우에게 통화 걸기")과의 모호성을 피해 행 내부 닉네임 텍스트를 클릭한다
+    await user.click(await screen.findByText("지우"));
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "친구 삭제" })).toBeInTheDocument();
@@ -96,7 +97,8 @@ describe("FriendsPage", () => {
     const user = userEvent.setup();
     renderWithQueryClient(<FriendsPage />, { initialEntries: ["/friends"] });
 
-    await user.click(await screen.findByRole("button", { name: /지우/ }));
+    // 통화 버튼("지우에게 통화 걸기")과의 모호성을 피해 행 내부 닉네임 텍스트를 클릭한다
+    await user.click(await screen.findByText("지우"));
     await user.click(await screen.findByRole("button", { name: "친구 삭제" }));
 
     expect(await screen.findByText("친구를 삭제할까요?")).toBeInTheDocument();
