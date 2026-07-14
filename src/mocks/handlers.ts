@@ -82,6 +82,11 @@ function relationFor(userId: number): string {
 // 목 온라인 상태 — 데모용 고정 집합. 실제 BE 는 하트비트 TTL(10초)로 판정한다.
 const ONLINE_USER_IDS = new Set<number>([2, 4, 6]);
 
+// ===== 친구 지목 통화 초대 목 상태 (#213) =====
+// 발신 초대는 유저당 1건. 랜덤 매칭 목이 WAITING 에 머무는 것과 같은 이유로
+// 상태 전이는 시뮬레이션하지 않는다 — 종결 상태는 테스트가 server.use 로 덮어쓴다.
+let outgoingCallInvitation: { inviteeUserId: number } | null = null;
+
 /** 테스트 간 모듈 레벨 상태를 초기화한다. */
 export function resetMockState() {
   analysisIdByCallId.clear();
@@ -89,6 +94,7 @@ export function resetMockState() {
   recordingUploadStartedAtByCallId.clear();
   nextAnalysisId = 1000;
   seedFriendState();
+  outgoingCallInvitation = null;
 }
 
 // 분석 row 가 존재하는 경우의 상태. READY 는 row 자체가 없는 상태라 여기서 다루지 않음.
@@ -247,9 +253,14 @@ export const handlers = [
     });
   }),
 
-  // presence 하트비트/오프라인. 실제 BE 는 204 No Content. 목은 상태를 따로 관리하지 않는다.
+  // presence 하트비트 — #213 부터 응답에 수신 통화 초대가 piggyback 된다.
+  // 목에서는 수신 초대를 시뮬레이션하지 않는다 (테스트는 server.use 로 덮어씀).
   http.post(apiUrl("/me/presence"), () => {
-    return HttpResponse.json({ data: null, status: 204, message: "NO_CONTENT" });
+    return HttpResponse.json({
+      data: { incomingInvitation: null },
+      status: 200,
+      message: "OK",
+    });
   }),
 
   http.delete(apiUrl("/me/presence"), () => {
@@ -438,6 +449,53 @@ export const handlers = [
       status: 204,
       message: "NO_CONTENT",
     });
+  }),
+
+  // ===== 친구 지목 통화 초대 (#213) =====
+  http.post(apiUrl("/call-invitations"), async ({ request }) => {
+    const body = (await request.json()) as { inviteeUserId?: number };
+    if (body.inviteeUserId == null) {
+      return HttpResponse.json(
+        { data: null, status: 400, message: "BAD_REQUEST" },
+        { status: 400 },
+      );
+    }
+    if (outgoingCallInvitation) {
+      return HttpResponse.json({ data: null, status: 409, message: "CONFLICT" }, { status: 409 });
+    }
+    outgoingCallInvitation = { inviteeUserId: body.inviteeUserId };
+    return HttpResponse.json({ data: null, status: 204, message: "NO_CONTENT" });
+  }),
+
+  http.get(apiUrl("/call-invitations/outgoing"), () => {
+    return HttpResponse.json({
+      data: outgoingCallInvitation
+        ? { status: "RINGING", roomId: null, callId: null }
+        : { status: "NONE", roomId: null, callId: null },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
+  http.delete(apiUrl("/call-invitations/outgoing"), () => {
+    // 멱등 — 초대가 없어도 204.
+    outgoingCallInvitation = null;
+    return HttpResponse.json({ data: null, status: 204, message: "NO_CONTENT" });
+  }),
+
+  // 수신 초대는 목에서 생성되지 않으므로 기본은 404 (초대 없음) — 테스트가 덮어쓴다.
+  http.post(apiUrl("/call-invitations/accept"), () => {
+    return HttpResponse.json(
+      { data: null, status: 404, message: "CALL_INVITATION_NOT_FOUND" },
+      { status: 404 },
+    );
+  }),
+
+  http.post(apiUrl("/call-invitations/decline"), () => {
+    return HttpResponse.json(
+      { data: null, status: 404, message: "CALL_INVITATION_NOT_FOUND" },
+      { status: 404 },
+    );
   }),
 
   http.post(apiUrl("/reports"), () => {

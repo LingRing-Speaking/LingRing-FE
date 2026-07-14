@@ -40,6 +40,7 @@ export function FriendsPage() {
 
   const goSearch = () => navigate("/friends/search");
   const goRequests = () => navigate("/friends/requests");
+  const goCallInvite = (userId: number) => navigate(`/call-invite/${userId}`);
 
   const askRemove = (userId: number) => {
     setOpenUserId(null);
@@ -115,6 +116,7 @@ export function FriendsPage() {
                 onLoadMore={friends.fetchNextPage}
                 onSelect={setOpenUserId}
                 onRemove={askRemove}
+                onCall={goCallInvite}
               />
             )}
           </div>

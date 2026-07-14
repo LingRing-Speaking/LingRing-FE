@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockAddListener } = vi.hoisted(() => ({ mockAddListener: vi.fn() }));
@@ -14,6 +14,7 @@ vi.mock("../api/presenceApi", () => ({
 }));
 
 import { useAuthStore } from "@/domains/auth/store";
+import { useIncomingInvitationStore } from "@/domains/matching/incomingInvitationStore";
 import { usePresenceHeartbeat } from "./usePresenceHeartbeat";
 
 const HEARTBEAT_INTERVAL_MS = 5000;
@@ -29,7 +30,8 @@ describe("usePresenceHeartbeat", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
-    mockSendHeartbeat.mockResolvedValue(undefined);
+    useIncomingInvitationStore.setState({ invitation: null });
+    mockSendHeartbeat.mockResolvedValue({ incomingInvitation: null });
     mockGoOffline.mockResolvedValue(undefined);
     appStateCallback = undefined;
     mockAddListener.mockImplementation(
@@ -101,6 +103,78 @@ describe("usePresenceHeartbeat", () => {
 
     vi.advanceTimersByTime(HEARTBEAT_INTERVAL_MS);
     expect(mockSendHeartbeat).toHaveBeenCalledTimes(2); // interval 1개만 유지
+  });
+
+  it("하트비트 응답의 incomingInvitation 을 스토어에 반영한다", async () => {
+    const invitation = { inviterId: 2, deadline: "2026-07-15T00:00:30" };
+    mockSendHeartbeat.mockResolvedValue({ incomingInvitation: invitation });
+    setAuthenticated(true);
+
+    renderHook(() => usePresenceHeartbeat());
+    await act(async () => {}); // sendHeartbeat().then 반영 대기
+
+    expect(useIncomingInvitationStore.getState().invitation).toEqual(invitation);
+  });
+
+  it("다음 응답에서 incomingInvitation 이 사라지면 스토어를 비운다 (발신 취소·만료 감지)", async () => {
+    mockSendHeartbeat
+      .mockResolvedValueOnce({
+        incomingInvitation: { inviterId: 2, deadline: "2026-07-15T00:00:30" },
+      })
+      .mockResolvedValue({ incomingInvitation: null });
+    setAuthenticated(true);
+
+    renderHook(() => usePresenceHeartbeat());
+    await act(async () => {});
+    expect(useIncomingInvitationStore.getState().invitation).not.toBeNull();
+
+    await act(async () => {
+      vi.advanceTimersByTime(HEARTBEAT_INTERVAL_MS);
+    });
+
+    expect(useIncomingInvitationStore.getState().invitation).toBeNull();
+  });
+
+  it("백그라운드로 가면 수신 초대를 즉시 비운다 (배경에서는 받을 수 없음)", async () => {
+    mockSendHeartbeat.mockResolvedValue({
+      incomingInvitation: { inviterId: 2, deadline: "2026-07-15T00:00:30" },
+    });
+    setAuthenticated(true);
+
+    renderHook(() => usePresenceHeartbeat());
+    await act(async () => {});
+    expect(useIncomingInvitationStore.getState().invitation).not.toBeNull();
+
+    await act(async () => {
+      appStateCallback?.({ isActive: false });
+    });
+
+    expect(useIncomingInvitationStore.getState().invitation).toBeNull();
+  });
+
+  it("언마운트하면 수신 초대를 비운다", async () => {
+    mockSendHeartbeat.mockResolvedValue({
+      incomingInvitation: { inviterId: 2, deadline: "2026-07-15T00:00:30" },
+    });
+    setAuthenticated(true);
+
+    const { unmount } = renderHook(() => usePresenceHeartbeat());
+    await act(async () => {});
+    expect(useIncomingInvitationStore.getState().invitation).not.toBeNull();
+
+    unmount();
+
+    expect(useIncomingInvitationStore.getState().invitation).toBeNull();
+  });
+
+  it("응답 형태가 없어도(전환기 204) 크래시 없이 스토어를 비운 상태로 둔다", async () => {
+    mockSendHeartbeat.mockResolvedValue(null);
+    setAuthenticated(true);
+
+    renderHook(() => usePresenceHeartbeat());
+    await act(async () => {});
+
+    expect(useIncomingInvitationStore.getState().invitation).toBeNull();
   });
 
   it("언마운트하면 interval 을 정리하고 리스너를 제거한다", async () => {

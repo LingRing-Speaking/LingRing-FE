@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { App } from "@capacitor/app";
 import type { PluginListenerHandle } from "@capacitor/core";
 import { useAuthStore } from "@/domains/auth/store";
+import { useIncomingInvitationStore } from "@/domains/matching/incomingInvitationStore";
+import type { IncomingInvitation } from "@/domains/matching/types";
 import { goOffline, sendHeartbeat } from "../api/presenceApi";
 
 const HEARTBEAT_INTERVAL_MS = 5000;
@@ -19,12 +21,20 @@ export function usePresenceHeartbeat(): void {
 
     let intervalId: number | null = null;
 
+    const setInvitation = (invitation: IncomingInvitation | null) =>
+      useIncomingInvitationStore.getState().setInvitation(invitation);
+
     const startHeartbeat = () => {
       if (intervalId !== null) return; // appStateChange 가 연달아 와도 interval 중복 생성 방지
       // 네트워크 오류는 무시하고 다음 tick 에 재시도한다(TTL 2배 마진이 1회 유실을 흡수).
       // 401 은 http 레이어가 토큰 갱신을 시도하고, 갱신이 거부되면 세션이 정리되어
       // isAuthenticated 가 false 로 바뀌며 이 effect 의 cleanup 이 루프를 멈춘다.
-      const ping = () => void sendHeartbeat().catch(() => {});
+      // 응답의 incomingInvitation(수신 통화 초대 #213)은 전역 스토어로 흘려보낸다 —
+      // 배포 전환기에 응답 바디가 없을 수 있어(?.) 방어한다.
+      const ping = () =>
+        void sendHeartbeat()
+          .then((res) => setInvitation(res?.incomingInvitation ?? null))
+          .catch(() => {});
       ping();
       intervalId = window.setInterval(ping, HEARTBEAT_INTERVAL_MS);
     };
@@ -33,6 +43,9 @@ export function usePresenceHeartbeat(): void {
       if (intervalId === null) return;
       window.clearInterval(intervalId);
       intervalId = null;
+      // 하트비트가 멈추면(백그라운드·로그아웃) 벨을 받을 수 없다 — 남은 수신 초대를 비워
+      // 복귀 시 stale 벨이 잠깐 보이는 것을 막는다. 유효한 초대면 다음 하트비트가 다시 내려준다.
+      setInvitation(null);
     };
 
     startHeartbeat();

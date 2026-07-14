@@ -3,11 +3,13 @@ import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { recoveryRun } from "@/domains/call/recording/recordingRecovery";
 import { usePresenceHeartbeat } from "@/domains/presence/hooks/usePresenceHeartbeat";
+import { IncomingInvitationBanner } from "@/domains/matching/components/IncomingInvitationBanner";
 import { AuthGuard } from "@/domains/auth/AuthGuard";
 import { OnboardingGuard } from "@/domains/onboarding/OnboardingGuard";
 import { LoginPage } from "@/pages/login/LoginPage";
 import { MainPage } from "@/pages/main/MainPage";
 import { MatchingPage } from "@/pages/matching/MatchingPage";
+import { CallInvitePage } from "@/pages/callInvite/CallInvitePage";
 import { CallPage } from "@/pages/call/CallPage";
 import { MyPagePage } from "@/pages/mypage/MyPagePage";
 import { FriendsPage } from "@/pages/friends/FriendsPage";
@@ -51,6 +53,8 @@ export default function App() {
   return (
     <QueryProvider>
       <BrowserRouter>
+        {/* 수신 통화 초대 배너 (#213) — 어느 화면 위에서든 뜨도록 라우트 밖에 전역 1회 마운트 */}
+        <IncomingInvitationBanner />
         <Routes>
           <Route path="/" element={<SplashPage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -63,6 +67,7 @@ export default function App() {
               <Route path="/friends/requests" element={<FriendRequestsPage />} />
               <Route path="/friends/search" element={<FriendSearchPage />} />
               <Route path="/matching" element={<MatchingPage />} />
+              <Route path="/call-invite/:inviteeId" element={<CallInvitePage />} />
               <Route path="/call/:roomId" element={<CallPage />} />
               <Route path="/mypage" element={<MyPagePage />} />
               <Route path="/expressions" element={<UserExpressionsPage />} />

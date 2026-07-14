@@ -22,6 +22,10 @@ export type EndReason = "self" | "peer" | "dropped" | "timeout";
 
 const PERMISSION_DENIED_MESSAGE = "마이크 권한이 필요해요";
 const CONNECTION_FAILED_MESSAGE = "통화 연결에 실패했어요";
+// 상대가 방에 입장하지 않아 connecting 에 머무는 상황의 상한. 랜덤 매칭의 매칭 직후
+// 이탈, 친구 지목 통화(#213)의 "수락 직후 발신자 취소" race 에서 발생한다.
+const PEER_JOIN_TIMEOUT_MS = 15_000;
+const PEER_JOIN_TIMEOUT_MESSAGE = "상대방과 연결되지 않았어요";
 
 export type UseCallSessionOptions = {
   userId: number;
@@ -86,6 +90,17 @@ export function useCallSession(opts: UseCallSessionOptions): UseCallSessionResul
     // StrictMode dev: 1차 cleanup이 남긴 stale true를 2차 setup에서 리셋
     cleanedUpRef.current = false;
 
+    // 연결 확립 전 상한 타이머 — 상대 미입장 시 connecting 무한 대기를 끊는다.
+    // 통화가 먼저 끝난 경우엔 setError 가 cleanedUpRef 가드로 무시한다.
+    let joinTimeoutId: number | null = window.setTimeout(() => {
+      setError(PEER_JOIN_TIMEOUT_MESSAGE);
+    }, PEER_JOIN_TIMEOUT_MS);
+    const clearJoinTimeout = () => {
+      if (joinTimeoutId === null) return;
+      window.clearTimeout(joinTimeoutId);
+      joinTimeoutId = null;
+    };
+
     const peer = createPeerSession({
       onLocalIce: (c: IceCandidatePayload) => {
         wsRef.current?.send({ type: "ICE_CANDIDATE", payload: c });
@@ -100,6 +115,7 @@ export function useCallSession(opts: UseCallSessionOptions): UseCallSessionResul
       },
       onConnectionStateChange: (s) => {
         if (s === "connected") {
+          clearJoinTimeout();
           setStatus("connected");
           // WebKit RTC 의 모든 startup reconfig 가 끝난 시점이라 여기서 카테고리/라우팅을 정상화.
           // peer.start() 직후 (= getUserMedia 직후) 는 connection establishment 시점에 한 번 더
@@ -197,6 +213,7 @@ export function useCallSession(opts: UseCallSessionOptions): UseCallSessionResul
 
     return () => {
       cancelled = true;
+      clearJoinTimeout();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       cleanup();
     };

@@ -9,6 +9,7 @@ type Props = {
   onLoadMore: () => void;
   onSelect: (userId: number) => void;
   onRemove: (userId: number) => void;
+  onCall?: (userId: number) => void; // 친구 지목 통화 걸기 (#213)
 };
 
 export function FriendList({
@@ -18,6 +19,7 @@ export function FriendList({
   onLoadMore,
   onSelect,
   onRemove,
+  onCall,
 }: Props) {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -42,7 +44,7 @@ export function FriendList({
       <ul>
         {items.map((item) => (
           <li key={item.userId}>
-            <FriendListItem item={item} onSelect={onSelect} onRemove={onRemove} />
+            <FriendListItem item={item} onSelect={onSelect} onRemove={onRemove} onCall={onCall} />
           </li>
         ))}
       </ul>
