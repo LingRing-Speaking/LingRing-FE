@@ -13,6 +13,7 @@ export type FriendItem = {
   status: FriendStatus;
   direction: FriendDirection; // PENDING 일 때만 의미. ACCEPTED 면 무시
   requestedAt: string;
+  online: boolean; // 접속(포그라운드) 여부. PENDING 항목에도 내려오지만 표시 여부는 화면이 판단.
 };
 
 export type FriendList = {

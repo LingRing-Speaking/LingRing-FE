@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { recoveryRun } from "@/domains/call/recording/recordingRecovery";
+import { usePresenceHeartbeat } from "@/domains/presence/hooks/usePresenceHeartbeat";
 import { AuthGuard } from "@/domains/auth/AuthGuard";
 import { OnboardingGuard } from "@/domains/onboarding/OnboardingGuard";
 import { LoginPage } from "@/pages/login/LoginPage";
@@ -39,6 +40,9 @@ function OnboardedRoutes() {
 }
 
 export default function App() {
+  // 로그인~로그아웃, 포그라운드~백그라운드에 묶인 온라인 하트비트. 앱 전역 1회 마운트.
+  usePresenceHeartbeat();
+
   useEffect(() => {
     // 앱 mount 시 1 회 — 이전 통화에서 업로드 못 끝낸 잔여 녹음 파일 재시도.
     void recoveryRun();

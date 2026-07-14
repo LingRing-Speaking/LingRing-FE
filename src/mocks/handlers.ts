@@ -79,6 +79,9 @@ function relationFor(userId: number): string {
   return rel.direction === "RECEIVED" ? "REQUEST_RECEIVED" : "REQUEST_SENT";
 }
 
+// 목 온라인 상태 — 데모용 고정 집합. 실제 BE 는 하트비트 TTL(10초)로 판정한다.
+const ONLINE_USER_IDS = new Set<number>([2, 4, 6]);
+
 /** 테스트 간 모듈 레벨 상태를 초기화한다. */
 export function resetMockState() {
   analysisIdByCallId.clear();
@@ -242,6 +245,15 @@ export const handlers = [
       status: 204,
       message: "NO_CONTENT",
     });
+  }),
+
+  // presence 하트비트/오프라인. 실제 BE 는 204 No Content. 목은 상태를 따로 관리하지 않는다.
+  http.post(apiUrl("/me/presence"), () => {
+    return HttpResponse.json({ data: null, status: 204, message: "NO_CONTENT" });
+  }),
+
+  http.delete(apiUrl("/me/presence"), () => {
+    return HttpResponse.json({ data: null, status: 204, message: "NO_CONTENT" });
   }),
 
   http.post(apiUrl("/me/withdraw"), () => {
@@ -636,6 +648,7 @@ export const handlers = [
           status: rel.status,
           direction: rel.direction,
           requestedAt: rel.requestedAt,
+          online: ONLINE_USER_IDS.has(userId),
         };
       })
       .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
