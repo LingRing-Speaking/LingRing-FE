@@ -47,6 +47,19 @@ export function initSentry(): void {
   }
 }
 
+// catch 로 잡아 UI 처리한 에러는 Sentry 자동 수집(unhandled)에 걸리지 않는다.
+// "예상 밖 실패"를 삼키는 지점에서는 이 함수로 명시적으로 보고한다.
+// 미초기화(로컬 QA 빌드) 상태에서는 SDK 가 no-op 이라 안전하다.
+export function captureException(
+  error: unknown,
+  context?: {
+    tags?: Record<string, string>;
+    extra?: Record<string, unknown>;
+  },
+): void {
+  Sentry.captureException(error, context);
+}
+
 export function setSentryUser(userId: number | null): void {
   Sentry.setUser(userId === null ? null : { id: String(userId) });
 }

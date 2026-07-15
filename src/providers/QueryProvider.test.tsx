@@ -1,9 +1,18 @@
 import { renderHook, waitFor } from "@testing-library/react";
-import { useQuery } from "@tanstack/react-query";
+import { CancelledError, MutationObserver, useQuery } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "@/lib/http";
+import { captureException } from "@/lib/sentry";
 import { server } from "@/mocks/server";
 import { QueryProvider } from "./QueryProvider";
+import { createQueryClient } from "./queryClient";
+
+vi.mock("@/lib/sentry", () => ({
+  captureException: vi.fn(),
+}));
+
+const mockCapture = vi.mocked(captureException);
 
 function useTestQuery(path: string) {
   return useQuery({
@@ -71,5 +80,74 @@ describe("QueryProvider retry", () => {
       timeout: 10_000,
     });
     expect(callCount).toBe(4);
+  });
+});
+
+async function runFailingQuery(error: Error): Promise<void> {
+  const client = createQueryClient();
+  await client
+    .fetchQuery({
+      queryKey: ["boom"],
+      queryFn: () => Promise.reject(error),
+      retry: false,
+    })
+    .catch(() => {});
+}
+
+async function runFailingMutation(error: Error): Promise<void> {
+  const client = createQueryClient();
+  const observer = new MutationObserver(client, {
+    mutationKey: ["boomMutation"],
+    mutationFn: () => Promise.reject(error),
+    retry: false,
+  });
+  await observer.mutate(undefined).catch(() => {});
+}
+
+describe("createQueryClient — 전역 onError Sentry 안전망", () => {
+  beforeEach(() => {
+    mockCapture.mockClear();
+  });
+
+  it("쿼리 실패를 queryKey와 함께 Sentry로 보고한다", async () => {
+    const error = new ApiError(500, "서버 오류");
+
+    await runFailingQuery(error);
+
+    expect(mockCapture).toHaveBeenCalledTimes(1);
+    expect(mockCapture).toHaveBeenCalledWith(error, {
+      tags: { source: "query" },
+      extra: { queryKey: ["boom"] },
+    });
+  });
+
+  it("뮤테이션 실패를 mutationKey와 함께 Sentry로 보고한다", async () => {
+    const error = new TypeError("undefined is not a function");
+
+    await runFailingMutation(error);
+
+    expect(mockCapture).toHaveBeenCalledTimes(1);
+    expect(mockCapture).toHaveBeenCalledWith(error, {
+      tags: { source: "mutation" },
+      extra: { mutationKey: ["boomMutation"] },
+    });
+  });
+
+  it("네트워크 단절(status 0)은 보고하지 않는다", async () => {
+    await runFailingQuery(new ApiError(0, "네트워크 오류"));
+
+    expect(mockCapture).not.toHaveBeenCalled();
+  });
+
+  it("세션 만료(401)는 보고하지 않는다", async () => {
+    await runFailingQuery(new ApiError(401, "인증 만료"));
+
+    expect(mockCapture).not.toHaveBeenCalled();
+  });
+
+  it("요청 취소(CancelledError)는 보고하지 않는다", async () => {
+    await runFailingQuery(new CancelledError() as unknown as Error);
+
+    expect(mockCapture).not.toHaveBeenCalled();
   });
 });

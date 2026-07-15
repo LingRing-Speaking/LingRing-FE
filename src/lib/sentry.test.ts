@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@sentry/capacitor", () => ({
   init: vi.fn(),
   setUser: vi.fn(),
+  captureException: vi.fn(),
 }));
 vi.mock("@sentry/react", () => ({
   init: vi.fn(),
@@ -14,7 +15,7 @@ vi.mock("@capacitor/core", () => ({
 import { Capacitor } from "@capacitor/core";
 import * as Sentry from "@sentry/capacitor";
 import * as SentryReact from "@sentry/react";
-import { initSentry, setSentryUser } from "./sentry";
+import { captureException, initSentry, setSentryUser } from "./sentry";
 
 const TEST_DSN = "https://key@o123.ingest.sentry.io/456";
 
@@ -125,6 +126,30 @@ describe("initSentry — 네이티브 가용성 (OTA 하드닝)", () => {
       expect.objectContaining({ enableNative: false, enableNativeNagger: false }),
       expect.anything(),
     );
+  });
+});
+
+describe("captureException", () => {
+  it("에러와 태그·extra 컨텍스트를 Sentry 로 전달한다", () => {
+    const error = new Error("boom");
+
+    captureException(error, {
+      tags: { source: "query" },
+      extra: { queryKey: ["me"] },
+    });
+
+    expect(Sentry.captureException).toHaveBeenCalledWith(error, {
+      tags: { source: "query" },
+      extra: { queryKey: ["me"] },
+    });
+  });
+
+  it("컨텍스트 없이 에러만으로도 호출할 수 있다", () => {
+    const error = new Error("boom");
+
+    captureException(error);
+
+    expect(Sentry.captureException).toHaveBeenCalledWith(error, undefined);
   });
 });
 
