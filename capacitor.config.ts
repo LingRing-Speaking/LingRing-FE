@@ -13,6 +13,15 @@ const config: CapacitorConfig = {
       splashFullScreen: true,
       splashImmersive: true,
     },
+    // 구글만 사용. 미설정 시 Facebook SDK 까지 번들되어 Android 매니페스트에
+    // 광고 ID 권한(AD_ID)이 들어간다 → Play Console 광고 ID 선언 걸림.
+    SocialLogin: {
+      providers: {
+        google: true,
+        facebook: false,
+        twitter: false,
+      },
+    },
     // manual 모드: 플러그인의 auto-update(updateUrl POST)를 끄고, 정적 manifest 를
     // 직접 fetch 해 download/next 로 적용한다 (src/lib/ota.ts).
     CapacitorUpdater: {
