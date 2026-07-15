@@ -37,6 +37,9 @@ vi.mock("@capgo/capacitor-updater", () => ({
   },
 }));
 
+vi.mock("@/lib/sentry", () => ({ captureException: vi.fn() }));
+
+import { captureException } from "@/lib/sentry";
 import { checkForUpdate, initializeOtaUpdater } from "./ota";
 
 describe("initializeOtaUpdater", () => {
@@ -75,6 +78,26 @@ describe("initializeOtaUpdater", () => {
       "appReloaded",
     ]);
   });
+
+  // 번들 다운로드/적용 실패는 배포 사고 신호 — 콘솔로만 남기지 않는다.
+  it.each(["downloadFailed", "updateFailed"] as const)(
+    "%s 이벤트를 Sentry 로 보고한다",
+    async (eventName) => {
+      mockIsNativePlatform.mockReturnValue(true);
+      await initializeOtaUpdater();
+
+      const handler = mockAddListener.mock.calls.find(
+        ([name]) => name === eventName,
+      )?.[1];
+      const event = { version: "1.2.3" };
+      handler(event);
+
+      expect(captureException).toHaveBeenCalledWith(
+        new Error(`[ota] ${eventName}`),
+        { tags: { source: "ota" }, extra: { event } },
+      );
+    },
+  );
 });
 
 describe("checkForUpdate", () => {
@@ -153,5 +176,44 @@ describe("checkForUpdate", () => {
     await checkForUpdate();
 
     expect(mockDownload).not.toHaveBeenCalled();
+  });
+
+  it("manifest 네트워크 실패(오프라인)는 Sentry 로 보고하지 않는다", async () => {
+    mockHttpGet.mockRejectedValue(new Error("network down"));
+
+    await checkForUpdate();
+
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it("manifest 응답 오류(비 2xx)는 Sentry 로 보고한다 (배포 사고 신호)", async () => {
+    mockHttpGet.mockResolvedValue({ status: 404, data: "" });
+
+    await checkForUpdate();
+
+    expect(captureException).toHaveBeenCalledWith(
+      new Error("[ota] manifest 응답 오류 (status 404)"),
+      { tags: { source: "ota" } },
+    );
+  });
+
+  it("download/적용 실패를 Sentry 로 보고한다", async () => {
+    const error = new Error("checksum mismatch");
+    mockDownload.mockRejectedValue(error);
+    mockHttpGet.mockResolvedValue({
+      status: 200,
+      data: {
+        version: "0.0.2",
+        url: "https://ota.lingring.site/app-0.0.2.zip",
+        checksum: "abc123",
+      },
+    });
+
+    await checkForUpdate();
+
+    expect(captureException).toHaveBeenCalledWith(error, {
+      tags: { source: "ota" },
+      extra: { manifestVersion: "0.0.2" },
+    });
   });
 });

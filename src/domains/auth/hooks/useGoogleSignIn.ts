@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError } from "@/lib/http";
+import { captureException } from "@/lib/sentry";
 import { GoogleIdTokenMissingError, GoogleLoginUnavailableError } from "../google";
 import { NicknameRetryExhaustedError, signInWithGoogle } from "../signIn";
 import { saveTokens } from "../storage";
@@ -70,7 +71,15 @@ export function useGoogleSignIn(): UseGoogleSignInResult {
       const next = needsAgreement(result.user) ? "/onboarding/terms" : "/home";
       navigate(next, { replace: true });
     } catch (err) {
-      setFailure(classify(err));
+      const failure = classify(err);
+      // 분류 불가(unknown) = SDK·브릿지의 예상 밖 실패 — 무신호로 두지 않는다.
+      // #218 Android QA 의 SocialLogin scopes 에러가 정확히 이 분기로 삼켜졌다.
+      if (failure.kind === "unknown") {
+        captureException(err, {
+          tags: { source: "social-login", provider: "google" },
+        });
+      }
+      setFailure(failure);
     } finally {
       setIsLoading(false);
     }

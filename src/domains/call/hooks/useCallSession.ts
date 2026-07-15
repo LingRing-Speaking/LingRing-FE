@@ -5,6 +5,7 @@ import {
   endCallAudioRoute,
   setSpeakerphone,
 } from "@/lib/native/audioRoute";
+import { captureException } from "@/lib/sentry";
 import type { ServerMessage, IceCandidatePayload } from "../signaling/types";
 import { createSignalingClient, type SignalingClient } from "../signaling/wsClient";
 import { createPeerSession, type PeerSession } from "../webrtc/peerConnection";
@@ -26,6 +27,16 @@ const CONNECTION_FAILED_MESSAGE = "통화 연결에 실패했어요";
 // 이탈, 친구 지목 통화(#213)의 "수락 직후 발신자 취소" race 에서 발생한다.
 const PEER_JOIN_TIMEOUT_MS = 15_000;
 const PEER_JOIN_TIMEOUT_MESSAGE = "상대방과 연결되지 않았어요";
+
+// 마이크 권한 거부는 사용자의 정상적 선택 — Sentry 에 보고하지 않는다.
+// getUserMedia 는 DOMException(NotAllowedError), 네이티브 브릿지는 메시지로만
+// 구분 가능하므로 둘 다 본다.
+function isPermissionDenied(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === "NotAllowedError") {
+    return true;
+  }
+  return error instanceof Error && /permission/i.test(error.message);
+}
 
 export type UseCallSessionOptions = {
   userId: number;
@@ -169,7 +180,12 @@ export function useCallSession(opts: UseCallSessionOptions): UseCallSessionResul
             break;
           }
         }
-      } catch {
+      } catch (error) {
+        // SDP/ICE 협상 실패는 핵심 기능의 예상 밖 실패 — 원인 추적을 위해 보고한다.
+        captureException(error, {
+          tags: { source: "call-signaling" },
+          extra: { messageType: msg.type },
+        });
         setError(CONNECTION_FAILED_MESSAGE);
       }
     };
@@ -205,8 +221,11 @@ export function useCallSession(opts: UseCallSessionOptions): UseCallSessionResul
         await peer.start();
         if (cancelled) return;
         ws.send({ type: "JOIN" });
-      } catch {
+      } catch (error) {
         if (cancelled) return;
+        if (!isPermissionDenied(error)) {
+          captureException(error, { tags: { source: "call-media" } });
+        }
         setError(PERMISSION_DENIED_MESSAGE);
       }
     })();

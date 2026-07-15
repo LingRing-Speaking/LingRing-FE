@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { CallStatus } from "@/domains/call/hooks/useCallSession";
+import { captureException } from "@/lib/sentry";
 import { createCallRecorder, type CallRecorder } from "./callRecorder";
 
 interface UseCallRecordingOptions {
@@ -52,7 +53,12 @@ export function useCallRecording({
     recorderRef.current = recorder;
 
     recorder.start(callId).catch((e) => {
+      // 시작 실패 = 이 통화의 녹음이 통째로 없다는 뜻 — 무신호로 두지 않는다.
       console.warn("[useCallRecording] start failed", e);
+      captureException(e, {
+        tags: { source: "recording-start" },
+        extra: { callId },
+      });
       startedRef.current = false;
       callIdRef.current = null;
       recorderRef.current = null;
