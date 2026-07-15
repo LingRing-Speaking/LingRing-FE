@@ -47,9 +47,11 @@ export async function loginWithGoogle(): Promise<GoogleTokens> {
 
   await ensureInitialized();
 
+  // scopes를 넘기면 Android에서 MainActivity 수정 없이는 플러그인이 로그인을
+  // 거부한다. id_token에 email·profile 클레임이 기본 포함되므로 지정하지 않는다.
   const { result } = await SocialLogin.login({
     provider: "google",
-    options: { scopes: ["email", "profile"] },
+    options: {},
   });
 
   if (!("idToken" in result) || !result.idToken) {

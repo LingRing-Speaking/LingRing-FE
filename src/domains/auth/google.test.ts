@@ -62,9 +62,12 @@ describe("loginWithGoogle", () => {
 
     expect(tokens).toEqual({ idToken: "google-id-jwt" });
     expect(mockInitialize).toHaveBeenCalledTimes(1);
-    expect(mockLogin).toHaveBeenCalledWith(
-      expect.objectContaining({ provider: "google" }),
-    );
+    // Android는 scopes 옵션 사용 시 MainActivity 수정을 요구하며 로그인 자체를
+    // 거부한다. id_token에 email·profile이 기본 포함되므로 scopes 없이 호출한다.
+    expect(mockLogin).toHaveBeenCalledWith({
+      provider: "google",
+      options: {},
+    });
   });
 
   it("두 번 로그인해도 initialize는 한 번만 호출한다", async () => {
