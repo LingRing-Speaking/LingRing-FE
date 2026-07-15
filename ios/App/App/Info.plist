@@ -67,13 +67,20 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-	<!-- 카카오 로그인 (네이티브 SDK + 앱 투 앱) -->
+	<!-- 카카오 로그인 (네이티브 SDK + 앱 투 앱) · 구글 로그인 (OAuth 리디렉션) -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>kakao71d9c43427f1b2f02c9c7f19b3f8bfe7</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- 구글 iOS client ID의 reversed 형식 -->
+				<string>com.googleusercontent.apps.393487987098-fmb01i23fhup8sh6otp3h03cqf1fse6v</string>
 			</array>
 		</dict>
 	</array>

@@ -3,6 +3,7 @@ import { PageShell } from "@/components/PageShell";
 import { LEGAL_PRIVACY_POLICY_URL, LEGAL_TERMS_URL } from "@/config/legal";
 import { AppleSignInButton } from "./AppleSignInButton";
 import { DemoLoginModal } from "./DemoLoginModal";
+import { GoogleSignInButton } from "./GoogleSignInButton";
 import { KakaoSignInButton } from "./KakaoSignInButton";
 
 // App Store 리뷰어용 demo 로그인 진입 — 로고를 짧은 시간 안에 5번 연속 탭하면 모달 노출.
@@ -64,6 +65,7 @@ export function LoginPage() {
 
         <section className="mt-auto flex flex-col gap-2.5 pb-8">
           <KakaoSignInButton />
+          <GoogleSignInButton />
           <AppleSignInButton />
           <p className="mt-3.5 text-center text-[11.5px] font-medium leading-relaxed tracking-[-0.005em] text-gray-500">
             로그인 시{" "}
