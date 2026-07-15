@@ -6,6 +6,7 @@ import {
   endCallAudioRoute,
   setSpeakerphone,
 } from "@/lib/native/audioRoute";
+import { captureException } from "@/lib/sentry";
 import type {
   ClientMessage,
   ServerMessage,
@@ -16,6 +17,9 @@ vi.mock("@/lib/native/audioRoute", () => ({
   setSpeakerphone: vi.fn().mockResolvedValue(undefined),
   configureCallAudioRoute: vi.fn().mockResolvedValue(undefined),
   endCallAudioRoute: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/sentry", () => ({
+  captureException: vi.fn(),
 }));
 
 // --- mocks ---
@@ -636,6 +640,55 @@ describe("useCallSession", () => {
       });
 
       expect(result.current.status).toBe("ended");
+    });
+  });
+
+  describe("Sentry 계측", () => {
+    it("시그널링 메시지 처리 실패를 messageType 과 함께 Sentry 로 보고한다", async () => {
+      const error = new Error("setRemoteDescription failed");
+      peerAcceptOfferMock.mockRejectedValueOnce(error);
+
+      const { result } = renderHook(() => useCallSession(baseOpts));
+      await waitFor(() => expect(sendMock).toHaveBeenCalledWith({ type: "JOIN" }));
+
+      await act(async () => {
+        dispatchMessage({
+          type: "OFFER",
+          fromUserId: 2,
+          toUserId: 1,
+          payload: { sdp: "v=0\r\nremote-offer" },
+        });
+      });
+
+      await waitFor(() => expect(result.current.status).toBe("error"));
+      expect(captureException).toHaveBeenCalledWith(error, {
+        tags: { source: "call-signaling" },
+        extra: { messageType: "OFFER" },
+      });
+    });
+
+    it("peer.start() 의 예상 밖 실패를 Sentry 로 보고한다", async () => {
+      const error = new Error("native bridge crashed");
+      peerStartMock.mockRejectedValueOnce(error);
+
+      const { result } = renderHook(() => useCallSession(baseOpts));
+
+      await waitFor(() => expect(result.current.status).toBe("error"));
+      expect(captureException).toHaveBeenCalledWith(error, {
+        tags: { source: "call-media" },
+      });
+    });
+
+    it("마이크 권한 거부(NotAllowedError)는 보고하지 않는다", async () => {
+      peerStartMock.mockRejectedValueOnce(
+        new DOMException("Permission denied", "NotAllowedError"),
+      );
+
+      const { result } = renderHook(() => useCallSession(baseOpts));
+
+      await waitFor(() => expect(result.current.status).toBe("error"));
+      expect(result.current.errorMessage).toBe("마이크 권한이 필요해요");
+      expect(captureException).not.toHaveBeenCalled();
     });
   });
 

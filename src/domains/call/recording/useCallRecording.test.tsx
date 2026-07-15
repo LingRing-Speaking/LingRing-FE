@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 
 vi.mock("./callRecorder", () => ({
   createCallRecorder: vi.fn(),
 }));
+vi.mock("@/lib/sentry", () => ({
+  captureException: vi.fn(),
+}));
 
+import { captureException } from "@/lib/sentry";
 import { createCallRecorder, type CallRecorder } from "./callRecorder";
 import { useCallRecording } from "./useCallRecording";
 import type { CallStatus } from "@/domains/call/hooks/useCallSession";
@@ -123,5 +127,26 @@ describe("useCallRecording", () => {
     rerender({ status: "ended" });
 
     expect(recorder.finalize).not.toHaveBeenCalled();
+  });
+
+  it("녹음 시작 실패를 Sentry 로 보고한다 (해당 통화 녹음 유실)", async () => {
+    const recorder = makeRecorder();
+    const error = new Error("start failed");
+    recorder.start.mockRejectedValue(error);
+    createCallRecorderMock.mockReturnValue(recorder);
+
+    const { rerender } = renderHook(
+      ({ status }: { status: CallStatus }) =>
+        useCallRecording({ callId: 7, status }),
+      { initialProps: { status: "connecting" as CallStatus } },
+    );
+    rerender({ status: "connected" });
+
+    await waitFor(() =>
+      expect(captureException).toHaveBeenCalledWith(error, {
+        tags: { source: "recording-start" },
+        extra: { callId: 7 },
+      }),
+    );
   });
 });

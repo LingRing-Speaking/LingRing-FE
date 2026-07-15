@@ -5,7 +5,7 @@ import App from "./App";
 import { ErrorFallback } from "./components/ErrorFallback";
 import { startSentryUserSync } from "./domains/auth/sentryUserSync";
 import { initializeOtaUpdater } from "./lib/ota";
-import { initSentry } from "./lib/sentry";
+import { captureException, initSentry } from "./lib/sentry";
 import "./index.css";
 
 const rootElement = document.getElementById("root");
@@ -25,7 +25,9 @@ async function bootstrap() {
   try {
     await initializeOtaUpdater();
   } catch (error) {
+    // notifyAppReady 실패 포함 — 미호출 상태가 지속되면 플러그인이 자동 롤백한다.
     console.error("[ota] 초기화 실패 — 앱은 계속 진행합니다", error);
+    captureException(error, { tags: { source: "ota" } });
   }
   try {
     await startMockWorker();

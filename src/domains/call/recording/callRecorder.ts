@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { NativeWebRTC } from "@/lib/native/webrtcPlugin";
+import { captureException } from "@/lib/sentry";
 import { uploadRecording } from "./recordingUploader";
 
 // 통화 녹음. 녹음 대상은 양 플랫폼 모두 "학습자 본인의 마이크 음성".
@@ -23,7 +24,12 @@ function createNativeCallRecorder(): CallRecorder {
       try {
         stopped = await NativeWebRTC.stopFileRecording();
       } catch (e) {
+        // 녹음은 상대방의 학습 자산 — 조용한 유실은 허용되지 않으므로 보고한다.
         console.warn("[callRecorder] stopFileRecording failed", e);
+        captureException(e, {
+          tags: { source: "recording-stop" },
+          extra: { callId },
+        });
         return;
       }
       if (!stopped?.filePath || !stopped.sizeBytes) return;
@@ -37,6 +43,10 @@ function createNativeCallRecorder(): CallRecorder {
       } catch (e) {
         // 실패 시 파일 보존 — 다음 앱 시작 시 recoveryRun 이 재시도.
         console.warn("[callRecorder] upload failed, will retry next startup", e);
+        captureException(e, {
+          tags: { source: "recording-upload" },
+          extra: { callId },
+        });
       }
     },
   };
