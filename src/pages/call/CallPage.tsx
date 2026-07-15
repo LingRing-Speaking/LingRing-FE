@@ -29,7 +29,9 @@ export function CallPage() {
     return <Navigate to="/home" replace />;
   }
 
-  return <CallPageInner roomId={roomId} partnerId={partnerId} callId={callId} />;
+  // 통화 중 수신 초대를 받으면(#213) 같은 라우트에서 roomId 만 바뀐다 —
+  // key 로 리마운트해 이전 통화의 세션·모달·시트 상태가 새 통화로 새지 않게 한다.
+  return <CallPageInner key={roomId} roomId={roomId} partnerId={partnerId} callId={callId} />;
 }
 
 function CallPageInner({

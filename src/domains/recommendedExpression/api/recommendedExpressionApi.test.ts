@@ -13,6 +13,7 @@ describe("recommendedExpressionApi", () => {
       expression: "Sounds good to me.",
       meaning: "좋아요, 저도 동의해요 — 가볍게 맞장구칠 때",
       createdAt: "2026-04-25T08:00:00.000000",
+      bookmarkId: null,
     });
   });
 

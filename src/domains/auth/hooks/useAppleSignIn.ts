@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError } from "@/lib/http";
+import { captureException } from "@/lib/sentry";
 import { AppleIdentityTokenMissingError, AppleLoginUnavailableError } from "../apple";
 import { NicknameRetryExhaustedError, signInWithApple } from "../signIn";
 import { saveTokens } from "../storage";
@@ -73,7 +74,14 @@ export function useAppleSignIn(): UseAppleSignInResult {
       const next = needsAgreement(result.user) ? "/onboarding/terms" : "/home";
       navigate(next, { replace: true });
     } catch (err) {
-      setFailure(classify(err));
+      const failure = classify(err);
+      // 분류 불가(unknown) = SDK·브릿지의 예상 밖 실패 — 무신호로 두지 않는다.
+      if (failure.kind === "unknown") {
+        captureException(err, {
+          tags: { source: "social-login", provider: "apple" },
+        });
+      }
+      setFailure(failure);
     } finally {
       setIsLoading(false);
     }

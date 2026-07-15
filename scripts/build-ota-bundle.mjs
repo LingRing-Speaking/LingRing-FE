@@ -15,50 +15,31 @@
 
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { computeAppVersion } from "./app-version.mjs";
 
 const execFileAsync = promisify(execFile);
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST_DIR = resolve(ROOT, "dist");
 const OUT_DIR = resolve(ROOT, "out");
 
-const BUNDLE_BASE_URL =
-  process.env.OTA_BUNDLE_BASE_URL ?? "http://localhost:8888";
+const BUNDLE_BASE_URL = process.env.OTA_BUNDLE_BASE_URL ?? "http://localhost:8888";
 const S3_BUCKET = process.env.OTA_S3_BUCKET;
 const S3_PREFIX = process.env.OTA_S3_PREFIX ?? "";
 const CLOUDFRONT_DISTRIBUTION_ID = process.env.OTA_CLOUDFRONT_DISTRIBUTION_ID;
 
 if (!existsSync(DIST_DIR)) {
-  console.error(
-    "[build-ota-bundle] dist/ 가 없습니다. 먼저 `npm run build` 를 실행하세요.",
-  );
+  console.error("[build-ota-bundle] dist/ 가 없습니다. 먼저 `npm run build` 를 실행하세요.");
   process.exit(1);
 }
 
 mkdirSync(OUT_DIR, { recursive: true });
 
-const pkg = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8"));
-
-// 버전은 커밋 수로 단조 증가시킨다. 로컬 .build-counter 와 달리 CI 에서도
-// 리셋되지 않고, 같은 커밋을 다시 빌드하면 같은 버전이 나와 불필요한 OTA 를 막는다.
-const { stdout: commitCountRaw } = await execFileAsync(
-  "git",
-  ["rev-list", "--count", "HEAD"],
-  { cwd: ROOT },
-);
-const commitCount = commitCountRaw.trim();
-const baseVersion = pkg.version.split("-")[0];
-const [major, minor] = baseVersion.split(".");
-const version = `${major}.${minor}.${commitCount}`;
+// 버전 계산은 Sentry release 와 공유한다 (app-version.mjs 주석 참고).
+const version = computeAppVersion();
 const zipName = `app-${version}.zip`;
 const zipPath = resolve(OUT_DIR, zipName);
 
@@ -83,9 +64,7 @@ console.log(`[build-ota-bundle] → out/${zipName}`);
 console.log(`[build-ota-bundle] → out/manifest.json (url=${manifest.url})`);
 
 if (!S3_BUCKET) {
-  console.log(
-    "[build-ota-bundle] OTA_S3_BUCKET 미설정 — S3 업로드 생략(로컬 전용).",
-  );
+  console.log("[build-ota-bundle] OTA_S3_BUCKET 미설정 — S3 업로드 생략(로컬 전용).");
   process.exit(0);
 }
 

@@ -3,6 +3,8 @@ import { PageShell } from "@/components/PageShell";
 import { usePollAnalysisStatus } from "@/domains/callHistory/hooks/usePollAnalysisStatus";
 import { useAnalysisResult } from "@/domains/callHistory/hooks/useAnalysisResult";
 import type { AnalysisResult } from "@/domains/callHistory/types";
+import { BookmarkStarButton } from "@/domains/userExpression/components/BookmarkStarButton";
+import { useToggleBookmark } from "@/domains/userExpression/hooks/useToggleBookmark";
 import { TranscriptSection } from "./TranscriptSection";
 
 export function AnalysisResultPage() {
@@ -27,7 +29,7 @@ export function AnalysisResultPage() {
       if (resultQuery.isPending) return <ProcessingView />;
       if (resultQuery.isError || !resultQuery.data)
         return <FallbackMessage text="결과를 불러오지 못했어요." />;
-      return <CompletedView result={resultQuery.data} />;
+      return <CompletedView result={resultQuery.data} analysisId={analysisId} />;
     }
     return null;
   })();
@@ -105,7 +107,13 @@ function FallbackMessage({ text }: { text: string }) {
   );
 }
 
-function CompletedView({ result }: { result: AnalysisResult }) {
+function CompletedView({
+  result,
+  analysisId,
+}: {
+  result: AnalysisResult;
+  analysisId: number;
+}) {
   const { positives, mistakes } = result;
   const hasNothing = positives.length === 0 && mistakes.length === 0;
 
@@ -128,7 +136,7 @@ function CompletedView({ result }: { result: AnalysisResult }) {
       )}
       {mistakes.length > 0 && (
         <div className={positives.length > 0 ? "mt-7" : ""}>
-          <MistakesSection items={mistakes} />
+          <MistakesSection items={mistakes} analysisId={analysisId} />
         </div>
       )}
       <TranscriptSection callId={result.callId} />
@@ -171,47 +179,81 @@ function PositivesSection({
 
 function MistakesSection({
   items,
+  analysisId,
 }: {
   items: AnalysisResult["mistakes"];
+  analysisId: number;
 }) {
   return (
     <section>
       <SectionTitle title="이렇게 말해보세요" count={items.length} />
       <ul className="flex flex-col gap-2.5" role="list">
-        {items.map((item, idx) => (
-          <li
-            key={idx}
-            className="relative rounded-[18px] bg-white px-4 py-3.5 shadow-card"
-          >
-            <div className="flex items-start gap-2">
-              <span className="mt-[2px] flex-shrink-0 rounded-md bg-gray-100 px-2 py-[2px] text-[10.5px] font-bold tracking-tight text-gray-600">
-                원래
-              </span>
-              <p className="m-0 text-[14.5px] font-semibold leading-snug tracking-tight text-gray-500 line-through">
-                {item.wrong}
-              </p>
-            </div>
-            <div className="mt-1.5 flex items-start gap-2">
-              <span className="mt-[2px] flex-shrink-0 rounded-md bg-mint-100 px-2 py-[2px] text-[10.5px] font-bold tracking-tight text-mint-600">
-                자연스럽게
-              </span>
-              <p className="m-0 text-[14.5px] font-semibold leading-snug tracking-tight text-gray-900">
-                {item.improved}
-              </p>
-            </div>
-            <p className="mt-1.5 text-[12.5px] font-medium leading-snug tracking-tight text-gray-500">
-              {item.koMeaning}
-            </p>
-            <div className="mt-3 flex gap-1.5 rounded-[10px] bg-mint-50 px-3 py-2.5">
-              <span aria-hidden="true">💡</span>
-              <span className="text-[12.5px] font-medium leading-snug tracking-tight text-gray-700">
-                {item.reason}
-              </span>
-            </div>
-          </li>
+        {items.map((item) => (
+          <MistakeCard key={item.id} item={item} analysisId={analysisId} />
         ))}
       </ul>
     </section>
+  );
+}
+
+function MistakeCard({
+  item,
+  analysisId,
+}: {
+  item: AnalysisResult["mistakes"][number];
+  analysisId: number;
+}) {
+  const { toggle, isPending } = useToggleBookmark<AnalysisResult>({
+    queryKey: ["analysisResult", analysisId],
+    patch: (data, nextBookmarkId) => ({
+      ...data,
+      mistakes: data.mistakes.map((m) =>
+        m.id === item.id ? { ...m, bookmarkId: nextBookmarkId } : m,
+      ),
+    }),
+  });
+
+  return (
+    <li className="relative rounded-[18px] bg-white px-4 py-3.5 pr-12 shadow-card">
+      <div className="absolute right-2 top-2">
+        <BookmarkStarButton
+          active={item.bookmarkId !== null}
+          pending={isPending}
+          onToggle={() =>
+            toggle(item.bookmarkId, {
+              source: "ANALYSIS_MISTAKE",
+              analysisId,
+              mistakeId: item.id,
+            })
+          }
+        />
+      </div>
+      <div className="flex items-start gap-2">
+        <span className="mt-[2px] flex-shrink-0 rounded-md bg-gray-100 px-2 py-[2px] text-[10.5px] font-bold tracking-tight text-gray-600">
+          원래
+        </span>
+        <p className="m-0 text-[14.5px] font-semibold leading-snug tracking-tight text-gray-500 line-through">
+          {item.wrong}
+        </p>
+      </div>
+      <div className="mt-1.5 flex items-start gap-2">
+        <span className="mt-[2px] flex-shrink-0 rounded-md bg-mint-100 px-2 py-[2px] text-[10.5px] font-bold tracking-tight text-mint-600">
+          자연스럽게
+        </span>
+        <p className="m-0 text-[14.5px] font-semibold leading-snug tracking-tight text-gray-900">
+          {item.improved}
+        </p>
+      </div>
+      <p className="mt-1.5 text-[12.5px] font-medium leading-snug tracking-tight text-gray-500">
+        {item.koMeaning}
+      </p>
+      <div className="mt-3 flex gap-1.5 rounded-[10px] bg-mint-50 px-3 py-2.5">
+        <span aria-hidden="true">💡</span>
+        <span className="text-[12.5px] font-medium leading-snug tracking-tight text-gray-700">
+          {item.reason}
+        </span>
+      </div>
+    </li>
   );
 }
 

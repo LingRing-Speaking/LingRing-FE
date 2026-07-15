@@ -53,6 +53,9 @@ android {
     buildTypes {
         release {
             signingConfig keystorePropsFile.exists() ? signingConfigs.release : signingConfigs.debug
+            // 난독화 미사용 → Kotlin 크래시 스택이 원본 그대로 Sentry 에 잡힌다 (#199).
+            // minifyEnabled 를 켜는 날에는 Sentry Gradle Plugin 으로 mapping 업로드를
+            // 함께 추가해야 스택트레이스 심볼화가 유지된다.
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

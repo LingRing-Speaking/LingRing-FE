@@ -69,7 +69,21 @@ describe("ProfileEditModal", () => {
     await user.type(input, "x");
 
     expect(
-      screen.getByText("닉네임은 2~15자여야 해요."),
+      screen.getByText("닉네임은 2~12자여야 해요."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "저장" })).toBeDisabled();
+  });
+
+  it("허용되지 않는 문자가 섞이면 문자셋 에러 + [저장] disabled", async () => {
+    const user = userEvent.setup();
+    renderModal();
+
+    const input = screen.getByLabelText("닉네임");
+    await user.clear(input);
+    await user.type(input, "hi!");
+
+    expect(
+      screen.getByText("특수문자나 공백은 사용할 수 없어요."),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "저장" })).toBeDisabled();
   });

@@ -1,5 +1,6 @@
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { CapacitorUpdater } from "@capgo/capacitor-updater";
+import { captureException } from "@/lib/sentry";
 
 const LOG_PREFIX = "[ota]";
 
@@ -23,11 +24,20 @@ async function registerDiagnosticListeners(): Promise<void> {
   await CapacitorUpdater.addListener("downloadComplete", (event) => {
     console.log(`${LOG_PREFIX} downloadComplete`, event);
   });
+  // 다운로드/적용 실패는 배포 사고 신호 — 콘솔로만 남기지 않고 보고한다.
   await CapacitorUpdater.addListener("downloadFailed", (event) => {
     console.error(`${LOG_PREFIX} downloadFailed`, event);
+    captureException(new Error(`${LOG_PREFIX} downloadFailed`), {
+      tags: { source: "ota" },
+      extra: { event },
+    });
   });
   await CapacitorUpdater.addListener("updateFailed", (event) => {
     console.error(`${LOG_PREFIX} updateFailed`, event);
+    captureException(new Error(`${LOG_PREFIX} updateFailed`), {
+      tags: { source: "ota" },
+      extra: { event },
+    });
   });
   await CapacitorUpdater.addListener("appReloaded", () => {
     console.log(`${LOG_PREFIX} appReloaded`);
@@ -50,19 +60,32 @@ export async function checkForUpdate(): Promise<void> {
     return;
   }
 
+  let response;
   try {
     // WebView 의 fetch 는 capacitor://localhost 출처라 cross-origin 으로 CORS 에
     // 막힌다. CapacitorHttp 는 네이티브 HTTP 로 나가 CORS 제약을 받지 않는다.
-    const response = await CapacitorHttp.get({
+    response = await CapacitorHttp.get({
       url: updateUrl,
       headers: { "Cache-Control": "no-cache" },
     });
-    if (response.status < 200 || response.status >= 300) {
-      console.error(`${LOG_PREFIX} manifest 응답 오류`, response.status);
-      return;
-    }
+  } catch (error) {
+    // 오프라인/일시 네트워크 실패는 정상 케이스 — 다음 실행에서 재시도되므로 보고하지 않는다.
+    console.warn(`${LOG_PREFIX} manifest 요청 실패`, error);
+    return;
+  }
 
-    const manifest = response.data as OtaManifest;
+  if (response.status < 200 || response.status >= 300) {
+    // 정적 호스팅 manifest 의 응답 오류는 배포가 깨졌다는 신호다.
+    console.error(`${LOG_PREFIX} manifest 응답 오류`, response.status);
+    captureException(
+      new Error(`${LOG_PREFIX} manifest 응답 오류 (status ${response.status})`),
+      { tags: { source: "ota" } },
+    );
+    return;
+  }
+
+  const manifest = response.data as OtaManifest;
+  try {
     const { bundle } = await CapacitorUpdater.current();
     if (manifest.version === bundle.version) return; // 이미 최신
 
@@ -75,6 +98,11 @@ export async function checkForUpdate(): Promise<void> {
     // next 는 현재 세션을 끊지 않고 다음 백그라운드/재실행 때 새 번들을 적용한다.
     await CapacitorUpdater.next(downloaded);
   } catch (error) {
-    console.error(`${LOG_PREFIX} 업데이트 확인 실패`, error);
+    // 여기 실패는 사용자가 구 번들에 갇힌다는 뜻 — 무신호로 두지 않는다.
+    console.error(`${LOG_PREFIX} 업데이트 적용 실패`, error);
+    captureException(error, {
+      tags: { source: "ota" },
+      extra: { manifestVersion: manifest.version },
+    });
   }
 }

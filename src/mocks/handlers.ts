@@ -1,10 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { env } from "@/config/env";
-import type {
-  AnalysisResult,
-  AnalysisStatus,
-  CallHistoryItem,
-} from "@/domains/callHistory/types";
+import type { AnalysisResult, AnalysisStatus, CallHistoryItem } from "@/domains/callHistory/types";
 
 const API_PREFIX = "/api/v1";
 const apiUrl = (path: string) => `${env.apiBaseUrl}${API_PREFIX}${path}`;
@@ -34,25 +30,80 @@ function isRecordingStillUploading(callId: number): boolean {
   return Date.now() - startedAt < RECORDING_UPLOAD_DURATION_MS;
 }
 
+// ===== 친구 시스템 목 상태 (#207) =====
+// userId 1 = 본인(/me). 검색은 이 디렉토리에서 닉네임 정확 일치로 찾는다.
+const MY_USER_ID = 1;
+type MockDirectoryUser = {
+  userId: number;
+  nickname: string;
+  profileImage: string | null;
+};
+const FRIEND_DIRECTORY: MockDirectoryUser[] = [
+  { userId: 1, nickname: "lee-tiger-1234", profileImage: null },
+  { userId: 2, nickname: "지우", profileImage: null },
+  { userId: 3, nickname: "민지", profileImage: null },
+  { userId: 4, nickname: "성호", profileImage: null },
+  { userId: 5, nickname: "하늘", profileImage: null },
+  { userId: 6, nickname: "Jenny", profileImage: null },
+  { userId: 7, nickname: "준서", profileImage: null },
+  { userId: 8, nickname: "지훈", profileImage: null },
+  { userId: 9, nickname: "Alex", profileImage: null },
+];
+
+type MockRelation = {
+  status: "ACCEPTED" | "PENDING";
+  // ACCEPTED 면 "누가 먼저 신청했는지"만 의미. PENDING 이면 RECEIVED=내가 받음/SENT=내가 보냄.
+  direction: "RECEIVED" | "SENT";
+  requestedAt: string;
+};
+// userId -> 나와의 관계
+let friendRelations = new Map<number, MockRelation>();
+
+function seedFriendState() {
+  friendRelations = new Map<number, MockRelation>([
+    [2, { status: "ACCEPTED", direction: "SENT", requestedAt: "2026-07-01T10:00:00" }],
+    [3, { status: "ACCEPTED", direction: "RECEIVED", requestedAt: "2026-07-02T10:00:00" }],
+    [4, { status: "ACCEPTED", direction: "SENT", requestedAt: "2026-07-03T10:00:00" }],
+    [5, { status: "PENDING", direction: "RECEIVED", requestedAt: "2026-07-13T09:00:00" }],
+    [6, { status: "PENDING", direction: "RECEIVED", requestedAt: "2026-07-13T11:00:00" }],
+    [7, { status: "PENDING", direction: "SENT", requestedAt: "2026-07-12T08:00:00" }],
+  ]);
+}
+seedFriendState();
+
+function relationFor(userId: number): string {
+  if (userId === MY_USER_ID) return "SELF";
+  const rel = friendRelations.get(userId);
+  if (!rel) return "NONE";
+  if (rel.status === "ACCEPTED") return "FRIEND";
+  return rel.direction === "RECEIVED" ? "REQUEST_RECEIVED" : "REQUEST_SENT";
+}
+
+// 목 온라인 상태 — 데모용 고정 집합. 실제 BE 는 하트비트 TTL(10초)로 판정한다.
+const ONLINE_USER_IDS = new Set<number>([2, 4, 6]);
+
+// ===== 친구 지목 통화 초대 목 상태 (#213) =====
+// 발신 초대는 유저당 1건. 랜덤 매칭 목이 WAITING 에 머무는 것과 같은 이유로
+// 상태 전이는 시뮬레이션하지 않는다 — 종결 상태는 테스트가 server.use 로 덮어쓴다.
+let outgoingCallInvitation: { inviteeUserId: number } | null = null;
+
 /** 테스트 간 모듈 레벨 상태를 초기화한다. */
 export function resetMockState() {
   analysisIdByCallId.clear();
   triggeredAtByAnalysisId.clear();
   recordingUploadStartedAtByCallId.clear();
   nextAnalysisId = 1000;
+  seedFriendState();
+  outgoingCallInvitation = null;
 }
 
 // 분석 row 가 존재하는 경우의 상태. READY 는 row 자체가 없는 상태라 여기서 다루지 않음.
-function statusForAnalysisId(
-  analysisId: number,
-): "PROCESSING" | "COMPLETED" | "FAILED" {
+function statusForAnalysisId(analysisId: number): "PROCESSING" | "COMPLETED" | "FAILED" {
   // FAILED 시뮬: 끝자리 9 인 시드 analysisId 는 항상 FAILED 응답
   if (analysisId % 10 === 9) return "FAILED";
   const triggeredAt = triggeredAtByAnalysisId.get(analysisId);
   if (triggeredAt == null) return "COMPLETED";
-  return Date.now() - triggeredAt < PROCESSING_DURATION_MS
-    ? "PROCESSING"
-    : "COMPLETED";
+  return Date.now() - triggeredAt < PROCESSING_DURATION_MS ? "PROCESSING" : "COMPLETED";
 }
 
 const FAKE_PARTNER_NAMES = [
@@ -112,10 +163,7 @@ function generateFakeCalls(n: number): CallHistoryItem[] {
     let analysisStatus: AnalysisStatus;
     if (currentAnalysisId != null) {
       analysisStatus = statusForAnalysisId(currentAnalysisId);
-    } else if (
-      callId === RECORDING_UPLOAD_DEMO_CALL_ID &&
-      isRecordingStillUploading(callId)
-    ) {
+    } else if (callId === RECORDING_UPLOAD_DEMO_CALL_ID && isRecordingStillUploading(callId)) {
       analysisStatus = "WAITING_RECORDINGS";
     } else {
       analysisStatus = "READY";
@@ -143,21 +191,28 @@ const SAMPLE_RESULT_BASE: Omit<AnalysisResult, "callId" | "userId"> = {
   ],
   mistakes: [
     {
+      id: 1,
       tag: "GRAMMAR",
       wrong: "I goed to school yesterday.",
       improved: "I went to school yesterday.",
       reason: "go 의 과거형은 went 입니다.",
       koMeaning: "나는 어제 학교에 갔다.",
+      bookmarkId: null,
     },
     {
+      id: 2,
       tag: "COLLOCATION",
       wrong: "make a homework",
       improved: "do my homework",
       reason: "homework 는 do 와 결합합니다.",
       koMeaning: "숙제를 하다",
+      bookmarkId: null,
     },
   ],
 };
+
+// 목에서 찜 등록 시 발급할 표현 id 시퀀스(기존 목 데이터 id 와 겹치지 않게 큰 값부터).
+let mockBookmarkSeq = 1000;
 
 export const handlers = [
   http.get(apiUrl("/me"), () => {
@@ -169,13 +224,15 @@ export const handlers = [
   }),
 
   http.get(apiUrl("/users/:userId"), ({ params }) => {
+    const userId = Number(params.userId);
     return HttpResponse.json({
       data: {
-        id: Number(params.userId),
+        id: userId,
         nickname: "Sophie",
         profileImage: null,
         level: "INTERMEDIATE",
         mannerTemperature: 36.5,
+        relation: relationFor(userId),
       },
       status: 200,
       message: "OK",
@@ -196,6 +253,20 @@ export const handlers = [
       status: 204,
       message: "NO_CONTENT",
     });
+  }),
+
+  // presence 하트비트 — #213 부터 응답에 수신 통화 초대가 piggyback 된다.
+  // 목에서는 수신 초대를 시뮬레이션하지 않는다 (테스트는 server.use 로 덮어씀).
+  http.post(apiUrl("/me/presence"), () => {
+    return HttpResponse.json({
+      data: { incomingInvitation: null },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
+  http.delete(apiUrl("/me/presence"), () => {
+    return HttpResponse.json({ data: null, status: 204, message: "NO_CONTENT" });
   }),
 
   http.post(apiUrl("/me/withdraw"), () => {
@@ -279,6 +350,32 @@ export const handlers = [
     });
   }),
 
+  // 찜 등록. 실제 BE 는 source 로 원본을 조회해 expression/meaning 을 채우지만,
+  // 목에서는 생성된 표현을 간단히 고정 문구로 반환한다.
+  http.post(apiUrl("/expressions"), async () => {
+    mockBookmarkSeq += 1;
+    return HttpResponse.json({
+      data: {
+        id: mockBookmarkSeq,
+        userId: 1,
+        expression: "Saved expression (mock)",
+        meaning: "저장된 표현 (목)",
+        createdAt: "2026-07-13T00:00:00.000000",
+      },
+      status: 201,
+      message: "CREATED",
+    });
+  }),
+
+  // 찜 해제.
+  http.delete(apiUrl("/expressions/:id"), () => {
+    return HttpResponse.json({
+      data: null,
+      status: 204,
+      message: "NO_CONTENT",
+    });
+  }),
+
   http.get(apiUrl("/recommended-expressions/daily"), () => {
     return HttpResponse.json({
       data: {
@@ -286,6 +383,7 @@ export const handlers = [
         expression: "Sounds good to me.",
         meaning: "좋아요, 저도 동의해요 — 가볍게 맞장구칠 때",
         createdAt: "2026-04-25T08:00:00.000000",
+        bookmarkId: null,
       },
       status: 200,
       message: "OK",
@@ -300,6 +398,7 @@ export const handlers = [
       expression: `Sample expression ${i + 1}`,
       meaning: `샘플 표현 ${i + 1}`,
       createdAt: "2026-04-28T22:34:56.123456",
+      bookmarkId: null,
     }));
     return HttpResponse.json({
       data: { items },
@@ -352,6 +451,53 @@ export const handlers = [
       status: 204,
       message: "NO_CONTENT",
     });
+  }),
+
+  // ===== 친구 지목 통화 초대 (#213) =====
+  http.post(apiUrl("/call-invitations"), async ({ request }) => {
+    const body = (await request.json()) as { inviteeUserId?: number };
+    if (body.inviteeUserId == null) {
+      return HttpResponse.json(
+        { data: null, status: 400, message: "BAD_REQUEST" },
+        { status: 400 },
+      );
+    }
+    if (outgoingCallInvitation) {
+      return HttpResponse.json({ data: null, status: 409, message: "CONFLICT" }, { status: 409 });
+    }
+    outgoingCallInvitation = { inviteeUserId: body.inviteeUserId };
+    return HttpResponse.json({ data: null, status: 204, message: "NO_CONTENT" });
+  }),
+
+  http.get(apiUrl("/call-invitations/outgoing"), () => {
+    return HttpResponse.json({
+      data: outgoingCallInvitation
+        ? { status: "RINGING", roomId: null, callId: null }
+        : { status: "NONE", roomId: null, callId: null },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
+  http.delete(apiUrl("/call-invitations/outgoing"), () => {
+    // 멱등 — 초대가 없어도 204.
+    outgoingCallInvitation = null;
+    return HttpResponse.json({ data: null, status: 204, message: "NO_CONTENT" });
+  }),
+
+  // 수신 초대는 목에서 생성되지 않으므로 기본은 404 (초대 없음) — 테스트가 덮어쓴다.
+  http.post(apiUrl("/call-invitations/accept"), () => {
+    return HttpResponse.json(
+      { data: null, status: 404, message: "CALL_INVITATION_NOT_FOUND" },
+      { status: 404 },
+    );
+  }),
+
+  http.post(apiUrl("/call-invitations/decline"), () => {
+    return HttpResponse.json(
+      { data: null, status: 404, message: "CALL_INVITATION_NOT_FOUND" },
+      { status: 404 },
+    );
   }),
 
   http.post(apiUrl("/reports"), () => {
@@ -512,21 +658,146 @@ export const handlers = [
     });
   }),
 
-  // 통화 녹음 업로드 — BE PR #98
-  http.post(
-    apiUrl("/calls/:callId/recordings/presigned-url"),
-    ({ params }) => {
-      const callId = params.callId;
+  // ===== 친구 시스템 (#207) =====
+  http.get(apiUrl("/friends/received-count"), () => {
+    let count = 0;
+    for (const rel of friendRelations.values()) {
+      if (rel.status === "PENDING" && rel.direction === "RECEIVED") count += 1;
+    }
+    return HttpResponse.json({ data: { count }, status: 200, message: "OK" });
+  }),
+
+  http.get(apiUrl("/friends/search"), ({ request }) => {
+    const nickname = new URL(request.url).searchParams.get("nickname") ?? "";
+    const user = FRIEND_DIRECTORY.find((u) => u.nickname === nickname);
+    // 일치 없음 → data: null
+    if (!user) {
+      return HttpResponse.json({ data: null, status: 200, message: "OK" });
+    }
+    return HttpResponse.json({
+      data: {
+        userId: user.userId,
+        nickname: user.nickname,
+        profileImage: user.profileImage,
+        relation: relationFor(user.userId),
+      },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
+  http.get(apiUrl("/friends"), ({ request }) => {
+    const url = new URL(request.url);
+    const status = url.searchParams.get("status") ?? "ACCEPTED";
+    const direction = url.searchParams.get("direction"); // RECEIVED | SENT | null
+    const page = Number(url.searchParams.get("page") ?? 0);
+    const size = Number(url.searchParams.get("size") ?? 20);
+
+    const all = [...friendRelations.entries()]
+      .filter(([, rel]) => {
+        if (rel.status !== status) return false;
+        if (status === "PENDING" && direction && rel.direction !== direction) return false;
+        return true;
+      })
+      .map(([userId, rel]) => {
+        const user = FRIEND_DIRECTORY.find((u) => u.userId === userId);
+        return {
+          userId,
+          nickname: user?.nickname ?? null,
+          profileImage: user?.profileImage ?? null,
+          status: rel.status,
+          direction: rel.direction,
+          requestedAt: rel.requestedAt,
+          online: ONLINE_USER_IDS.has(userId),
+        };
+      })
+      .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
+
+    const slice = all.slice(page * size, page * size + size);
+    return HttpResponse.json({
+      data: { items: slice, hasNext: (page + 1) * size < all.length },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
+  http.post(apiUrl("/friends"), async ({ request }) => {
+    const body = (await request.json()) as { targetUserId?: number };
+    const targetUserId = body.targetUserId;
+    if (targetUserId == null || targetUserId < 0 || targetUserId === MY_USER_ID) {
+      return HttpResponse.json(
+        { data: null, status: 400, message: "BAD_REQUEST" },
+        { status: 400 },
+      );
+    }
+    const existing = friendRelations.get(targetUserId);
+    // 상대가 이미 나에게 보낸 대기 요청 → 즉시 수락(ACCEPTED)
+    if (existing?.status === "PENDING" && existing.direction === "RECEIVED") {
+      friendRelations.set(targetUserId, { ...existing, status: "ACCEPTED" });
       return HttpResponse.json({
-        data: {
-          url: `https://lingring-recordings-mock.s3.amazonaws.com/call-recordings/${callId}/1/uuid?X-Amz-Signature=mock`,
-          key: `call-recordings/${callId}/1/uuid`,
-        },
+        data: { userId: targetUserId, status: "ACCEPTED" },
         status: 200,
         message: "OK",
       });
-    },
-  ),
+    }
+    // 이미 친구거나 이미 보낸 요청 → 409
+    if (existing) {
+      return HttpResponse.json({ data: null, status: 409, message: "CONFLICT" }, { status: 409 });
+    }
+    friendRelations.set(targetUserId, {
+      status: "PENDING",
+      direction: "SENT",
+      requestedAt: new Date().toISOString(),
+    });
+    return HttpResponse.json(
+      { data: { userId: targetUserId, status: "PENDING" }, status: 201, message: "CREATED" },
+      { status: 201 },
+    );
+  }),
+
+  http.patch(apiUrl("/friends/:requesterId"), async ({ params, request }) => {
+    const requesterId = Number(params.requesterId);
+    const body = (await request.json()) as { status?: string };
+    if (body.status !== "ACCEPTED") {
+      return HttpResponse.json(
+        { data: null, status: 400, message: "BAD_REQUEST" },
+        { status: 400 },
+      );
+    }
+    const rel = friendRelations.get(requesterId);
+    if (!rel || rel.status !== "PENDING") {
+      return HttpResponse.json({ data: null, status: 404, message: "NOT_FOUND" }, { status: 404 });
+    }
+    // 내가 보낸 요청을 내가 수락하려는 경우
+    if (rel.direction === "SENT") {
+      return HttpResponse.json({ data: null, status: 403, message: "FORBIDDEN" }, { status: 403 });
+    }
+    friendRelations.set(requesterId, { ...rel, status: "ACCEPTED" });
+    return HttpResponse.json({
+      data: { userId: requesterId, status: "ACCEPTED" },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
+  http.delete(apiUrl("/friends/:userId"), ({ params }) => {
+    // 거절·취소·삭제 공용. 관계가 없어도 204(멱등).
+    friendRelations.delete(Number(params.userId));
+    return HttpResponse.json({ data: null, status: 204, message: "NO_CONTENT" });
+  }),
+
+  // 통화 녹음 업로드 — BE PR #98
+  http.post(apiUrl("/calls/:callId/recordings/presigned-url"), ({ params }) => {
+    const callId = params.callId;
+    return HttpResponse.json({
+      data: {
+        url: `https://lingring-recordings-mock.s3.amazonaws.com/call-recordings/${callId}/1/uuid?X-Amz-Signature=mock`,
+        key: `call-recordings/${callId}/1/uuid`,
+      },
+      status: 200,
+      message: "OK",
+    });
+  }),
   http.post(apiUrl("/calls/:callId/recordings"), () => {
     return HttpResponse.json(
       {

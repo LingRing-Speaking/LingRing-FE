@@ -316,7 +316,7 @@ describe("CallPage", () => {
 
       const dialog = await screen.findByRole("dialog");
       expect(dialog).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "신고하기" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "더보기" })).toBeInTheDocument();
     });
 
     it("프로필 모달의 [신고하기] 클릭 → 신고 모달로 전환된다", async () => {
@@ -332,13 +332,14 @@ describe("CallPage", () => {
       const user = userEvent.setup();
 
       await user.click(screen.getByRole("button", { name: "상대방 정보 보기" }));
-      await user.click(await screen.findByRole("button", { name: "신고하기" }));
+      await user.click(await screen.findByRole("button", { name: "더보기" }));
+      await user.click(screen.getByRole("menuitem", { name: "신고하기" }));
 
       // ReportModal 의 사유 라디오 노출 = 신고 모달로 전환된 표지
       expect(await screen.findByRole("radio", { name: "부적절한 대화" })).toBeInTheDocument();
     });
 
-    it("프로필 모달에 [차단하기] 와 [신고하기] 가 함께 노출된다", async () => {
+    it("⋯ 메뉴를 열면 [차단하기] 와 [신고하기] 가 함께 노출된다", async () => {
       sessionState.status = "connected";
       profileState.data = {
         id: 2,
@@ -351,9 +352,10 @@ describe("CallPage", () => {
       const user = userEvent.setup();
 
       await user.click(screen.getByRole("button", { name: "상대방 정보 보기" }));
+      await user.click(await screen.findByRole("button", { name: "더보기" }));
 
-      expect(await screen.findByRole("button", { name: "차단하기" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "신고하기" })).toBeInTheDocument();
+      expect(screen.getByRole("menuitem", { name: "차단하기" })).toBeInTheDocument();
+      expect(screen.getByRole("menuitem", { name: "신고하기" })).toBeInTheDocument();
     });
 
     it("프로필 모달의 [차단하기] 클릭 → 차단 확인 모달로 전환된다", async () => {
@@ -369,7 +371,8 @@ describe("CallPage", () => {
       const user = userEvent.setup();
 
       await user.click(screen.getByRole("button", { name: "상대방 정보 보기" }));
-      await user.click(await screen.findByRole("button", { name: "차단하기" }));
+      await user.click(await screen.findByRole("button", { name: "더보기" }));
+      await user.click(screen.getByRole("menuitem", { name: "차단하기" }));
 
       expect(await screen.findByText("이 사용자를 차단할까요?")).toBeInTheDocument();
     });

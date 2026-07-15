@@ -27,6 +27,7 @@ describe("useUserProfile", () => {
             profileImage: null,
             level: "ADVANCED",
             mannerTemperature: 38.5,
+            relation: "NONE",
           },
         }),
       ),
@@ -41,6 +42,7 @@ describe("useUserProfile", () => {
       profileImage: null,
       level: "ADVANCED",
       mannerTemperature: 38.5,
+      relation: "NONE",
     });
   });
 

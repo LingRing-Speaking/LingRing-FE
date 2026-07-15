@@ -9,20 +9,30 @@ import { useAuthStore } from "@/domains/auth/store";
 import { renderWithQueryClient } from "../../../test/utils/renderWithQueryClient";
 import { OnboardingTermsPage } from "./OnboardingTermsPage";
 
-const ONBOARDED_USER = {
+const NEW_SIGNUP_USER = {
   id: 1,
-  nickname: "tester",
+  nickname: "brave-fox-1234",
   profileImage: null,
   requiresOnboarding: true,
 };
 
-function renderPage() {
+// 약관 버전 변경으로 재동의만 필요한 기존 유저 (이미 닉네임을 가지고 있음).
+const RECONSENT_USER = {
+  id: 2,
+  nickname: "veteran",
+  profileImage: null,
+  requiresOnboarding: false,
+  agreedTermsVersion: "2000-01-01",
+};
+
+function renderPage(user: typeof NEW_SIGNUP_USER | typeof RECONSENT_USER = NEW_SIGNUP_USER) {
   return renderWithQueryClient(
     <Routes>
       <Route path="/onboarding/terms" element={<OnboardingTermsPage />} />
+      <Route path="/onboarding/nickname" element={<div>닉네임 설정</div>} />
       <Route path="/home" element={<div>홈 화면</div>} />
     </Routes>,
-    { user: ONBOARDED_USER, initialEntries: ["/onboarding/terms"] },
+    { user, initialEntries: ["/onboarding/terms"] },
   );
 }
 
@@ -99,16 +109,27 @@ describe("OnboardingTermsPage", () => {
     });
   });
 
-  it("제출에 성공하면 user.requiresOnboarding이 false로 갱신되고 /home으로 이동", async () => {
+  it("신규 가입자는 동의 성공 시 닉네임 설정 화면으로 이동하고 requiresOnboarding이 false로 갱신", async () => {
     const user = userEvent.setup();
     renderPage();
 
     await user.click(screen.getByRole("button", { name: /전체 동의/ }));
     await user.click(screen.getByRole("button", { name: "동의하고 시작" }));
 
-    await waitFor(() => expect(screen.getByText("홈 화면")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("닉네임 설정")).toBeInTheDocument());
 
     expect(useAuthStore.getState().user?.requiresOnboarding).toBe(false);
+  });
+
+  it("약관 재동의만 필요한 기존 유저는 동의 성공 시 닉네임 단계를 건너뛰고 /home으로 이동", async () => {
+    const user = userEvent.setup();
+    renderPage(RECONSENT_USER);
+
+    await user.click(screen.getByRole("button", { name: /전체 동의/ }));
+    await user.click(screen.getByRole("button", { name: "동의하고 시작" }));
+
+    await waitFor(() => expect(screen.getByText("홈 화면")).toBeInTheDocument());
+    expect(screen.queryByText("닉네임 설정")).not.toBeInTheDocument();
   });
 
   it("제출 실패 시 에러 메시지를 노출하고 /home으로 이동하지 않는다", async () => {

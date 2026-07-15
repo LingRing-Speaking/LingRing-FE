@@ -93,3 +93,6 @@ firestore-debug.log
 # ----- 로컬 파일 -----
 *.local
 .claude/settings.local.json
+
+# ----- 브레인스토밍 목업 (superpowers visual companion) -----
+.superpowers/

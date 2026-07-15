@@ -12,11 +12,11 @@ describe("EmptyExpressions", () => {
     ).toBeInTheDocument();
   });
 
-  it("통화 시작하기 버튼은 disabled 다", () => {
+  it("통화 시작하기 버튼을 노출하지 않는다", () => {
     render(<EmptyExpressions />);
 
     expect(
-      screen.getByRole("button", { name: "통화 시작하기" }),
-    ).toBeDisabled();
+      screen.queryByRole("button", { name: "통화 시작하기" }),
+    ).not.toBeInTheDocument();
   });
 });

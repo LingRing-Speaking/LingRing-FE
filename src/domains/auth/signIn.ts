@@ -1,6 +1,7 @@
 import { ApiError } from "@/lib/http";
 import { postSocialLogin } from "./api/socialLogin";
 import { loginWithApple } from "./apple";
+import { loginWithGoogle } from "./google";
 import { loginWithKakao } from "./kakao";
 import { generateNickname } from "./nickname";
 import type { SocialLoginResponse, SocialProvider } from "./types";
@@ -53,5 +54,13 @@ export async function signInWithApple(): Promise<SocialLoginResponse> {
     provider: "apple",
     idToken: tokens.identityToken,
     authorizationCode: tokens.authorizationCode,
+  });
+}
+
+export async function signInWithGoogle(): Promise<SocialLoginResponse> {
+  const tokens = await loginWithGoogle();
+  return signInWithSocial({
+    provider: "google",
+    idToken: tokens.idToken,
   });
 }

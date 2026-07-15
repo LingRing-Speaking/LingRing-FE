@@ -1,18 +1,27 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { MyRecords } from "./MyRecords";
 
+const renderMyRecords = () =>
+  render(
+    <MemoryRouter>
+      <MyRecords />
+    </MemoryRouter>,
+  );
+
 describe("MyRecords", () => {
-  it("저장한 표현 항목과 '준비 중' 배지를 노출한다", () => {
-    render(<MyRecords />);
+  it("저장한 표현 항목을 노출하고 '준비 중' 배지는 없다", () => {
+    renderMyRecords();
 
     expect(screen.getByText("저장한 표현")).toBeInTheDocument();
-    expect(screen.getByText("준비 중")).toBeInTheDocument();
+    expect(screen.queryByText("준비 중")).not.toBeInTheDocument();
   });
 
-  it("저장한 표현 항목이 출시 전이라 링크가 아니다 (진입 동선 차단)", () => {
-    render(<MyRecords />);
+  it("저장한 표현 항목은 /expressions 로 가는 링크다", () => {
+    renderMyRecords();
 
-    expect(screen.queryByRole("link", { name: /저장한 표현/ })).not.toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /저장한 표현/ });
+    expect(link).toHaveAttribute("href", "/expressions");
   });
 });

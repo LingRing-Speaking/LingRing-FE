@@ -1,7 +1,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { ErrorBoundary } from "@sentry/react";
 import App from "./App";
+import { ErrorFallback } from "./components/ErrorFallback";
+import { startSentryUserSync } from "./domains/auth/sentryUserSync";
 import { initializeOtaUpdater } from "./lib/ota";
+import { captureException, initSentry } from "./lib/sentry";
 import "./index.css";
 
 const rootElement = document.getElementById("root");
@@ -15,10 +19,15 @@ async function startMockWorker() {
 }
 
 async function bootstrap() {
+  // 가장 먼저 — 이후 초기화(OTA 등)의 실패까지 포착 범위에 들어오도록.
+  initSentry();
+  startSentryUserSync();
   try {
     await initializeOtaUpdater();
   } catch (error) {
+    // notifyAppReady 실패 포함 — 미호출 상태가 지속되면 플러그인이 자동 롤백한다.
     console.error("[ota] 초기화 실패 — 앱은 계속 진행합니다", error);
+    captureException(error, { tags: { source: "ota" } });
   }
   try {
     await startMockWorker();
@@ -30,7 +39,9 @@ async function bootstrap() {
 bootstrap().then(() => {
   createRoot(rootElement).render(
     <StrictMode>
-      <App />
+      <ErrorBoundary fallback={({ resetError }) => <ErrorFallback resetError={resetError} />}>
+        <App />
+      </ErrorBoundary>
     </StrictMode>,
   );
 });

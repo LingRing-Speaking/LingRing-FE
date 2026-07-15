@@ -12,9 +12,13 @@ vi.mock("@/lib/native/webrtcPlugin", () => ({
 vi.mock("./recordingUploader", () => ({
   uploadRecording: vi.fn(),
 }));
+vi.mock("@/lib/sentry", () => ({
+  captureException: vi.fn(),
+}));
 
 import { Capacitor } from "@capacitor/core";
 import { NativeWebRTC } from "@/lib/native/webrtcPlugin";
+import { captureException } from "@/lib/sentry";
 import { uploadRecording } from "./recordingUploader";
 import { createCallRecorder } from "./callRecorder";
 
@@ -75,5 +79,36 @@ describe("native recorder", () => {
     vi.mocked(uploadRecording).mockRejectedValue(new Error("network"));
     const recorder = createCallRecorder()!;
     await expect(recorder.finalize(7)).resolves.toBeUndefined();
+  });
+
+  // 녹음은 상대방의 학습 자산 — 조용한 유실은 허용되지 않으므로 실패를 Sentry 로 보고한다.
+  it("stopFileRecording 실패를 Sentry 로 보고한다", async () => {
+    const error = new Error("native stop failed");
+    vi.mocked(NativeWebRTC.stopFileRecording).mockRejectedValue(error);
+    const recorder = createCallRecorder()!;
+
+    await recorder.finalize(7);
+
+    expect(captureException).toHaveBeenCalledWith(error, {
+      tags: { source: "recording-stop" },
+      extra: { callId: 7 },
+    });
+  });
+
+  it("업로드 실패를 Sentry 로 보고한다", async () => {
+    vi.mocked(NativeWebRTC.stopFileRecording).mockResolvedValue({
+      filePath: "/data/rec/call-7.m4a",
+      sizeBytes: 100,
+    });
+    const error = new Error("network");
+    vi.mocked(uploadRecording).mockRejectedValue(error);
+    const recorder = createCallRecorder()!;
+
+    await recorder.finalize(7);
+
+    expect(captureException).toHaveBeenCalledWith(error, {
+      tags: { source: "recording-upload" },
+      extra: { callId: 7 },
+    });
   });
 });

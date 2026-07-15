@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -53,11 +54,13 @@ const completedResult: AnalysisResult = {
   modelIdentifier: "gpt-4o-mini",
   mistakes: [
     {
+      id: 1,
       tag: "GRAMMAR",
       wrong: "I goed to school yesterday.",
       improved: "I went to school yesterday.",
       reason: "go 의 과거형은 went 입니다.",
       koMeaning: "나는 어제 학교에 갔다.",
+      bookmarkId: null,
     },
   ],
   positives: [
@@ -197,6 +200,59 @@ describe("AnalysisResultPage", () => {
         screen.getByText(/별다른 피드백이 없었어요/),
       ).toBeInTheDocument();
     });
+  });
+
+  it("mistake 카드의 별표를 누르면 찜 등록되고 별에 불이 들어온다", async () => {
+    // GET 이 현재 찜 상태를 반영하는 stateful 목: 등록 후 무효화 refetch 에도 유지되도록.
+    let bookmarked = false;
+    server.use(
+      http.get(`${env.apiBaseUrl}/api/v1/analyses/105/status`, () =>
+        HttpResponse.json({
+          data: { status: "COMPLETED" },
+          status: 200,
+          message: "OK",
+        }),
+      ),
+      http.get(`${env.apiBaseUrl}/api/v1/analyses/105`, () =>
+        HttpResponse.json({
+          data: {
+            ...completedResult,
+            mistakes: [
+              {
+                ...completedResult.mistakes[0],
+                id: 1,
+                bookmarkId: bookmarked ? 500 : null,
+              },
+            ],
+          },
+          status: 200,
+          message: "OK",
+        }),
+      ),
+      http.post(`${env.apiBaseUrl}/api/v1/expressions`, () => {
+        bookmarked = true;
+        return HttpResponse.json({
+          data: {
+            id: 500,
+            userId: 1,
+            expression: "I went to school yesterday.",
+            meaning: "나는 어제 학교에 갔다.",
+            createdAt: "2026-07-13T00:00:00.000000",
+          },
+          status: 201,
+          message: "CREATED",
+        });
+      }),
+    );
+
+    renderAt(105);
+
+    const star = await screen.findByRole("button", { name: "찜하기" });
+    await userEvent.click(star);
+
+    expect(
+      await screen.findByRole("button", { name: "찜 해제" }),
+    ).toBeInTheDocument();
   });
 
   it("잘못된 analysisId (숫자 아님) 면 잘못된 접근 안내가 보인다", async () => {

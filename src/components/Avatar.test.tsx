@@ -22,6 +22,22 @@ describe("Avatar", () => {
     render(<Avatar src={null} name="" size="sm" />);
     expect(screen.getByText("?")).toBeInTheDocument();
   });
+
+  it("online 을 지정하지 않으면 상태 점을 그리지 않는다", () => {
+    render(<Avatar src={null} name="지우" size="sm" />);
+    expect(screen.queryByTitle("온라인")).not.toBeInTheDocument();
+    expect(screen.queryByTitle("오프라인")).not.toBeInTheDocument();
+  });
+
+  it("online=true 면 온라인 상태 점을 그린다", () => {
+    render(<Avatar src={null} name="지우" size="sm" online />);
+    expect(screen.getByTitle("온라인")).toBeInTheDocument();
+  });
+
+  it("online=false 면 오프라인 상태 점을 그린다", () => {
+    render(<Avatar src={null} name="지우" size="sm" online={false} />);
+    expect(screen.getByTitle("오프라인")).toBeInTheDocument();
+  });
 });
 
 describe("gradientForName", () => {

@@ -3,9 +3,7 @@ import { useAuthStore } from "@/domains/auth/store";
 import { useMyStats } from "@/domains/user/hooks/useMyStats";
 import { BottomTabBar } from "@/components/BottomTabBar";
 import { PageShell } from "@/components/PageShell";
-// 저장한 표현 기능 미출시 — 진입 동선('내 기록' 섹션) 자체를 노출하지 않음.
-// 출시 시 import 와 마운트 위치 복원.
-// import { MyRecords } from "./MyRecords";
+import { MyRecords } from "./MyRecords";
 import { ProfileCard } from "./ProfileCard";
 import { WeeklyStats } from "./WeeklyStats";
 
@@ -88,7 +86,7 @@ export function MyPagePage() {
                 currentStreakDays={myStats.data.currentStreakDays}
                 totalCallCount={myStats.data.totalCallCount}
               />
-              {/* <MyRecords /> — 저장한 표현 기능 미출시. 출시 시 복원 */}
+              <MyRecords />
             </>
           )}
         </div>
