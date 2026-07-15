@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ApiError } from "@/lib/http";
-import { NicknameRetryExhaustedError, signInWithApple, signInWithKakao } from "./signIn";
+import {
+  NicknameRetryExhaustedError,
+  signInWithApple,
+  signInWithGoogle,
+  signInWithKakao,
+} from "./signIn";
 
 vi.mock("./kakao", () => ({
   loginWithKakao: vi.fn(),
@@ -8,16 +13,21 @@ vi.mock("./kakao", () => ({
 vi.mock("./apple", () => ({
   loginWithApple: vi.fn(),
 }));
+vi.mock("./google", () => ({
+  loginWithGoogle: vi.fn(),
+}));
 vi.mock("./api/socialLogin", () => ({
   postSocialLogin: vi.fn(),
 }));
 
 import { loginWithKakao } from "./kakao";
 import { loginWithApple } from "./apple";
+import { loginWithGoogle } from "./google";
 import { postSocialLogin } from "./api/socialLogin";
 
 const mockKakao = vi.mocked(loginWithKakao);
 const mockApple = vi.mocked(loginWithApple);
+const mockGoogle = vi.mocked(loginWithGoogle);
 const mockApi = vi.mocked(postSocialLogin);
 
 const SUCCESS_RESPONSE = {
@@ -114,6 +124,46 @@ describe("signInWithApple", () => {
     mockApi.mockRejectedValueOnce(new ApiError(401, "invalid identity token"));
 
     await expect(signInWithApple()).rejects.toBeInstanceOf(ApiError);
+    expect(mockApi).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("signInWithGoogle", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockGoogle.mockResolvedValue({ idToken: "google-id-jwt" });
+  });
+
+  it("happy path — provider=google 과 idToken 으로 호출한다 (accessToken 없음)", async () => {
+    mockApi.mockResolvedValueOnce(SUCCESS_RESPONSE);
+
+    const result = await signInWithGoogle();
+
+    expect(result).toEqual(SUCCESS_RESPONSE);
+    expect(mockApi).toHaveBeenCalledTimes(1);
+    const payload = mockApi.mock.calls[0]?.[0];
+    expect(payload).toMatchObject({
+      provider: "google",
+      idToken: "google-id-jwt",
+    });
+    expect(payload?.accessToken).toBeUndefined();
+  });
+
+  it("닉네임 충돌(409)이 반복되면 새 닉네임으로 재시도한다", async () => {
+    mockApi
+      .mockRejectedValueOnce(new ApiError(409, "nickname conflict"))
+      .mockResolvedValueOnce(SUCCESS_RESPONSE);
+
+    const result = await signInWithGoogle();
+
+    expect(result).toEqual(SUCCESS_RESPONSE);
+    expect(mockApi).toHaveBeenCalledTimes(2);
+  });
+
+  it("409가 아닌 에러는 즉시 전파한다", async () => {
+    mockApi.mockRejectedValueOnce(new ApiError(401, "invalid id token"));
+
+    await expect(signInWithGoogle()).rejects.toBeInstanceOf(ApiError);
     expect(mockApi).toHaveBeenCalledTimes(1);
   });
 });
