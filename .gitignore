@@ -96,3 +96,6 @@ firestore-debug.log
 
 # ----- 브레인스토밍 목업 (superpowers visual companion) -----
 .superpowers/
+
+# ----- 앱 아이콘/스플래시 생성 소스 (npm run assets:android 가 매번 재생성) -----
+assets/
