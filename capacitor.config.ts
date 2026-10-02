@@ -31,6 +31,11 @@ const config: CapacitorConfig = {
       // 앱스토어 네이티브 업데이트 시 구 OTA 번들 대신 새 builtin 으로 리셋한다.
       resetWhenUpdate: true,
     },
+    // 포그라운드 수신 시 시스템 배너를 띄우지 않는다. 지금 유일한 알림(8시 접속 유도)은
+    // 앱을 보고 있는 유저에게 의미가 없다. Android 는 원래 포그라운드에서 표시하지 않는다.
+    FirebaseMessaging: {
+      presentationOptions: [],
+    },
   },
 };
 
