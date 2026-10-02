@@ -292,6 +292,24 @@ export const handlers = [
     });
   }),
 
+  // 광고성 알림 수신 동의 변경 (BE#201). 요청 값을 그대로 반영한 user 를 돌려준다.
+  http.patch(apiUrl("/me/notification-settings"), async ({ request }) => {
+    const { marketingPush } = (await request.json()) as { marketingPush: boolean };
+    return HttpResponse.json({
+      data: {
+        user: {
+          id: 1,
+          nickname: "lee-tiger-1234",
+          profileImage: null,
+          marketingPushAgreed: marketingPush,
+          marketingPushUpdatedAt: new Date().toISOString().slice(0, 19),
+        },
+      },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
   http.get(apiUrl("/me/stats"), () => {
     return HttpResponse.json({
       data: {

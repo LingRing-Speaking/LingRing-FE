@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { PageShell } from "@/components/PageShell";
 import { LEGAL_PRIVACY_POLICY_URL, LEGAL_TERMS_URL, SUPPORT_EMAIL } from "@/config/legal";
 import { signOut } from "@/domains/auth/signOut";
+import { MarketingPushSetting } from "@/domains/push/components/MarketingPushSetting";
 import { LogoutConfirmModal } from "./LogoutConfirmModal";
 
 const APP_VERSION = "1.0.0";
@@ -57,6 +58,11 @@ export function SettingsPage() {
 
         <div className="flex-1 overflow-y-auto px-5 pb-8 pt-2">
           <h2 className="mx-1 mb-2.5 mt-5 text-[13px] font-bold tracking-tight text-gray-600">
+            알림
+          </h2>
+          <MarketingPushSetting />
+
+          <h2 className="mx-1 mb-2.5 mt-7 text-[13px] font-bold tracking-tight text-gray-600">
             도움말
           </h2>
           <ul className="overflow-hidden rounded-[18px] bg-white shadow-card" role="list">

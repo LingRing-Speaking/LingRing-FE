@@ -30,12 +30,10 @@ describe("usePushTokenSync", () => {
     mockPushToken.syncPushToken.mockResolvedValue(undefined);
     mockPushToken.handleTokenRefresh.mockResolvedValue(undefined);
     tokenReceivedCallback = undefined;
-    mockAddListener.mockImplementation(
-      (_event: string, cb: (event: { token: string }) => void) => {
-        tokenReceivedCallback = cb;
-        return Promise.resolve({ remove: removeSpy });
-      },
-    );
+    mockAddListener.mockImplementation((_event: string, cb: (event: { token: string }) => void) => {
+      tokenReceivedCallback = cb;
+      return Promise.resolve({ remove: removeSpy });
+    });
   });
 
   afterEach(() => {

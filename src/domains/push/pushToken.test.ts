@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type * as PushTokenModule from "./pushToken";
 
 const { mockCapacitor, mockMessaging, mockApi } = vi.hoisted(() => ({
   mockCapacitor: { isNativePlatform: vi.fn(), getPlatform: vi.fn() },
@@ -15,7 +16,7 @@ vi.mock("@capacitor-firebase/messaging", () => ({ FirebaseMessaging: mockMessagi
 vi.mock("./api/deviceTokenApi", () => mockApi);
 
 // 마지막으로 등록한 토큰을 모듈 상태로 들고 있으므로 테스트마다 새로 import 한다.
-let pushToken: typeof import("./pushToken");
+let pushToken: typeof PushTokenModule;
 
 function givenNative(platform: "ios" | "android" = "ios") {
   mockCapacitor.isNativePlatform.mockReturnValue(true);

@@ -38,13 +38,10 @@ describe("unregisterDeviceToken", () => {
   it("token 을 body 로 POST /me/device-tokens/unregister 에 보낸다", async () => {
     let receivedBody: unknown = null;
     server.use(
-      http.post(
-        "http://localhost:3000/api/v1/me/device-tokens/unregister",
-        async ({ request }) => {
-          receivedBody = await request.json();
-          return HttpResponse.json(NO_CONTENT);
-        },
-      ),
+      http.post("http://localhost:3000/api/v1/me/device-tokens/unregister", async ({ request }) => {
+        receivedBody = await request.json();
+        return HttpResponse.json(NO_CONTENT);
+      }),
     );
 
     await unregisterDeviceToken("fcm-token");

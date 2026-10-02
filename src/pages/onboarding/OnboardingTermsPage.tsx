@@ -7,36 +7,60 @@ import {
   LEGAL_TERMS_VERSION,
 } from "@/config/legal";
 import { useAuthStore } from "@/domains/auth/store";
+import { enablePush } from "@/domains/push/pushToken";
 import { useAcceptOnboarding } from "@/domains/onboarding/hooks/useAcceptOnboarding";
 import type { AgreementItem } from "@/domains/onboarding/api/postAgreement";
 
 interface AgreementOption {
   key: AgreementItem;
   label: string;
+  required: boolean;
   externalUrl?: string;
 }
 
 const AGREEMENTS: AgreementOption[] = [
-  { key: "over14", label: "만 14세 이상입니다" },
-  { key: "terms", label: "이용약관 동의", externalUrl: LEGAL_TERMS_URL },
-  { key: "privacy", label: "개인정보처리방침 동의", externalUrl: LEGAL_PRIVACY_POLICY_URL },
-  { key: "voice_ai", label: "통화 녹음·AI 분석 동의", externalUrl: LEGAL_PRIVACY_POLICY_URL },
+  { key: "over14", label: "만 14세 이상입니다", required: true },
+  { key: "terms", label: "이용약관 동의", required: true, externalUrl: LEGAL_TERMS_URL },
+  {
+    key: "privacy",
+    label: "개인정보처리방침 동의",
+    required: true,
+    externalUrl: LEGAL_PRIVACY_POLICY_URL,
+  },
+  {
+    key: "voice_ai",
+    label: "통화 녹음·AI 분석 동의",
+    required: true,
+    externalUrl: LEGAL_PRIVACY_POLICY_URL,
+  },
+  { key: "marketing_push", label: "광고성 알림 수신 동의", required: false },
 ];
+
+function checkAll(value: boolean): Record<AgreementItem, boolean> {
+  return Object.fromEntries(AGREEMENTS.map(({ key }) => [key, value])) as Record<
+    AgreementItem,
+    boolean
+  >;
+}
 
 const GENERIC_ERROR_MESSAGE = "잠시 후 다시 시도해주세요.";
 
 export function OnboardingTermsPage() {
   const navigate = useNavigate();
   const acceptOnboarding = useAcceptOnboarding();
-  const [checked, setChecked] = useState<Record<AgreementItem, boolean>>({
-    over14: false,
-    terms: false,
-    privacy: false,
-    voice_ai: false,
-  });
+  // agreedItems 는 제출 시점의 전체 동의 상태라, 빠진 선택 항목은 BE 가 철회로 처리한다.
+  // 재동의하는 기존 유저가 모르는 사이 철회되지 않게 현재 수신 동의 상태로 미리 채운다.
+  const [checked, setChecked] = useState<Record<AgreementItem, boolean>>(() => ({
+    ...checkAll(false),
+    marketing_push: Boolean(useAuthStore.getState().user?.marketingPushAgreed),
+  }));
 
   const allChecked = useMemo(
     () => AGREEMENTS.every(({ key }) => checked[key]),
+    [checked],
+  );
+  const requiredChecked = useMemo(
+    () => AGREEMENTS.every(({ key, required }) => !required || checked[key]),
     [checked],
   );
 
@@ -46,11 +70,11 @@ export function OnboardingTermsPage() {
 
   const toggleAll = () => {
     const next = !allChecked;
-    setChecked({ over14: next, terms: next, privacy: next, voice_ai: next });
+    setChecked(checkAll(next));
   };
 
   const handleSubmit = () => {
-    if (!allChecked || acceptOnboarding.isPending) return;
+    if (!requiredChecked || acceptOnboarding.isPending) return;
     // 신규 가입자(requiresOnboarding)만 닉네임 설정 단계로 보낸다.
     // 약관 버전 변경으로 재동의만 하는 기존 유저는 이미 닉네임이 있으므로 곧바로 홈으로.
     // 동의 성공 시 requiresOnboarding이 false로 갱신되므로 mutate 전에 값을 캡처한다.
@@ -58,11 +82,14 @@ export function OnboardingTermsPage() {
     acceptOnboarding.mutate(
       {
         termsVersion: LEGAL_TERMS_VERSION,
-        agreedItems: AGREEMENTS.map(({ key }) => key),
+        agreedItems: AGREEMENTS.filter(({ key }) => checked[key]).map(({ key }) => key),
       },
       {
-        onSuccess: () =>
-          navigate(isNewSignup ? "/onboarding/nickname" : "/home", { replace: true }),
+        onSuccess: () => {
+          // 권한 팝업 응답을 기다리지 않고 다음 화면으로 넘어간다. 거부·실패해도 가입 흐름은 막지 않는다.
+          if (checked.marketing_push) void enablePush().catch(() => {});
+          navigate(isNewSignup ? "/onboarding/nickname" : "/home", { replace: true });
+        },
       },
     );
   };
@@ -84,7 +111,7 @@ export function OnboardingTermsPage() {
 
         <div className="flex-1 overflow-y-auto px-5 pb-[140px] pt-6">
           <p className="mb-5 text-[14px] font-medium leading-relaxed tracking-tight text-gray-600">
-            아래 항목에 모두 동의해야 서비스를 이용할 수 있어요.
+            필수 항목에 동의해야 서비스를 이용할 수 있어요.
           </p>
 
           <button
@@ -100,7 +127,7 @@ export function OnboardingTermsPage() {
           </button>
 
           <ul className="overflow-hidden rounded-[18px] bg-white shadow-card" role="list">
-            {AGREEMENTS.map(({ key, label, externalUrl }, index) => (
+            {AGREEMENTS.map(({ key, label, required, externalUrl }, index) => (
               <li
                 key={key}
                 className={`flex items-center gap-3 px-[18px] py-[14px] ${
@@ -117,7 +144,12 @@ export function OnboardingTermsPage() {
                 >
                   <CheckMark checked={checked[key]} />
                   <span className="text-[15px] font-medium tracking-tight text-gray-900">
-                    <span className="text-coral-500">(필수)</span> {label}
+                    {required ? (
+                      <span className="text-coral-500">(필수)</span>
+                    ) : (
+                      <span className="text-gray-400">(선택)</span>
+                    )}{" "}
+                    {label}
                   </span>
                 </button>
                 {externalUrl && (
@@ -148,7 +180,7 @@ export function OnboardingTermsPage() {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={!allChecked || acceptOnboarding.isPending}
+            disabled={!requiredChecked || acceptOnboarding.isPending}
             className="w-full rounded-[14px] bg-mint-500 py-4 text-[16px] font-bold tracking-tight text-white transition-transform active:scale-[0.99] disabled:bg-gray-200 disabled:text-gray-400"
           >
             {acceptOnboarding.isPending ? "처리 중..." : "동의하고 시작"}
