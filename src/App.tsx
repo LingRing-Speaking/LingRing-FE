@@ -2,6 +2,7 @@ import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { useRecordingRecovery } from "@/domains/call/recording/useRecordingRecovery";
 import { usePresenceHeartbeat } from "@/domains/presence/hooks/usePresenceHeartbeat";
+import { usePushTokenSync } from "@/domains/push/hooks/usePushTokenSync";
 import { IncomingInvitationBanner } from "@/domains/matching/components/IncomingInvitationBanner";
 import { AuthGuard } from "@/domains/auth/AuthGuard";
 import { OnboardingGuard } from "@/domains/onboarding/OnboardingGuard";
@@ -43,6 +44,9 @@ function OnboardedRoutes() {
 export default function App() {
   // 로그인~로그아웃, 포그라운드~백그라운드에 묶인 온라인 하트비트. 앱 전역 1회 마운트.
   usePresenceHeartbeat();
+
+  // 로그인 상태 동안 FCM 토큰을 BE 에 등록해 둔다 (앱 시작·로그인·토큰 갱신 시).
+  usePushTokenSync();
 
   // 이전 통화에서 업로드 못 끝낸 잔여 녹음 파일 재시도. 인증 확립 후·포그라운드 복귀 시.
   useRecordingRecovery();
