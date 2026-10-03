@@ -33,14 +33,26 @@ function renderPage() {
 }
 
 describe("OnboardingReferralPage", () => {
-  it("입력 가능하면 추천인 입력 카드를 보여주고, 건너뛰기를 누르면 /home 으로 간다", async () => {
-    const user = userEvent.setup();
+  it("입력 가능하면 추천인 입력 카드를 보여준다", async () => {
     mockStatus(true);
     renderPage();
 
     expect(await screen.findByRole("dialog", { name: "추천인이 있나요?" })).toBeInTheDocument();
+  });
 
-    await user.click(screen.getByRole("button", { name: "건너뛰기" }));
+  it("건너뛰기를 누르면 마감일까지 설정에서 입력할 수 있다고 안내하고, 확인을 누르면 /home 으로 간다", async () => {
+    const user = userEvent.setup();
+    mockStatus(true);
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "건너뛰기" }));
+
+    expect(screen.getByRole("dialog", { name: "나중에 입력해도 괜찮아요" })).toBeInTheDocument();
+    expect(screen.getByText(/10월 10일까지/)).toBeInTheDocument();
+    expect(screen.getByText(/설정 > 추천인 입력/)).toBeInTheDocument();
+    expect(screen.queryByText("홈 화면")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "확인" }));
     expect(screen.getByText("홈 화면")).toBeInTheDocument();
   });
 
