@@ -1,4 +1,5 @@
 import { useGoogleSignIn } from "@/domains/auth/hooks/useGoogleSignIn";
+import { RejoinConfirmModal } from "./RejoinConfirmModal";
 
 // 구글 브랜드 가이드라인의 라이트 테마 버튼 색 (흰 배경 + 회색 테두리 + 짙은 라벨)
 const GOOGLE_BG = "#FFFFFF";
@@ -6,7 +7,7 @@ const GOOGLE_LABEL = "#1F1F1F";
 const GOOGLE_BORDER = "#DADCE0";
 
 export function GoogleSignInButton() {
-  const { signIn, isLoading, failure } = useGoogleSignIn();
+  const { signIn, isLoading, failure, rejoinPrompt } = useGoogleSignIn();
 
   return (
     <>
@@ -46,6 +47,13 @@ export function GoogleSignInButton() {
         <p role="alert" className="text-center text-[13px] font-medium text-coral-600">
           {failure.message}
         </p>
+      )}
+      {rejoinPrompt && (
+        <RejoinConfirmModal
+          loading={isLoading}
+          onCancel={rejoinPrompt.cancel}
+          onConfirm={rejoinPrompt.confirm}
+        />
       )}
     </>
   );

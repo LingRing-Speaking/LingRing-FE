@@ -1,12 +1,7 @@
-import { useCallback, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { ApiError } from "@/lib/http";
-import { captureException } from "@/lib/sentry";
 import { KakaoIdTokenMissingError, KakaoLoginUnavailableError } from "../kakao";
 import { NicknameRetryExhaustedError, signInWithKakao } from "../signIn";
-import { saveTokens } from "../storage";
-import { useAuthStore } from "../store";
-import { needsAgreement } from "@/domains/onboarding/needsAgreement";
+import { useSocialSignIn, type UseSocialSignInResult } from "./useSocialSignIn";
 
 export type SignInFailure =
   | { kind: "unavailable"; message: string }
@@ -15,11 +10,7 @@ export type SignInFailure =
   | { kind: "api"; status: number; message: string }
   | { kind: "unknown"; message: string };
 
-export interface UseKakaoSignInResult {
-  signIn: () => Promise<void>;
-  isLoading: boolean;
-  failure: SignInFailure | null;
-}
+export type UseKakaoSignInResult = UseSocialSignInResult<SignInFailure>;
 
 const FRIENDLY_MESSAGE = {
   unavailable: "카카오 로그인은 모바일 앱에서만 가능해요.",
@@ -49,40 +40,5 @@ function classify(err: unknown): SignInFailure {
 }
 
 export function useKakaoSignIn(): UseKakaoSignInResult {
-  const setSession = useAuthStore((state) => state.setSession);
-  const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
-  const [failure, setFailure] = useState<SignInFailure | null>(null);
-
-  const signIn = useCallback(async () => {
-    setIsLoading(true);
-    setFailure(null);
-    try {
-      const result = await signInWithKakao();
-      await saveTokens({
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-      });
-      setSession({
-        user: result.user,
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-      });
-      const next = needsAgreement(result.user) ? "/onboarding/terms" : "/home";
-      navigate(next, { replace: true });
-    } catch (err) {
-      const failure = classify(err);
-      // 분류 불가(unknown) = SDK·브릿지의 예상 밖 실패 — 무신호로 두지 않는다.
-      if (failure.kind === "unknown") {
-        captureException(err, {
-          tags: { source: "social-login", provider: "kakao" },
-        });
-      }
-      setFailure(failure);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [navigate, setSession]);
-
-  return { signIn, isLoading, failure };
+  return useSocialSignIn({ provider: "kakao", signIn: signInWithKakao, classify });
 }

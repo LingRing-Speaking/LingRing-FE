@@ -1,10 +1,11 @@
 import { useKakaoSignIn } from "@/domains/auth/hooks/useKakaoSignIn";
+import { RejoinConfirmModal } from "./RejoinConfirmModal";
 
 const KAKAO_BG = "#FEE500";
 const KAKAO_LABEL = "#191600";
 
 export function KakaoSignInButton() {
-  const { signIn, isLoading, failure } = useKakaoSignIn();
+  const { signIn, isLoading, failure, rejoinPrompt } = useKakaoSignIn();
 
   return (
     <>
@@ -25,6 +26,13 @@ export function KakaoSignInButton() {
         <p role="alert" className="text-center text-[13px] font-medium text-coral-600">
           {failure.message}
         </p>
+      )}
+      {rejoinPrompt && (
+        <RejoinConfirmModal
+          loading={isLoading}
+          onCancel={rejoinPrompt.cancel}
+          onConfirm={rejoinPrompt.confirm}
+        />
       )}
     </>
   );
