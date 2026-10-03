@@ -19,6 +19,14 @@
             android:name="com.kakao.sdk.AppKey"
             android:value="@string/kakao_app_key" />
 
+        <!-- 백그라운드 FCM 알림 아이콘. 지정하지 않으면 컬러 런처 아이콘이 흰 덩어리로 뭉개져 보인다. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
+
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"

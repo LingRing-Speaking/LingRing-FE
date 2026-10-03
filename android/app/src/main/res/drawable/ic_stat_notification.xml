@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FCM 알림 상태바 아이콘. Android 는 작은 아이콘의 알파만 써서 흰색으로 칠하므로 단색 실루엣이어야 한다.
+  좌표는 iOS 앱 아이콘(AppIcon-512@2x.png, 1024px)의 두 링을 그대로 옮겼고, 로고 폭이 24dp 중 20dp 를 차지하도록
+  viewport 를 잡았다.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="850"
+    android:viewportHeight="850">
+    <group
+        android:translateX="-87"
+        android:translateY="-87">
+        <path
+            android:pathData="M196,512 a192.5,192.5 0 1,0 385,0 a192.5,192.5 0 1,0 -385,0"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="76" />
+        <path
+            android:pathData="M443,512 a192.5,192.5 0 1,0 385,0 a192.5,192.5 0 1,0 -385,0"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="76" />
+    </group>
+</vector>
