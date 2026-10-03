@@ -1,12 +1,7 @@
-import { useCallback, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { ApiError } from "@/lib/http";
-import { captureException } from "@/lib/sentry";
 import { AppleIdentityTokenMissingError, AppleLoginUnavailableError } from "../apple";
 import { NicknameRetryExhaustedError, signInWithApple } from "../signIn";
-import { saveTokens } from "../storage";
-import { useAuthStore } from "../store";
-import { needsAgreement } from "@/domains/onboarding/needsAgreement";
+import { useSocialSignIn, type UseSocialSignInResult } from "./useSocialSignIn";
 
 export type AppleSignInFailure =
   | { kind: "unavailable"; message: string }
@@ -15,11 +10,7 @@ export type AppleSignInFailure =
   | { kind: "api"; status: number; message: string }
   | { kind: "unknown"; message: string };
 
-export interface UseAppleSignInResult {
-  signIn: () => Promise<void>;
-  isLoading: boolean;
-  failure: AppleSignInFailure | null;
-}
+export type UseAppleSignInResult = UseSocialSignInResult<AppleSignInFailure>;
 
 const FRIENDLY_MESSAGE = {
   unavailable: "Apple 로그인은 iOS 앱에서만 가능해요.",
@@ -52,40 +43,5 @@ function classify(err: unknown): AppleSignInFailure {
 }
 
 export function useAppleSignIn(): UseAppleSignInResult {
-  const setSession = useAuthStore((state) => state.setSession);
-  const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
-  const [failure, setFailure] = useState<AppleSignInFailure | null>(null);
-
-  const signIn = useCallback(async () => {
-    setIsLoading(true);
-    setFailure(null);
-    try {
-      const result = await signInWithApple();
-      await saveTokens({
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-      });
-      setSession({
-        user: result.user,
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-      });
-      const next = needsAgreement(result.user) ? "/onboarding/terms" : "/home";
-      navigate(next, { replace: true });
-    } catch (err) {
-      const failure = classify(err);
-      // 분류 불가(unknown) = SDK·브릿지의 예상 밖 실패 — 무신호로 두지 않는다.
-      if (failure.kind === "unknown") {
-        captureException(err, {
-          tags: { source: "social-login", provider: "apple" },
-        });
-      }
-      setFailure(failure);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [navigate, setSession]);
-
-  return { signIn, isLoading, failure };
+  return useSocialSignIn({ provider: "apple", signIn: signInWithApple, classify });
 }
