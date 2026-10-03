@@ -32,7 +32,7 @@ export function OnboardingNicknamePage() {
     setSubmitError(null);
     try {
       await updateProfile.mutateAsync({ nickname: check.value });
-      navigate("/home", { replace: true });
+      navigate("/onboarding/referral", { replace: true });
     } catch (err) {
       setSubmitError(mapServerError(err));
     }

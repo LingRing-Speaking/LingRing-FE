@@ -49,6 +49,33 @@ describe("httpGet", () => {
     });
   });
 
+  // BE 는 에러 응답 envelope 에 ErrorCode 이름을 `code` 로 싣는다 (같은 status 의 여러 사유를 구분).
+  it("4xx 응답 body 의 code 를 ApiError.code 로 담는다", async () => {
+    server.use(
+      http.get("http://localhost:3000/api/v1/coded", () =>
+        HttpResponse.json(
+          { data: null, status: 404, message: "없음", code: "REFERRER_NOT_FOUND" },
+          { status: 404 },
+        ),
+      ),
+    );
+
+    await expect(httpGet("/coded")).rejects.toMatchObject({
+      status: 404,
+      code: "REFERRER_NOT_FOUND",
+    });
+  });
+
+  it("4xx 응답 body 에 code 가 없으면 ApiError.code 는 null 이다", async () => {
+    server.use(
+      http.get("http://localhost:3000/api/v1/uncoded", () =>
+        HttpResponse.json({ data: null, status: 404, message: "없음" }, { status: 404 }),
+      ),
+    );
+
+    await expect(httpGet("/uncoded")).rejects.toMatchObject({ status: 404, code: null });
+  });
+
   it("네트워크 실패 시 status=0 인 ApiError 를 throw 한다", async () => {
     server.use(http.get("http://localhost:3000/api/v1/boom", () => HttpResponse.error()));
 

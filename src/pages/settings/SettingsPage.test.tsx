@@ -64,6 +64,22 @@ describe("SettingsPage", () => {
     expect(navigateMock).toHaveBeenCalledWith("/settings/withdraw");
   });
 
+  it("추천인 입력이 가능하면 혜택 그룹에 추천인 입력 행을 노출한다", async () => {
+    server.use(
+      http.get("http://localhost:3000/api/v1/me/referral", () =>
+        HttpResponse.json({
+          data: { redeemable: true, redeemableUntil: "2026-10-10T12:00:00" },
+          status: 200,
+          message: "OK",
+        }),
+      ),
+    );
+    renderWithQueryClient(<SettingsPage />);
+
+    expect(await screen.findByRole("heading", { name: "혜택" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "추천인 입력" })).toBeInTheDocument();
+  });
+
   it("뒤로가기 버튼을 누르면 navigate(-1)이 호출된다", async () => {
     const user = userEvent.setup();
     renderWithQueryClient(<SettingsPage />);

@@ -20,7 +20,7 @@ function renderPage() {
   return renderWithQueryClient(
     <Routes>
       <Route path="/onboarding/nickname" element={<OnboardingNicknamePage />} />
-      <Route path="/home" element={<div>홈 화면</div>} />
+      <Route path="/onboarding/referral" element={<div>추천인 입력 단계</div>} />
     </Routes>,
     { user: NEW_USER, initialEntries: ["/onboarding/nickname"] },
   );
@@ -55,7 +55,7 @@ describe("OnboardingNicknamePage", () => {
     expect(screen.getByRole("button", { name: "시작하기" })).toBeDisabled();
   });
 
-  it("유효 닉네임 제출 시 PATCH /me/profile 호출 후 /home 으로 이동", async () => {
+  it("유효 닉네임 제출 시 PATCH /me/profile 호출 후 추천인 입력 단계(/onboarding/referral)로 이동", async () => {
     const user = userEvent.setup();
     let patchedBody: unknown = null;
     server.use(
@@ -73,11 +73,11 @@ describe("OnboardingNicknamePage", () => {
     await user.type(screen.getByLabelText("닉네임"), "링링");
     await user.click(screen.getByRole("button", { name: "시작하기" }));
 
-    await waitFor(() => expect(screen.getByText("홈 화면")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("추천인 입력 단계")).toBeInTheDocument());
     expect(patchedBody).toEqual({ nickname: "링링" });
   });
 
-  it("409 응답 시 중복 안내를 노출하고 /home 으로 이동하지 않는다", async () => {
+  it("409 응답 시 중복 안내를 노출하고 다음 단계로 이동하지 않는다", async () => {
     server.use(
       http.patch(PROFILE_URL, () =>
         HttpResponse.json(
@@ -95,6 +95,6 @@ describe("OnboardingNicknamePage", () => {
     await waitFor(() =>
       expect(screen.getByText("이미 사용 중인 닉네임이에요.")).toBeInTheDocument(),
     );
-    expect(screen.queryByText("홈 화면")).not.toBeInTheDocument();
+    expect(screen.queryByText("추천인 입력 단계")).not.toBeInTheDocument();
   });
 });
