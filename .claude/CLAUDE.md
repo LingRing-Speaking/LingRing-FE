@@ -14,7 +14,7 @@ LingRing-FE는 **LingRing**의 프론트엔드입니다. LingRing은 한국어 �
 - Zustand (클라이언트 상태) · TanStack Query (서버 상태)
 - React Hook Form + Zod · Radix UI (모달/바텀시트/토글)
 - **Capacitor 8** 으로 iOS/Android 래핑 (React Native · Flutter 아님)
-- FCM + `@capacitor/push-notifications`
+- FCM + `@capacitor-firebase/messaging` (iOS 도 FCM 토큰으로 통일. `@capacitor/push-notifications` 와 병용 금지)
 - `@capacitor-community/kakao-login`, `@capacitor-community/apple-sign-in`
 - Sentry
 
@@ -28,14 +28,14 @@ UI는 전체가 웹(HTML/CSS/React). 네이티브는 Capacitor 플러그인을 J
 
 ```tsx
 <button onClick={async () => {
-  await PushNotifications.requestPermissions();  // 내부적으로 Swift/Kotlin 실행
+  await FirebaseMessaging.requestPermissions();  // 내부적으로 Swift/Kotlin 실행
 }}>알림 켜기</button>
 ```
 
 웹(개발)과 네이티브(배포)에서 API가 다르면 분기:
 
 ```ts
-if (Capacitor.isNativePlatform()) await PushNotifications.register();
+if (Capacitor.isNativePlatform()) await FirebaseMessaging.getToken();
 ```
 
 WebRTC (`getUserMedia`, `RTCPeerConnection`)는 WebView에서 그대로 동작 — 별도 플러그인 불필요.

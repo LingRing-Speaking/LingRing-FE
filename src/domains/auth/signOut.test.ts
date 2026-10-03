@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { unregisterPushToken } from "@/domains/push/pushToken";
 import { logout } from "./api/logout";
 import { logoutFromKakao } from "./kakao";
 import { signOut } from "./signOut";
@@ -8,6 +9,7 @@ import { useAuthStore } from "./store";
 vi.mock("./api/logout", () => ({ logout: vi.fn() }));
 vi.mock("./kakao", () => ({ logoutFromKakao: vi.fn() }));
 vi.mock("./storage", () => ({ clearTokens: vi.fn() }));
+vi.mock("@/domains/push/pushToken", () => ({ unregisterPushToken: vi.fn() }));
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -67,6 +69,35 @@ describe("signOut", () => {
 
     await signOut();
 
+    expect(clearTokens).toHaveBeenCalledOnce();
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+  });
+
+  it("푸시 토큰 해제는 인증이 유효한 BE 로그아웃 전에 호출한다", async () => {
+    const calls: string[] = [];
+    vi.mocked(unregisterPushToken).mockImplementation(async () => {
+      calls.push("unregisterPushToken");
+    });
+    vi.mocked(logout).mockImplementation(async () => {
+      calls.push("logout");
+    });
+    vi.mocked(logoutFromKakao).mockResolvedValue(undefined);
+    vi.mocked(clearTokens).mockResolvedValue(undefined);
+
+    await signOut();
+
+    expect(calls).toEqual(["unregisterPushToken", "logout"]);
+  });
+
+  it("푸시 토큰 해제가 실패해도 BE 로그아웃과 로컬 정리는 진행된다", async () => {
+    vi.mocked(unregisterPushToken).mockRejectedValue(new Error("network"));
+    vi.mocked(logout).mockResolvedValue(undefined);
+    vi.mocked(logoutFromKakao).mockResolvedValue(undefined);
+    vi.mocked(clearTokens).mockResolvedValue(undefined);
+
+    await signOut();
+
+    expect(logout).toHaveBeenCalledOnce();
     expect(clearTokens).toHaveBeenCalledOnce();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });

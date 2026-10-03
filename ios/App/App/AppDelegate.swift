@@ -37,6 +37,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
     }
 
+    // @capacitor-firebase/messaging 이 APNs 토큰을 받아 FCM 토큰으로 교환할 수 있게 전달한다.
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+    }
+
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
         // 카카오톡 복귀 URL 도 ApplicationDelegateProxy 가 CAPNotifications.URLOpen 으로 broadcast 하면
         // 카카오 플러그인 load() 에서 등록한 listener 가 받아 처리한다.

@@ -30,6 +30,13 @@ describe("SettingsPage", () => {
     expect(screen.getByText("LingRing 1.0.0")).toBeInTheDocument();
   });
 
+  it("알림 그룹에 광고성 알림 수신 토글을 노출한다", () => {
+    renderWithQueryClient(<SettingsPage />);
+
+    expect(screen.getByRole("heading", { name: "알림" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "광고성 알림 수신" })).toBeInTheDocument();
+  });
+
   it("도움말 그룹에 문의하기·이용약관·개인정보처리방침 링크를 노출한다", () => {
     renderWithQueryClient(<SettingsPage />);
 
