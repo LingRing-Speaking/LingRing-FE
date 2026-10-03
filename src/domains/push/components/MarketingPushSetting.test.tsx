@@ -11,6 +11,12 @@ import { renderWithQueryClient } from "../../../../test/utils/renderWithQueryCli
 import { MarketingPushSetting } from "./MarketingPushSetting";
 
 vi.mock("../pushToken", () => ({ enablePush: vi.fn(), getPushPermission: vi.fn() }));
+// 설정 열기 버튼이 보이는 환경(iOS)으로 고정한다.
+vi.mock("../notificationSettings", () => ({
+  getIosAppSettingsUrl: () => "app-settings:notifications",
+  getNotificationSettingsOpener: () => "ios-link",
+  openAndroidNotificationSettings: vi.fn(),
+}));
 
 const URL = `${env.apiBaseUrl}/api/v1/me/notification-settings`;
 const DEVICE_SETTING_GUIDE = "기기 설정에서 LingRing 알림을 허용해야 받을 수 있어요.";
@@ -102,6 +108,24 @@ describe("MarketingPushSetting", () => {
       expect(await screen.findByText(DEVICE_SETTING_GUIDE)).toBeInTheDocument();
       expect(getSwitch()).toHaveAttribute("aria-checked", "false");
       expect(screen.queryByText(/수신 동의/)).not.toBeInTheDocument();
+    });
+
+    // 한 번 거절하면 OS 가 팝업을 다시 띄우지 않으므로 기기 설정으로 바로 보낸다.
+    it("기기에서 알림이 꺼져 있으면 기기 설정을 여는 버튼을 함께 보여준다", async () => {
+      vi.mocked(getPushPermission).mockResolvedValue("denied");
+      renderSetting(AGREED_USER);
+
+      expect(await screen.findByRole("link", { name: "설정 열기" })).toHaveAttribute(
+        "href",
+        "app-settings:notifications",
+      );
+    });
+
+    it("기기 권한이 있으면 설정 열기 버튼을 보여주지 않는다", async () => {
+      renderSetting(AGREED_USER);
+
+      await waitFor(() => expect(getSwitch()).toHaveAttribute("aria-checked", "true"));
+      expect(screen.queryByRole("link", { name: "설정 열기" })).not.toBeInTheDocument();
     });
   });
 

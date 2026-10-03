@@ -4,6 +4,7 @@ import { useAuthStore } from "@/domains/auth/store";
 import { updateNotificationSettings } from "../api/notificationSettingApi";
 import { enablePush, getPushPermission } from "../pushToken";
 import type { PushPermission } from "../types";
+import { OpenNotificationSettingsButton } from "./OpenNotificationSettingsButton";
 
 const DEVICE_SETTING_GUIDE = "기기 설정에서 LingRing 알림을 허용해야 받을 수 있어요.";
 const GENERIC_ERROR_MESSAGE = "잠시 후 다시 시도해주세요.";
@@ -113,9 +114,12 @@ export function MarketingPushSetting() {
       </div>
 
       {permission === "denied" && (
-        <p className="border-t border-gray-100 px-[18px] py-3 text-[13px] font-medium leading-relaxed tracking-tight text-gray-500">
-          {DEVICE_SETTING_GUIDE}
-        </p>
+        <div className="flex items-center gap-3 border-t border-gray-100 px-[18px] py-3">
+          <p className="flex-1 text-[13px] font-medium leading-relaxed tracking-tight text-gray-500">
+            {DEVICE_SETTING_GUIDE}
+          </p>
+          <OpenNotificationSettingsButton />
+        </div>
       )}
 
       {mutation.isError && (
