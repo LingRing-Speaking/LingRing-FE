@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockIsNative, mockAddListener, mockPushToken } = vi.hoisted(() => ({
@@ -55,6 +55,28 @@ describe("usePushTokenSync", () => {
 
     expect(mockAddListener).toHaveBeenCalledWith("tokenReceived", expect.any(Function));
     expect(mockPushToken.handleTokenRefresh).toHaveBeenCalledWith("refreshed-token");
+  });
+
+  // 기기 설정에서 알림을 허용하고 돌아온 경우, 앱을 다시 켜지 않아도 토큰이 등록돼야 한다.
+  it("앱이 포그라운드로 돌아오면 토큰 등록을 다시 시도한다", () => {
+    setAuthenticated(true);
+    renderHook(() => usePushTokenSync());
+
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(mockPushToken.syncPushToken).toHaveBeenCalledTimes(2);
+  });
+
+  it("언마운트하면 포그라운드 복귀 시 다시 등록하지 않는다", () => {
+    setAuthenticated(true);
+    const { unmount } = renderHook(() => usePushTokenSync());
+    unmount();
+
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    expect(mockPushToken.syncPushToken).toHaveBeenCalledOnce();
   });
 
   it("로그아웃 상태면 등록하지 않고 리스너도 걸지 않는다", () => {

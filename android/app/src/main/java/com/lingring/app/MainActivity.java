@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // 커스텀 플러그인은 super.onCreate (bridge 초기화) 전에 등록해야 한다
         registerPlugin(WebRTCPlugin.class);
+        registerPlugin(AppSettingsPlugin.class);
         super.onCreate(savedInstanceState);
         KakaoSdk.init(this, getString(R.string.kakao_app_key));
     }

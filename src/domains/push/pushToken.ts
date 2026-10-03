@@ -1,7 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { FirebaseMessaging } from "@capacitor-firebase/messaging";
 import { registerDeviceToken, unregisterDeviceToken } from "./api/deviceTokenApi";
-import type { DevicePlatform } from "./types";
+import type { DevicePlatform, PushPermission } from "./types";
 
 // 로그아웃 때 해제할 토큰. 앱 시작 시 syncPushToken 이 다시 채우므로 재시작해도 비지 않는다.
 let registeredToken: string | null = null;
@@ -13,6 +13,7 @@ async function canReceivePush(): Promise<boolean> {
 }
 
 async function registerToken(token: string): Promise<void> {
+  if (token === registeredToken) return;
   // Firebase 콘솔 테스트 발송에 쓸 토큰을 기기 콘솔(Xcode·logcat·Safari 인스펙터)에서 확인할 수 있게 남긴다.
   console.log("[push] FCM token", token);
   await registerDeviceToken({ token, platform: Capacitor.getPlatform() as DevicePlatform });
@@ -32,9 +33,12 @@ export async function handleTokenRefresh(token: string): Promise<void> {
   await registerToken(token);
 }
 
-/** OS 알림 권한을 요청하고, 허용되면 토큰을 등록한다. 허용 여부를 돌려준다. */
+/**
+ * OS 알림 권한을 요청하고, 허용되면 토큰을 등록한다. 허용 여부를 돌려준다.
+ * 웹(개발)에는 OS 권한이 없으므로 허용된 것으로 본다.
+ */
 export async function enablePush(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) return false;
+  if (!Capacitor.isNativePlatform()) return true;
   const { receive } = await FirebaseMessaging.requestPermissions();
   if (receive !== "granted") return false;
   await syncPushToken();
@@ -49,9 +53,9 @@ export async function unregisterPushToken(): Promise<void> {
   await unregisterDeviceToken(token);
 }
 
-/** 사용자가 OS 설정에서 알림을 꺼 둔 상태인지. 설정 화면의 안내 문구용. */
-export async function isPushBlocked(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) return false;
+/** OS 알림 권한 상태. 웹(개발)에는 OS 권한이 없으므로 granted 로 본다. */
+export async function getPushPermission(): Promise<PushPermission> {
+  if (!Capacitor.isNativePlatform()) return "granted";
   const { receive } = await FirebaseMessaging.checkPermissions();
-  return receive === "denied";
+  return receive;
 }
