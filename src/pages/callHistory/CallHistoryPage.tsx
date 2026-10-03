@@ -15,6 +15,7 @@ import {
   AnalysisExhaustedModal,
   AnalysisUnavailableModal,
 } from "./AnalysisQuotaModals";
+import { CallHistoryHeader } from "./CallHistoryHeader";
 import { CallHistoryList } from "./CallHistoryList";
 import { EmptyCallHistory } from "./EmptyCallHistory";
 
@@ -121,7 +122,14 @@ export function CallHistoryPage() {
           </div>
         )}
 
-        {status === "success" && isEmpty && <EmptyCallHistory />}
+        {status === "success" && isEmpty && (
+          <>
+            <div className="px-5 pt-1">
+              <CallHistoryHeader quota={quota.data} />
+            </div>
+            <EmptyCallHistory />
+          </>
+        )}
 
         {status === "success" && !isEmpty && (
           <CallHistoryList

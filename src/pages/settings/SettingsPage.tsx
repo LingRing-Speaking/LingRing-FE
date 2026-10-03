@@ -4,6 +4,7 @@ import { PageShell } from "@/components/PageShell";
 import { LEGAL_PRIVACY_POLICY_URL, LEGAL_TERMS_URL, SUPPORT_EMAIL } from "@/config/legal";
 import { signOut } from "@/domains/auth/signOut";
 import { MarketingPushSetting } from "@/domains/push/components/MarketingPushSetting";
+import { ReferralSetting } from "@/domains/referral/components/ReferralSetting";
 import { LogoutConfirmModal } from "./LogoutConfirmModal";
 
 const APP_VERSION = "1.0.0";
@@ -61,6 +62,8 @@ export function SettingsPage() {
             알림
           </h2>
           <MarketingPushSetting />
+
+          <ReferralSetting />
 
           <h2 className="mx-1 mb-2.5 mt-7 text-[13px] font-bold tracking-tight text-gray-600">
             도움말

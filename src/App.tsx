@@ -24,6 +24,7 @@ import { SettingsPage } from "@/pages/settings/SettingsPage";
 import { WithdrawPage } from "@/pages/withdraw/WithdrawPage";
 import { OnboardingTermsPage } from "@/pages/onboarding/OnboardingTermsPage";
 import { OnboardingNicknamePage } from "@/pages/onboarding/OnboardingNicknamePage";
+import { OnboardingReferralPage } from "@/pages/onboarding/OnboardingReferralPage";
 
 function AuthenticatedRoutes() {
   return (
@@ -62,6 +63,7 @@ export default function App() {
           <Route element={<AuthenticatedRoutes />}>
             <Route path="/onboarding/terms" element={<OnboardingTermsPage />} />
             <Route path="/onboarding/nickname" element={<OnboardingNicknamePage />} />
+            <Route path="/onboarding/referral" element={<OnboardingReferralPage />} />
             <Route element={<OnboardedRoutes />}>
               <Route path="/home" element={<MainPage />} />
               <Route path="/friends" element={<FriendsPage />} />
