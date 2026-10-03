@@ -59,6 +59,17 @@ describe("syncPushToken", () => {
     expect(mockApi.registerDeviceToken).not.toHaveBeenCalled();
   });
 
+  // 포그라운드 복귀마다 다시 부르므로, 이미 등록한 토큰은 BE 에 중복으로 보내지 않는다.
+  it("이번 실행에서 이미 등록한 토큰이면 다시 등록하지 않는다", async () => {
+    givenNative();
+    givenPermission("granted");
+
+    await pushToken.syncPushToken();
+    await pushToken.syncPushToken();
+
+    expect(mockApi.registerDeviceToken).toHaveBeenCalledOnce();
+  });
+
   it("웹(개발)에서는 플러그인을 부르지 않는다", async () => {
     mockCapacitor.isNativePlatform.mockReturnValue(false);
 
@@ -110,10 +121,11 @@ describe("enablePush", () => {
     expect(mockApi.registerDeviceToken).not.toHaveBeenCalled();
   });
 
-  it("웹(개발)에서는 권한을 요청하지 않고 false 를 돌려준다", async () => {
+  // 웹(개발)에는 OS 알림 권한이 없으므로 허용된 것으로 본다 — 개발 중에도 알림 토글을 켤 수 있게.
+  it("웹(개발)에서는 권한을 요청하지 않고 true 를 돌려준다", async () => {
     mockCapacitor.isNativePlatform.mockReturnValue(false);
 
-    await expect(pushToken.enablePush()).resolves.toBe(false);
+    await expect(pushToken.enablePush()).resolves.toBe(true);
     expect(mockMessaging.requestPermissions).not.toHaveBeenCalled();
   });
 });
@@ -147,24 +159,17 @@ describe("unregisterPushToken", () => {
   });
 });
 
-describe("isPushBlocked", () => {
-  it("네이티브에서 알림 권한이 거부돼 있으면 true", async () => {
+describe("getPushPermission", () => {
+  it.each(["granted", "denied", "prompt"] as const)("네이티브에서는 OS 권한 상태(%s)를 그대로 돌려준다", async (receive) => {
     givenNative();
-    givenPermission("denied");
+    givenPermission(receive);
 
-    await expect(pushToken.isPushBlocked()).resolves.toBe(true);
+    await expect(pushToken.getPushPermission()).resolves.toBe(receive);
   });
 
-  it("알림 권한이 허용돼 있으면 false", async () => {
-    givenNative();
-    givenPermission("granted");
-
-    await expect(pushToken.isPushBlocked()).resolves.toBe(false);
-  });
-
-  it("웹(개발)에서는 false", async () => {
+  it("웹(개발)에서는 granted", async () => {
     mockCapacitor.isNativePlatform.mockReturnValue(false);
 
-    await expect(pushToken.isPushBlocked()).resolves.toBe(false);
+    await expect(pushToken.getPushPermission()).resolves.toBe("granted");
   });
 });
