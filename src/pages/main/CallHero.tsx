@@ -18,7 +18,7 @@ export function CallHero() {
             대화를 시작해봐요
           </>
         ) : (
-          "매칭은 매일 저녁 8시~11시에 열려요"
+          "매칭은 매일 저녁 8시~11시에 가능해요"
         )}
       </p>
 
@@ -38,7 +38,7 @@ export function CallHero() {
           aria-label="통화 시작하기"
           disabled={!isMatchingOpen}
           onClick={() => navigate("/matching")}
-          className="relative z-[1] flex h-[160px] w-[160px] cursor-pointer flex-col items-center justify-center gap-2 rounded-full border-0 bg-gradient-to-br from-mint-400 via-mint-500 to-coral-500 text-white shadow-button transition-transform active:scale-95 disabled:cursor-default disabled:bg-none disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none disabled:active:scale-100"
+          className="relative z-[1] flex h-[160px] w-[160px] cursor-pointer flex-col items-center justify-center gap-2 rounded-full border-0 bg-gradient-to-br from-mint-400 via-mint-500 to-coral-500 text-white shadow-button transition-transform active:scale-95 disabled:cursor-default disabled:opacity-40 disabled:active:scale-100"
         >
           <svg
             viewBox="0 0 24 24"

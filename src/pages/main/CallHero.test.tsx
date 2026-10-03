@@ -67,7 +67,7 @@ describe("CallHero — 매칭 시간 외", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("매칭은 매일 저녁 8시~11시에 열려요")).toBeInTheDocument();
+    expect(screen.getByText("매칭은 매일 저녁 8시~11시에 가능해요")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "통화 시작하기" })).toBeDisabled();
   });
 
