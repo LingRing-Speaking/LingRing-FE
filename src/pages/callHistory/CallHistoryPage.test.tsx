@@ -34,6 +34,32 @@ describe("CallHistoryPage", () => {
     expect(await screen.findByText("아직 통화 기록이 없어요")).toBeInTheDocument();
   });
 
+  // 첫 통화 전에도(예: 추천인 입력으로 받은 황금티켓) 잔여 티켓을 확인할 수 있어야 한다.
+  it("빈 응답이어도 제목과 분석 티켓 잔여 배지를 보여준다", async () => {
+    server.use(
+      http.get("http://localhost:3000/api/v1/calls", () =>
+        HttpResponse.json({
+          data: { items: [], hasNext: false },
+          status: 200,
+          message: "OK",
+        }),
+      ),
+      http.get("http://localhost:3000/api/v1/me/analysis-quota", () =>
+        HttpResponse.json({
+          data: { freeTicket: 1, paidTicket: 3, nextResetAt: "2026-10-04T00:00:00" },
+          status: 200,
+          message: "OK",
+        }),
+      ),
+    );
+
+    renderWithQueryClient(<CallHistoryPage />);
+
+    expect(await screen.findByText("아직 통화 기록이 없어요")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "통화 기록" })).toBeInTheDocument();
+    expect(await screen.findByLabelText("분석 티켓 잔여")).toHaveTextContent("황금티켓3장");
+  });
+
   it("파트너 카드 클릭 시 프로필 모달이 열리고 닫기 버튼으로 사라진다", async () => {
     const user = userEvent.setup();
     server.use(
