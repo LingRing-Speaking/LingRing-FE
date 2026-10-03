@@ -38,6 +38,7 @@ describe("CallHero — 매칭 시간(20:00~23:00)", () => {
     expect(
       screen.getByRole("button", { name: "통화 시작하기" }),
     ).toBeInTheDocument();
+    expect(screen.queryByText("지금은 친구와 전화해볼까요?")).not.toBeInTheDocument();
   });
 
   it("통화 시작 버튼을 누르면 /matching 으로 이동한다", async () => {
@@ -68,6 +69,7 @@ describe("CallHero — 매칭 시간 외", () => {
     );
 
     expect(screen.getByText("매칭은 매일 저녁 8시~11시에 가능해요")).toBeInTheDocument();
+    expect(screen.getByText("지금은 친구와 전화해볼까요?")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "통화 시작하기" })).toBeDisabled();
   });
 

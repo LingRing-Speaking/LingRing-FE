@@ -56,6 +56,12 @@ export function CallHero() {
           </span>
         </button>
       </div>
+
+      {!isMatchingOpen && (
+        <p className="m-0 mt-4 text-center text-[15px] font-medium leading-[1.5] text-gray-600">
+          지금은 친구와 전화해볼까요?
+        </p>
+      )}
     </div>
   );
 }
