@@ -11,26 +11,44 @@ const REWARD_TICKET_COUNT = 3;
 interface ReferralRedeemCardProps {
   /** 입력하지 않고 닫는 버튼의 라벨 (온보딩 "건너뛰기", 설정 "닫기"). */
   closeLabel: string;
-  /** 건너뛰기·닫기, 그리고 지급 안내의 확인 모두 이 콜백으로 닫는다. */
+  /** 건너뛰기·닫기, 그리고 지급·건너뛰기 안내의 확인 모두 이 콜백으로 닫는다. */
   onClose: () => void;
+  /**
+   * 입력 마감 시각(`redeemableUntil`). 주면 닫기 버튼을 눌렀을 때 바로 닫지 않고
+   * 마감일까지 설정에서 입력할 수 있다고 먼저 안내한다 (온보딩 건너뛰기용).
+   */
+  skipNoticeUntil?: string;
 }
+
+type CardStep = "form" | "redeemed" | "skipped";
 
 /**
  * 추천인 닉네임 입력 카드. 오버레이·dialog 래퍼는 호출처(온보딩 페이지, 설정 모달)가 감싼다.
  */
-export function ReferralRedeemCard({ closeLabel, onClose }: ReferralRedeemCardProps) {
-  const [isRedeemed, setIsRedeemed] = useState(false);
+export function ReferralRedeemCard({
+  closeLabel,
+  onClose,
+  skipNoticeUntil,
+}: ReferralRedeemCardProps) {
+  const [step, setStep] = useState<CardStep>("form");
+
+  const handleFormClose = () => {
+    if (skipNoticeUntil) setStep("skipped");
+    else onClose();
+  };
 
   return (
     <div className="relative w-full max-w-[320px] rounded-[20px] bg-white p-6 shadow-ctrl">
-      {isRedeemed ? (
-        <RedeemSuccess onConfirm={onClose} />
-      ) : (
+      {step === "form" && (
         <RedeemForm
           closeLabel={closeLabel}
-          onClose={onClose}
-          onRedeemed={() => setIsRedeemed(true)}
+          onClose={handleFormClose}
+          onRedeemed={() => setStep("redeemed")}
         />
+      )}
+      {step === "redeemed" && <RedeemSuccess onConfirm={onClose} />}
+      {step === "skipped" && skipNoticeUntil && (
+        <SkipNotice redeemableUntil={skipNoticeUntil} onConfirm={onClose} />
       )}
     </div>
   );
@@ -40,7 +58,7 @@ function RedeemForm({
   closeLabel,
   onClose,
   onRedeemed,
-}: ReferralRedeemCardProps & { onRedeemed: () => void }) {
+}: Omit<ReferralRedeemCardProps, "skipNoticeUntil"> & { onRedeemed: () => void }) {
   const redeem = useRedeemReferral();
   const [nickname, setNickname] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -135,6 +153,44 @@ function RedeemSuccess({ onConfirm }: { onConfirm: () => void }) {
         추천인에게도 황금티켓 {REWARD_TICKET_COUNT}장을 보냈어요.
         <br />
         통화 분석에 사용해보세요.
+      </p>
+      <button
+        type="button"
+        onClick={onConfirm}
+        autoFocus
+        className="mt-5 w-full rounded-[14px] bg-mint-500 py-3.5 text-[15px] font-bold tracking-tight text-white transition-transform active:scale-[0.98]"
+      >
+        확인
+      </button>
+    </>
+  );
+}
+
+/** "2026-10-11T02:03:00"(KST LocalDateTime) → "10월 11일". 시간대 변환 없이 날짜 부분만 읽는다. */
+function formatMonthDay(localDateTime: string): string {
+  const [, month, day] = localDateTime.split("T")[0].split("-");
+  return `${Number(month)}월 ${Number(day)}일`;
+}
+
+function SkipNotice({
+  redeemableUntil,
+  onConfirm,
+}: {
+  redeemableUntil: string;
+  onConfirm: () => void;
+}) {
+  return (
+    <>
+      <h1
+        id={REFERRAL_REDEEM_TITLE_ID}
+        className="text-center text-[17px] font-bold leading-tight tracking-tight text-gray-900"
+      >
+        나중에 입력해도 괜찮아요
+      </h1>
+      <p className="mt-2 text-center text-[13.5px] font-medium leading-relaxed tracking-tight text-gray-500">
+        {formatMonthDay(redeemableUntil)}까지 설정 &gt; 추천인 입력에서
+        <br />
+        친구 닉네임을 입력하면 황금티켓 {REWARD_TICKET_COUNT}장을 받아요.
       </p>
       <button
         type="button"

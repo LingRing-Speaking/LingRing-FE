@@ -109,4 +109,24 @@ describe("ReferralRedeemCard", () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it("마감일을 주면 닫기 대신 마감일까지 입력할 수 있다고 안내하고, 확인을 누르면 onClose 를 호출한다", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    renderWithQueryClient(
+      <ReferralRedeemCard
+        closeLabel="건너뛰기"
+        onClose={onClose}
+        skipNoticeUntil="2026-01-05T09:30:00"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "건너뛰기" }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText(/1월 5일까지/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "확인" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

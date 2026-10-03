@@ -31,6 +31,7 @@ export function OnboardingReferralPage() {
             <ReferralRedeemCard
               closeLabel="건너뛰기"
               onClose={() => navigate("/home", { replace: true })}
+              skipNoticeUntil={status.data.redeemableUntil}
             />
           </div>
         )}
