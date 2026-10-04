@@ -102,7 +102,7 @@ export function OnboardingTermsPage() {
 
   return (
     <PageShell>
-      <main className="relative flex flex-1 flex-col bg-gray-50">
+      <main className="relative flex flex-1 flex-col overflow-hidden bg-gray-50">
         <header className="flex h-[52px] shrink-0 items-center justify-center bg-white px-2">
           <h1 className="text-[17px] font-bold tracking-tight text-gray-900">
             링링 시작 전에 확인해주세요

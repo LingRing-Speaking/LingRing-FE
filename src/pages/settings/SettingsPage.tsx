@@ -32,7 +32,7 @@ export function SettingsPage() {
 
   return (
     <PageShell>
-      <main className="relative flex flex-1 flex-col bg-gray-50">
+      <main className="relative flex flex-1 flex-col overflow-hidden bg-gray-50">
         <div className="relative flex h-[52px] items-center bg-white px-2">
           <button
             type="button"
