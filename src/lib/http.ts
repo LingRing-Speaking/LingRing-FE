@@ -15,6 +15,8 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    // BE ErrorCode 이름 (예: REFERRER_NOT_FOUND). 같은 status 안의 여러 사유를 구분할 때 쓴다.
+    public code: string | null = null,
   ) {
     super(message);
     this.name = "ApiError";
@@ -128,7 +130,11 @@ async function request<T>(
       typeof body === "object" && body !== null && "message" in body
         ? String((body as { message: unknown }).message)
         : "Unknown error";
-    throw new ApiError(res.status, message);
+    const code =
+      typeof body === "object" && body !== null && "code" in body && typeof body.code === "string"
+        ? body.code
+        : null;
+    throw new ApiError(res.status, message, code);
   }
 
   // 방어용 fallback: 정상적으로 BE 는 에러를 실제 HTTP status 로 응답하지만,

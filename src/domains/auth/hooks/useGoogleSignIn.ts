@@ -1,12 +1,7 @@
-import { useCallback, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { ApiError } from "@/lib/http";
-import { captureException } from "@/lib/sentry";
 import { GoogleIdTokenMissingError, GoogleLoginUnavailableError } from "../google";
 import { NicknameRetryExhaustedError, signInWithGoogle } from "../signIn";
-import { saveTokens } from "../storage";
-import { useAuthStore } from "../store";
-import { needsAgreement } from "@/domains/onboarding/needsAgreement";
+import { useSocialSignIn, type UseSocialSignInResult } from "./useSocialSignIn";
 
 export type GoogleSignInFailure =
   | { kind: "unavailable"; message: string }
@@ -15,11 +10,7 @@ export type GoogleSignInFailure =
   | { kind: "api"; status: number; message: string }
   | { kind: "unknown"; message: string };
 
-export interface UseGoogleSignInResult {
-  signIn: () => Promise<void>;
-  isLoading: boolean;
-  failure: GoogleSignInFailure | null;
-}
+export type UseGoogleSignInResult = UseSocialSignInResult<GoogleSignInFailure>;
 
 const FRIENDLY_MESSAGE = {
   unavailable: "구글 로그인은 모바일 앱에서만 가능해요.",
@@ -49,41 +40,5 @@ function classify(err: unknown): GoogleSignInFailure {
 }
 
 export function useGoogleSignIn(): UseGoogleSignInResult {
-  const setSession = useAuthStore((state) => state.setSession);
-  const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
-  const [failure, setFailure] = useState<GoogleSignInFailure | null>(null);
-
-  const signIn = useCallback(async () => {
-    setIsLoading(true);
-    setFailure(null);
-    try {
-      const result = await signInWithGoogle();
-      await saveTokens({
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-      });
-      setSession({
-        user: result.user,
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-      });
-      const next = needsAgreement(result.user) ? "/onboarding/terms" : "/home";
-      navigate(next, { replace: true });
-    } catch (err) {
-      const failure = classify(err);
-      // 분류 불가(unknown) = SDK·브릿지의 예상 밖 실패 — 무신호로 두지 않는다.
-      // #218 Android QA 의 SocialLogin scopes 에러가 정확히 이 분기로 삼켜졌다.
-      if (failure.kind === "unknown") {
-        captureException(err, {
-          tags: { source: "social-login", provider: "google" },
-        });
-      }
-      setFailure(failure);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [navigate, setSession]);
-
-  return { signIn, isLoading, failure };
+  return useSocialSignIn({ provider: "google", signIn: signInWithGoogle, classify });
 }

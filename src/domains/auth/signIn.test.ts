@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ApiError } from "@/lib/http";
 import {
   NicknameRetryExhaustedError,
+  RejoinConfirmationRequiredError,
+  confirmRejoin,
   signInWithApple,
   signInWithGoogle,
   signInWithKakao,
@@ -165,5 +167,53 @@ describe("signInWithGoogle", () => {
 
     await expect(signInWithGoogle()).rejects.toBeInstanceOf(ApiError);
     expect(mockApi).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("재가입 확인 (REJOIN_CONFIRMATION_REQUIRED)", () => {
+  const REJOIN_ERROR = new ApiError(
+    409,
+    "최근 탈퇴한 계정입니다. 재가입 여부를 확인해주세요.",
+    "REJOIN_CONFIRMATION_REQUIRED",
+  );
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockGoogle.mockResolvedValue({ idToken: "google-id-jwt" });
+  });
+
+  it("재가입 확인이 필요하면 닉네임 재시도 없이 RejoinConfirmationRequiredError를 던진다", async () => {
+    mockApi.mockRejectedValue(REJOIN_ERROR);
+
+    await expect(signInWithGoogle()).rejects.toBeInstanceOf(RejoinConfirmationRequiredError);
+    expect(mockApi).toHaveBeenCalledTimes(1);
+  });
+
+  it("confirmRejoin 은 소셜 로그인을 다시 띄우지 않고 같은 토큰에 rejoinConfirmed=true 를 붙여 재요청한다", async () => {
+    mockApi.mockRejectedValueOnce(REJOIN_ERROR).mockResolvedValueOnce(SUCCESS_RESPONSE);
+
+    const error = await signInWithGoogle().catch((err: unknown) => err);
+    if (!(error instanceof RejoinConfirmationRequiredError)) throw error;
+    const result = await confirmRejoin(error.pendingSignIn);
+
+    expect(result).toEqual(SUCCESS_RESPONSE);
+    expect(mockGoogle).toHaveBeenCalledTimes(1);
+    expect(mockApi.mock.calls[1]?.[0]).toMatchObject({
+      provider: "google",
+      idToken: "google-id-jwt",
+      rejoinConfirmed: true,
+    });
+  });
+
+  it("재가입 재요청 중 닉네임 충돌(code=NICKNAME_CONFLICT)이면 새 닉네임으로 재시도한다", async () => {
+    mockApi
+      .mockRejectedValueOnce(new ApiError(409, "이미 사용 중인 닉네임입니다.", "NICKNAME_CONFLICT"))
+      .mockResolvedValueOnce(SUCCESS_RESPONSE);
+
+    const result = await confirmRejoin({ provider: "google", idToken: "google-id-jwt" });
+
+    expect(result).toEqual(SUCCESS_RESPONSE);
+    expect(mockApi).toHaveBeenCalledTimes(2);
+    expect(mockApi.mock.calls[1]?.[0]).toMatchObject({ rejoinConfirmed: true });
   });
 });

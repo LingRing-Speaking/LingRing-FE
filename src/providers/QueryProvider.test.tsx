@@ -1,7 +1,13 @@
-import { renderHook, waitFor } from "@testing-library/react";
-import { CancelledError, MutationObserver, useQuery } from "@tanstack/react-query";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import {
+  CancelledError,
+  MutationObserver,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useAuthStore } from "@/domains/auth/store";
 import { ApiError } from "@/lib/http";
 import { captureException } from "@/lib/sentry";
 import { server } from "@/mocks/server";
@@ -149,5 +155,55 @@ describe("createQueryClient — 전역 onError Sentry 안전망", () => {
     await runFailingQuery(new CancelledError() as unknown as Error);
 
     expect(mockCapture).not.toHaveBeenCalled();
+  });
+});
+
+describe("QueryProvider — 세션 전환 시 캐시 비우기", () => {
+  const CACHED_KEY = ["referral"];
+  const userA = { id: 1, nickname: "링링A", profileImage: null };
+  const userB = { id: 2, nickname: "링링B", profileImage: null };
+
+  function loginAs(user: typeof userA) {
+    useAuthStore.getState().setSession({ user, accessToken: "access", refreshToken: "refresh" });
+  }
+
+  function renderClientWithCache() {
+    const { result } = renderHook(() => useQueryClient(), {
+      wrapper: ({ children }) => <QueryProvider>{children}</QueryProvider>,
+    });
+    result.current.setQueryData(CACHED_KEY, { redeemable: false });
+    return result.current;
+  }
+
+  beforeEach(() => {
+    useAuthStore.getState().clearSession();
+    loginAs(userA);
+  });
+
+  it("세션이 끝나면(로그아웃·탈퇴·만료) 이전 계정의 캐시를 비운다", () => {
+    const client = renderClientWithCache();
+
+    act(() => useAuthStore.getState().clearSession());
+
+    expect(client.getQueryData(CACHED_KEY)).toBeUndefined();
+  });
+
+  it("다른 계정으로 바뀌면 캐시를 비운다", () => {
+    const client = renderClientWithCache();
+
+    act(() => loginAs(userB));
+
+    expect(client.getQueryData(CACHED_KEY)).toBeUndefined();
+  });
+
+  it("같은 계정의 정보·토큰 갱신에는 캐시를 유지한다", () => {
+    const client = renderClientWithCache();
+
+    act(() => {
+      useAuthStore.getState().updateUser({ ...userA, nickname: "새닉네임" });
+      useAuthStore.getState().updateTokens({ accessToken: "a2", refreshToken: "r2" });
+    });
+
+    expect(client.getQueryData(CACHED_KEY)).toEqual({ redeemable: false });
   });
 });

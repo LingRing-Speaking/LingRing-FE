@@ -1,4 +1,5 @@
 import { goOffline } from "@/domains/presence/api/presenceApi";
+import { unregisterPushToken } from "@/domains/push/pushToken";
 import { logout as logoutOnServer } from "./api/logout";
 import { logoutFromKakao } from "./kakao";
 import { clearTokens } from "./storage";
@@ -9,6 +10,12 @@ export async function signOut(): Promise<void> {
   // 토큰이 유효할 때(세션 정리 전) 먼저 오프라인을 알린다 — 즉시 오프라인 반영.
   // 실패해도 무시: 최대 10초 뒤 TTL 로 어차피 오프라인 처리된다.
   void goOffline().catch(() => {});
+  // 해제 API도 인증이 필요해 BE 로그아웃 전에 부른다. 실패해도 로그아웃은 진행한다.
+  try {
+    await unregisterPushToken();
+  } catch {
+    // 해제 실패는 무시 — 다른 계정이 이 기기로 로그인하면 BE upsert 가 소유자를 옮긴다
+  }
   try {
     await logoutOnServer();
   } catch {

@@ -12,6 +12,8 @@ interface PostSocialLoginInput {
    * 탈퇴 시 `/auth/revoke` 호출에 사용한다 (LingRing-BE #77).
    */
   authorizationCode?: string;
+  /** 1년 내 탈퇴 이력이 있는 계정의 재가입 의사. 미전송 시 BE 는 false 로 본다 (LingRing-BE #205). */
+  rejoinConfirmed?: boolean;
 }
 
 export function postSocialLogin(input: PostSocialLoginInput): Promise<SocialLoginResponse> {

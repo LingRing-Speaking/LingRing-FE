@@ -1,13 +1,16 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Route, Routes } from "react-router-dom";
 import { server } from "@/mocks/server";
 import { env } from "@/config/env";
 import { useAuthStore } from "@/domains/auth/store";
+import { enablePush } from "@/domains/push/pushToken";
 import { renderWithQueryClient } from "../../../test/utils/renderWithQueryClient";
 import { OnboardingTermsPage } from "./OnboardingTermsPage";
+
+vi.mock("@/domains/push/pushToken", () => ({ enablePush: vi.fn() }));
 
 const NEW_SIGNUP_USER = {
   id: 1,
@@ -25,7 +28,19 @@ const RECONSENT_USER = {
   agreedTermsVersion: "2000-01-01",
 };
 
-function renderPage(user: typeof NEW_SIGNUP_USER | typeof RECONSENT_USER = NEW_SIGNUP_USER) {
+// 이전 약관 버전에서 광고성 알림 수신에 동의했던 기존 유저.
+const RECONSENT_PUSH_AGREED_USER = {
+  ...RECONSENT_USER,
+  marketingPushAgreed: true,
+  marketingPushUpdatedAt: "2026-10-02T20:00:00",
+};
+
+function renderPage(
+  user:
+    | typeof NEW_SIGNUP_USER
+    | typeof RECONSENT_USER
+    | typeof RECONSENT_PUSH_AGREED_USER = NEW_SIGNUP_USER,
+) {
   return renderWithQueryClient(
     <Routes>
       <Route path="/onboarding/terms" element={<OnboardingTermsPage />} />
@@ -36,7 +51,92 @@ function renderPage(user: typeof NEW_SIGNUP_USER | typeof RECONSENT_USER = NEW_S
   );
 }
 
+function captureAgreementBody(): { current: unknown } {
+  const captured: { current: unknown } = { current: null };
+  server.use(
+    http.post(`${env.apiBaseUrl}/api/v1/me/agreements`, async ({ request }) => {
+      captured.current = await request.json();
+      return HttpResponse.json({
+        data: { user: { ...NEW_SIGNUP_USER, requiresOnboarding: false } },
+        status: 200,
+        message: "OK",
+      });
+    }),
+  );
+  return captured;
+}
+
+async function checkRequiredItems(user: ReturnType<typeof userEvent.setup>) {
+  for (const name of [
+    "만 14세 이상입니다",
+    "이용약관 동의",
+    "개인정보처리방침 동의",
+    "통화 녹음·AI 분석 동의",
+  ]) {
+    await user.click(screen.getByRole("checkbox", { name }));
+  }
+}
+
 describe("OnboardingTermsPage", () => {
+  beforeEach(() => {
+    vi.mocked(enablePush).mockReset().mockResolvedValue(true);
+  });
+
+  it("선택 항목(광고성 알림 수신)은 체크하지 않아도 시작할 수 있고, 요청에서 빠지며 알림 권한도 묻지 않는다", async () => {
+    const body = captureAgreementBody();
+    const user = userEvent.setup();
+    renderPage();
+
+    await checkRequiredItems(user);
+    expect(screen.getByRole("checkbox", { name: "광고성 알림 수신 동의" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    await user.click(screen.getByRole("button", { name: "동의하고 시작" }));
+
+    await waitFor(() => expect(screen.getByText("닉네임 설정")).toBeInTheDocument());
+    expect(body.current).toMatchObject({
+      agreedItems: ["over14", "terms", "privacy", "voice_ai"],
+    });
+    expect(enablePush).not.toHaveBeenCalled();
+  });
+
+  it("선택 항목을 체크하면 marketing_push 를 함께 보내고, 동의 성공 후 알림 권한을 요청한다", async () => {
+    const body = captureAgreementBody();
+    const user = userEvent.setup();
+    renderPage();
+
+    await checkRequiredItems(user);
+    await user.click(screen.getByRole("checkbox", { name: "광고성 알림 수신 동의" }));
+    await user.click(screen.getByRole("button", { name: "동의하고 시작" }));
+
+    await waitFor(() => expect(enablePush).toHaveBeenCalledOnce());
+    expect(body.current).toMatchObject({
+      agreedItems: ["over14", "terms", "privacy", "voice_ai", "marketing_push"],
+    });
+  });
+
+  it("전체 동의는 선택 항목까지 체크한다", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: /전체 동의/ }));
+
+    expect(screen.getByRole("checkbox", { name: "광고성 알림 수신 동의" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
+
+  it("이미 알림 수신에 동의한 기존 유저는 재동의 화면에서 선택 항목이 체크된 채로 시작한다", () => {
+    renderPage(RECONSENT_PUSH_AGREED_USER);
+
+    expect(screen.getByRole("checkbox", { name: "광고성 알림 수신 동의" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
+
   it("4개 동의 항목이 모두 미체크 상태로 노출되고 시작 버튼은 비활성화", () => {
     renderPage();
 

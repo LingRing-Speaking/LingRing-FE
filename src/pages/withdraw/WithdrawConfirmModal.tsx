@@ -48,7 +48,7 @@ export function WithdrawConfirmModal({
           정말 탈퇴할까요?
         </h3>
         <p className="mt-2 text-center text-[13px] font-medium leading-relaxed tracking-tight text-gray-600">
-          탈퇴하면 모든 데이터가 즉시 삭제되고
+          탈퇴하면 계정 데이터가 즉시 삭제되고
           <br />
           복구할 수 없어요.
         </p>

@@ -11,7 +11,13 @@ vi.mock("../google", () => {
 });
 vi.mock("../signIn", () => {
   class NicknameRetryExhaustedError extends Error {}
-  return { NicknameRetryExhaustedError, signInWithGoogle: vi.fn() };
+  class RejoinConfirmationRequiredError extends Error {}
+  return {
+    NicknameRetryExhaustedError,
+    RejoinConfirmationRequiredError,
+    confirmRejoin: vi.fn(),
+    signInWithGoogle: vi.fn(),
+  };
 });
 vi.mock("../storage", () => ({ saveTokens: vi.fn() }));
 vi.mock("../store", () => ({

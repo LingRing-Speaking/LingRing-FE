@@ -292,6 +292,24 @@ export const handlers = [
     });
   }),
 
+  // 광고성 알림 수신 동의 변경 (BE#201). 요청 값을 그대로 반영한 user 를 돌려준다.
+  http.patch(apiUrl("/me/notification-settings"), async ({ request }) => {
+    const { marketingPush } = (await request.json()) as { marketingPush: boolean };
+    return HttpResponse.json({
+      data: {
+        user: {
+          id: 1,
+          nickname: "lee-tiger-1234",
+          profileImage: null,
+          marketingPushAgreed: marketingPush,
+          marketingPushUpdatedAt: new Date().toISOString().slice(0, 19),
+        },
+      },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
   http.get(apiUrl("/me/stats"), () => {
     return HttpResponse.json({
       data: {
@@ -306,6 +324,19 @@ export const handlers = [
       status: 200,
       message: "OK",
     });
+  }),
+
+  http.get(apiUrl("/me/referral"), () => {
+    return HttpResponse.json({
+      // redeemableUntil 은 오프셋 없는 LocalDateTime(가입 시각 + 7일, KST 해석).
+      data: { redeemable: true, redeemableUntil: "2026-07-08T12:00:00" },
+      status: 200,
+      message: "OK",
+    });
+  }),
+
+  http.post(apiUrl("/me/referral/redeem"), () => {
+    return HttpResponse.json({ data: { paidTicket: 3 }, status: 200, message: "OK" });
   }),
 
   http.get(apiUrl("/me/analysis-quota"), () => {

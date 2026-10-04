@@ -1,11 +1,12 @@
 import { isAppleSignInSupported } from "@/domains/auth/apple";
 import { useAppleSignIn } from "@/domains/auth/hooks/useAppleSignIn";
+import { RejoinConfirmModal } from "./RejoinConfirmModal";
 
 const APPLE_BG = "#000000";
 const APPLE_LABEL = "#FFFFFF";
 
 export function AppleSignInButton() {
-  const { signIn, isLoading, failure } = useAppleSignIn();
+  const { signIn, isLoading, failure, rejoinPrompt } = useAppleSignIn();
 
   // Android·웹에서는 애플 로그인을 제공하지 않으므로 버튼 자체를 렌더하지 않는다.
   if (!isAppleSignInSupported()) return null;
@@ -29,6 +30,13 @@ export function AppleSignInButton() {
         <p role="alert" className="text-center text-[13px] font-medium text-coral-600">
           {failure.message}
         </p>
+      )}
+      {rejoinPrompt && (
+        <RejoinConfirmModal
+          loading={isLoading}
+          onCancel={rejoinPrompt.cancel}
+          onConfirm={rejoinPrompt.confirm}
+        />
       )}
     </>
   );

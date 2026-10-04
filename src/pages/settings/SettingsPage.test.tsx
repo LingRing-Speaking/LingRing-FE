@@ -30,6 +30,13 @@ describe("SettingsPage", () => {
     expect(screen.getByText("LingRing 1.0.0")).toBeInTheDocument();
   });
 
+  it("알림 그룹에 알림 받기 토글을 노출한다", () => {
+    renderWithQueryClient(<SettingsPage />);
+
+    expect(screen.getByRole("heading", { name: "알림" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "알림 받기" })).toBeInTheDocument();
+  });
+
   it("도움말 그룹에 문의하기·이용약관·개인정보처리방침 링크를 노출한다", () => {
     renderWithQueryClient(<SettingsPage />);
 
@@ -55,6 +62,22 @@ describe("SettingsPage", () => {
     await user.click(screen.getByRole("button", { name: "탈퇴하기" }));
 
     expect(navigateMock).toHaveBeenCalledWith("/settings/withdraw");
+  });
+
+  it("추천인 입력이 가능하면 혜택 그룹에 추천인 입력 행을 노출한다", async () => {
+    server.use(
+      http.get("http://localhost:3000/api/v1/me/referral", () =>
+        HttpResponse.json({
+          data: { redeemable: true, redeemableUntil: "2026-10-10T12:00:00" },
+          status: 200,
+          message: "OK",
+        }),
+      ),
+    );
+    renderWithQueryClient(<SettingsPage />);
+
+    expect(await screen.findByRole("heading", { name: "혜택" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "추천인 입력" })).toBeInTheDocument();
   });
 
   it("뒤로가기 버튼을 누르면 navigate(-1)이 호출된다", async () => {
