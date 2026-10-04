@@ -10,7 +10,7 @@ iOS `Privacy Manifest`(`ios/App/App/PrivacyInfo.xcprivacy`)와 실제 클라이�
 
 | 데이터 | 출처(코드) | 비고 |
 |---|---|---|
-| 사용자 식별자 | 카카오/애플 소셜 로그인 → BE 계정 발급 | 닉네임은 **서버 랜덤 발급**. 애플 email/name 은 **BE 미전송** (수집 안 함) |
+| 사용자 식별자 | 카카오/애플/구글 소셜 로그인 → BE 계정 발급 | 닉네임은 **서버 랜덤 발급**. 애플 email/name 은 **BE 미전송** (수집 안 함) |
 | 프로필 사진 | 프로필 이미지 업로드 (상한 30MB) | **선택** 입력 |
 | 통화 음성 녹음 | 통화 녹음 → 분석 요청 시 업로드 (#158~#161) | **선택** (통화+분석 사용 시에만) |
 | 앱 사용 활동 | 통화 기록·학습 통계·분석 결과 | 앱 기능 제공용 |
@@ -41,7 +41,7 @@ iOS `Privacy Manifest`(`ios/App/App/PrivacyInfo.xcprivacy`)와 실제 클라이�
 | 질문 | 답변 | 근거 |
 |---|---|---|
 | 전송 중 데이터 암호화 | **예** | 모든 API HTTPS (`api.lingring.site`) |
-| 사용자가 데이터 삭제 요청 가능 | **예 (앱 내 제공)** | 계정 탈퇴 = 즉시 hard-delete (`src/domains/auth/api/withdraw.ts`) |
+| 사용자가 데이터 삭제 요청 가능 | **예 (앱 내 제공)** | 계정 탈퇴 = 즉시 hard-delete (`src/domains/auth/api/withdraw.ts`). 예외로 부정이용 방지용 소셜 로그인 식별자 해시·탈퇴 일시만 1년 보관 (BE#203). Play 계정 삭제 안내에도 보관 항목·기간 명시 |
 | 데이터 수집이 선택적 | 일부 | 프로필 사진·통화 녹음은 선택 |
 
 ## 4. iOS Privacy Manifest ↔ Play 매핑(정합성)
