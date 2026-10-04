@@ -46,7 +46,7 @@ export function UserExpressionsPage() {
 
   return (
     <PageShell>
-      <main className="relative flex flex-1 flex-col bg-gray-50">
+      <main className="relative flex flex-1 flex-col overflow-hidden bg-gray-50">
         <div className="relative z-[2] flex h-12 items-center bg-gray-50 px-3">
           <Link
             to="/mypage"

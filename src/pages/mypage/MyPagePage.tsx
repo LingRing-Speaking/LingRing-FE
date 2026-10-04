@@ -24,7 +24,7 @@ export function MyPagePage() {
 
   return (
     <PageShell>
-      <main className="relative flex flex-1 flex-col bg-gray-50">
+      <main className="relative flex flex-1 flex-col overflow-hidden bg-gray-50">
         <div className="scroll-area scrollbar-none flex-1 overflow-y-auto px-5 pb-[92px] pt-3.5">
           <div className="my-2.5 mb-5 flex items-center justify-between">
             <h1 className="m-0 text-[22px] font-extrabold leading-tight tracking-tight">
